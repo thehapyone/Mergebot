@@ -1,31 +1,17 @@
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
-import yaml
+from crewai import Agent, Task
+from crewai.project import agent, task
 
+from mergebot.crews.commons import BotBaseCrew
 
-@CrewBase
-class ImpactEvaluator:
+class ImpactEvaluator(BotBaseCrew):
     """ImpactEvaluator crew"""
-
-    agents_config = "config/agents.yaml"
-    tasks_config = "config/tasks.yaml"
 
     @agent
     def impact_evaluator(self) -> Agent:
-        return Agent(config=self.agents_config["impact_evaluator"], verbose=True)
+        return Agent(config=self.agents_config["impact_evaluator"], llm=self.llm_model, verbose=True)
 
     @task
     def evaluator_task(self) -> Task:
         return Task(
             config=self.tasks_config["evaluator_task"],
-        )
-
-    @crew
-    def crew(self) -> Crew:
-        """Creates the ImpactEvaluator crew"""
-        return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
-            process=Process.sequential,
-            verbose=True,
         )

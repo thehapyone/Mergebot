@@ -1,18 +1,16 @@
 from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
-import yaml
+from crewai.project import agent, crew, task
 
-@CrewBase
-class MRProcessor():
+from mergebot.crews.commons import BotBaseCrew
+
+class MRProcessor(BotBaseCrew):
     """MRProcessor crew"""
-
-    agents_config = "config/agents.yaml"
-    tasks_config = "config/tasks.yaml"
 
     @agent
     def mr_input_handler(self) -> Agent:
         return Agent(
             config=self.agents_config['mr_input_handler'],
+            llm=self.llm_model,
             verbose=True
         )
 
@@ -20,6 +18,7 @@ class MRProcessor():
     def mr_retriever(self) -> Agent:
         return Agent(
             config=self.agents_config['mr_retriever'],
+            llm=self.llm_model,
             verbose=True
         )
 
@@ -27,6 +26,7 @@ class MRProcessor():
     def pipeline_retriever(self) -> Agent:
         return Agent(
             config=self.agents_config['pipeline_retriever'],
+            llm=self.llm_model,
             verbose=True
         )
 
@@ -40,14 +40,4 @@ class MRProcessor():
     def mr_retriever_task(self) -> Task:
         return Task(
             config=self.tasks_config['mr_retriever_task'],
-        )
-
-    @crew
-    def crew(self) -> Crew:
-        """Creates the MRProcessor crew"""
-        return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
-            process=Process.sequential,
-            verbose=True,
         )

@@ -1,33 +1,22 @@
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
-import yaml
+from crewai import Agent, Task
+from crewai.project import agent, task
 
-@CrewBase
-class ComplexityAnalysis():
+from mergebot.crews.commons import BotBaseCrew
+
+
+class ComplexityAnalysis(BotBaseCrew):
     """ComplexityAnalysis crew"""
-
-    agents_config = "config/agents.yaml"
-    tasks_config = "config/tasks.yaml"
 
     @agent
     def complexity_analyzer(self) -> Agent:
         return Agent(
-            config=self.agents_config['complexity_analyzer'],
-            verbose=True
+            config=self.agents_config["complexity_analyzer"],
+            llm=self.llm_model,
+            verbose=True,
         )
 
     @task
     def complexity_analyze_task(self) -> Task:
         return Task(
-            config=self.tasks_config['complexity_analyze_task'],
-        )
-
-    @crew
-    def crew(self) -> Crew:
-        """Creates the ComplexityAnalysis crew"""
-        return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
-            process=Process.sequential,
-            verbose=True,
+            config=self.tasks_config["complexity_analyze_task"],
         )

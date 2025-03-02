@@ -1,0 +1,23 @@
+# config.yaml
+
+llm:
+  model: "gpt-4"
+
+repository:
+  type: "gitlab"
+
+  gitlab:
+    api_endpoint: "https://gitlab.example.com/api/v4"
+    private_token: "your-gitlab-private-token"
+
+project:
+  id: "project-id-or-path"
+  name: "Your Project Name"
+
+crews:
+  CodeAnalysis:
+    llm:
+      model: "gpt-4-32k"
+  RiskAnalysis:
+    llm:
+      model: "gpt-3.5-turbo"

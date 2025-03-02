@@ -1,17 +1,16 @@
 from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
+from crewai.project import agent, crew, task
+from mergebot.crews.commons import BotBaseCrew
 
 
-@CrewBase
-class RiskAnalysis:
+class RiskAnalysis(BotBaseCrew):
     """RiskAnalysis crew"""
-
-    agents_config = "config/agents.yaml"
-    tasks_config = "config/tasks.yaml"
 
     @agent
     def risk_analysis(self) -> Agent:
-        return Agent(config=self.agents_config["risk_analysis"], verbose=True)
+        return Agent(
+            config=self.agents_config["risk_analysis"], llm=self.llm_model, verbose=True
+        )
 
     @task
     def risk_analysis_task(self) -> Task:

@@ -1,16 +1,17 @@
 from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
+from crewai.project import agent, crew, task
 
-@CrewBase
-class CodeAnalysis:
+from mergebot.crews.commons import BotBaseCrew
+from mergebot.validator.config import load_config
+
+
+class CodeAnalysis(BotBaseCrew):
     """CodeAnalysis crew"""
-
-    agents_config = "config/agents.yaml"
-    tasks_config = "config/tasks.yaml"
-
     @agent
     def code_analyzer(self) -> Agent:
-        return Agent(config=self.agents_config["code_analyzer"], verbose=True)
+        return Agent(
+            config=self.agents_config["code_analyzer"], llm=self.llm_model, verbose=True
+        )
 
     @task
     def analysis_task(self) -> Task:
@@ -24,6 +25,7 @@ class CodeAnalysis:
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
+            planning=True,
             process=Process.sequential,
             verbose=True,
         )
