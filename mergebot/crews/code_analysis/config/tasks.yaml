@@ -1,0 +1,16 @@
+analysis_task:
+  description: >
+    Analyze the code changes in the MR. 
+    Evaluate the significance, potential risks, and impact on the codebase.
+    Consider all programming languages and project types.
+    Provide insights into how the changes might affect the project's stability and maintainability.
+    **Merge Request Details**:
+    {mr_details}
+  agent: code_analyzer
+  expected_output: >
+    - An impact score between 0 and 10, reflecting the significance and potential risk of the code changes.
+    - A detailed analysis explaining the reasoning behind the score, including:
+      - Identification of critical components or modules affected.
+      - Assessment of code complexity introduced or modified.
+      - Potential risks or issues that may arise from the changes.
+      - Recommendations for mitigating identified risks or improving the code.

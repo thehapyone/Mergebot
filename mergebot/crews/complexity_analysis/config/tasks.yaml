@@ -1,0 +1,20 @@
+complexity_analyze_task:
+  description: >
+    Analyze the changes made in the MR to evaluate their complexity. Use language-agnostic methods, considering aspects such as:
+
+    - **Lines of Code Changed**: Total additions and deletions.
+    - **Structural Modifications**: Changes to the architecture or design patterns.
+    - **Introduction of Complex Algorithms**: Incorporation of advanced algorithms or data structures.
+    - **Dependencies Affected**: Impact on external libraries, modules, or services.
+    - **Refactoring Efforts**: Simplification or complication of existing code.
+    
+    **Merge Request Details**:
+    {mr_details}
+  agent: complexity_analyzer
+  expected_output: >
+    - A **complexity impact score** between 0 and 10, where higher scores indicate greater complexity and potential risk.
+    - A detailed analysis explaining the reasoning behind the score, including:
+      - Summary of key changes contributing to the complexity.
+      - Identification of any complex algorithms or patterns introduced.
+      - Assessment of potential challenges in testing, integration, or maintenance.
+      - Recommendations for simplifying complex areas, if applicable.
