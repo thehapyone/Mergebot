@@ -1,12 +1,14 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import agent, crew, task
+from crewai.project import CrewBase, crew
 
 from mergebot.crews.commons import BotBaseCrew
-from mergebot.validator.config import load_config
 
 
+@CrewBase
 class CodeAnalysis(BotBaseCrew):
     """CodeAnalysis crew"""
+
     @agent
     def code_analyzer(self) -> Agent:
         return Agent(

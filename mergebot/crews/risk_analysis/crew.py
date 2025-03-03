@@ -1,8 +1,9 @@
 from crewai import Agent, Crew, Process, Task
-from crewai.project import agent, crew, task
+from crewai.project import CrewBase, agent, crew, task
 from mergebot.crews.commons import BotBaseCrew
 
 
+@CrewBase
 class RiskAnalysis(BotBaseCrew):
     """RiskAnalysis crew"""
 

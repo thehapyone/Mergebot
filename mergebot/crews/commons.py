@@ -1,10 +1,16 @@
+import re
 from crewai import Crew, Process
-from crewai.project import CrewBase, crew
+from crewai.project import crew
 
 from mergebot.validator.config import load_config
 
 
-@CrewBase
+def extract_class_name(class_string: str) -> str:
+    # Regular expression to find anything inside parentheses
+    match = re.search(r"\((.*?)\)", class_string)
+    return match.group(1) if match else class_string
+
+
 class BotBaseCrew:
     """A base configuration for common crew definition"""
 
@@ -14,8 +20,10 @@ class BotBaseCrew:
     # Load the configuration once
     config = load_config()
 
-    # Get the LLM model for this crew
-    llm_model = config.get_llm_model_for_crew(__name__)
+    def __init__(self):
+        # Get the LLM model for this crew
+        crew_name = extract_class_name(self.__class__.__name__)
+        self.llm_model = self.config.get_llm_model_for_crew(crew_name)
 
     @crew
     def crew(self) -> Crew:

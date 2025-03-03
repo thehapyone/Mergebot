@@ -1,8 +1,9 @@
 from crewai import Agent, Task
-from crewai.project import agent, task
+from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
 
+@CrewBase
 
 class ComplexityAnalysis(BotBaseCrew):
     """ComplexityAnalysis crew"""
