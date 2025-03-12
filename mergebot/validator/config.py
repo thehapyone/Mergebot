@@ -65,7 +65,7 @@ class Config(BaseModel):
 # Function to load and validate the configuration
 @lru_cache
 def load_config() -> Config:
-    config_path = os.getenv("CONFIG_PATH", "config.yaml")  # Adjust as necessary
+    config_path = os.getenv("CONFIG_PATH", "config.yaml")
     try:
         with open(config_path, "r") as f:
             config_dict = yaml.safe_load(f)

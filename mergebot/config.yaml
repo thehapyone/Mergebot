@@ -1,7 +1,7 @@
 # config.yaml
 
 llm:
-  model: "gpt-45"
+  model: "azure/gpt-4o-mini"
 
 repository:
   type: "gitlab"
@@ -15,9 +15,9 @@ project:
   name: "Your Project Name"
 
 crews:
-  CodeAnalysis:
+  CodeAnalysisxxx:
     llm:
-      model: "gpt-4-32k"
-  RiskAnalysis:
+      model: "groq/llama-3.1-8b-instant"
+  RiskAnalysisxxx:
     llm:
       model: "gpt-3.5-turbo"

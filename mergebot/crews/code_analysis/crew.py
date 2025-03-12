@@ -27,7 +27,9 @@ class CodeAnalysis(BotBaseCrew):
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
-            planning=True,
+            memory=False,
+            cache=False,
+            planning=False,
             process=Process.sequential,
             verbose=True,
         )

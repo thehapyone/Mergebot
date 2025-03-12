@@ -12,4 +12,4 @@ mr_retriever_task:
   agent: mr_retriever
   expected_output: >
     Obtain complete MR details, including metadata (e.g., title, author, status) and diffs.
-    Ensure the full MR changes/diffs are included
+    Ensure the full MR changes/diffs are included. Ensure the MR information is complete and accurate. No hallucination or examples are allowed.

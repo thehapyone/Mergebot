@@ -1,6 +1,6 @@
 from typing import Any, Type
 
-from crewai_tools import BaseTool
+from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from mergebot.tools.gitlab.prompts import (
     GET_MERGE_REQUEST_PROMPT,

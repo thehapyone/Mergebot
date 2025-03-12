@@ -2,12 +2,12 @@ evaluator_task:
   description: |
     Aggregate the assessments from all agents. Apply weights to each score to compute an overall impact score on a scale from 0 to 10. Based on the overall impact score and predefined thresholds, determine whether the MR should be auto-approved and merged without human approval. Provide a comprehensive impact assessment report compiling all assessments, along with a clear recommendation.
 
-    **Merge Request ID**: {input}
+    **Merge Request ID**: {mr_id}
 
     **Agent Assessments**:
     - **Code Analysis Agent**: {code_analysis_assessment}
     - **Complexity Assessment Agent**: {complexity_assessment}
-    - **Test Coverage Agent**: {test_coverage}
+    - **Test Coverage Agent**: {test_analysis}
     - **Risk Assessment Agent**: {risk_assessment}
 
   agent: impact_evaluator
