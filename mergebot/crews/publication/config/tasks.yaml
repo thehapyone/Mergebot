@@ -1,5 +1,5 @@
-tasks:
-  - description: |
+publication_task:
+  description: |
       Receive the impact assessment report and the recommendation from the Impact Evaluator Crew.
 
       **Tasks**:
@@ -10,13 +10,14 @@ tasks:
       - **MR ID**: {mr_id}
       - **Impact Assessment Report**:
       {impact_assessment_report}
-    agent: Publication Agent
-    expected_output: |
-      - The impact assessment report is posted on the MR as a comment, properly formatted in Markdown.
-      - The comment is visible to all MR participants and stakeholders.
-      - Confirmation that the posting was successful, or an error message if it failed.
+  agent: publicator
+  expected_output: |
+    - The impact assessment report is posted on the MR as a comment, properly formatted in Markdown.
+    - The comment is visible to all MR participants and stakeholders.
+    - Confirmation that the posting was successful, or an error message if it failed.
 
-  - description: |
+execution_task:
+  description: |
       Based on the recommendation from the Impact Evaluator Crew, execute the following:
 
       **If the recommendation is to "Auto-approve and merge"**:
@@ -31,13 +32,13 @@ tasks:
       - **MR ID**: {mr_id}
       - **Impact Assessment Report**:
       {impact_assessment_report}
-    agent: Execution Agent
-    expected_output: |
-      - **If auto-approved and merged**:
-        - The MR is approved.
-        - The MR is merged into the target branch.
-        - A confirmation comment is posted on the MR indicating successful approval and merge.
-        - Logs confirm that the actions were successful, or error messages detail any failures.
-      - **If not auto-approved**:
-        - The MR remains open for manual review.
-        - A comment is posted on the MR indicating that the MR requires further review due to its impact assessment.
+  agent: executor
+  expected_output: |
+    - **If auto-approved and merged**:
+      - The MR is approved.
+      - The MR is merged into the target branch.
+      - A confirmation comment is posted on the MR indicating successful approval and merge.
+      - Logs confirm that the actions were successful, or error messages detail any failures.
+    - **If not auto-approved**:
+      - The MR remains open for manual review.
+      - A comment is posted on the MR indicating that the MR requires further review due to its impact assessment.

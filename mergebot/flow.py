@@ -2,6 +2,7 @@ from crewai.flow.flow import Flow, listen, start, and_
 from crewai import Crew
 from pydantic import BaseModel
 import re
+import logging
 from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
@@ -11,6 +12,9 @@ from mergebot.crews import (
     MRProcessor,
     Publication,
 )
+
+
+logging.basicConfig(level=logging.INFO)
 
 # Sample Input
 bot_input = "MR https://gitlab.its.getingecloud.net/dts/lestrade/aide-recorder/-/merge_requests/53"
@@ -58,7 +62,7 @@ class MergeBotFlow(Flow[MergeBotState]):
 
     @start()
     def begin(self):
-        print("Commencing and starting the MergeBot")
+        logging.info("Commencing and starting the MergeBot")
 
     @listen(begin)
     def mr_retriever(self):
@@ -114,8 +118,8 @@ class MergeBotFlow(Flow[MergeBotState]):
                 "risk_assessment": self.state.risk_assessment,
             }
         ).raw
-        print("\nFinal Impact Assessment Report:")
-        print(self.state.impact_assessment)
+        logging.info("\nFinal Impact Assessment Report:")
+        logging.info(self.state.impact_assessment)
 
     @listen(impact_evaluator)
     def mr_decision(self):
@@ -127,12 +131,12 @@ class MergeBotFlow(Flow[MergeBotState]):
             }
         ).raw
 
-        print("\nFinal Response:")
-        print(result)
+        logging.info("\nFinal Response:")
+        logging.info(result)
 
     @listen(mr_decision)
     def finish(self):
-        print("MergeBot Processing Completed")
+        logging.info("MergeBot Processing Completed")
 
 
 mergebot = MergeBotFlow()

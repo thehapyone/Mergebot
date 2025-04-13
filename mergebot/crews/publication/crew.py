@@ -10,18 +10,18 @@ class Publication(BotBaseCrew):
     """Publication Crew to handle MR publication tasks."""
 
     @agent
-    def publication_agent(self) -> Agent:
+    def publicator(self) -> Agent:
         return Agent(
-            config=self.agents_config["publication_agent"],
+            config=self.agents_config["publicator"],
             llm=self.llm_model,
             tools=[GitlabMergeCommentTool()],
             verbose=True,
         )
 
     @agent
-    def execution_agent(self) -> Agent:
+    def executor(self) -> Agent:
         return Agent(
-            config=self.agents_config["execution_agent"],
+            config=self.agents_config["executor"],
             llm=self.llm_model,
             tools=[GitlabMergeApprovalTool(), GitlabMergeCommentTool()],
             verbose=True,
@@ -37,15 +37,4 @@ class Publication(BotBaseCrew):
     def execution_task(self) -> Task:
         return Task(
             config=self.tasks_config["execution_task"],
-        )
-
-    @crew
-    def crew(self) -> Crew:
-        return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
-            memory=True,
-            planning=False,
-            process=Process.sequential,
-            verbose=True,
         )
