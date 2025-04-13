@@ -9,6 +9,7 @@ from mergebot.crews import (
     TestAnalysis,
     ImpactEvaluator,
     MRProcessor,
+    Publication,
 )
 
 # Sample Input
@@ -37,6 +38,7 @@ class MergeBotCrews(BaseModel):
     risk_analysis: Crew = RiskAnalysis().crew()
     impact_evaluator: Crew = ImpactEvaluator().crew()
     mr_processor: Crew = MRProcessor().crew()
+    publicator: Crew = Publication().crew()
 
 
 class MergeBotState(BaseModel):
@@ -118,9 +120,9 @@ class MergeBotFlow(Flow[MergeBotState]):
     @listen(impact_evaluator)
     def mr_decision(self):
         """Runs the MR decision crew on the impact assessment report"""
-        result = self.crews.mr_processor.kickoff(
+        result = self.crews.publicator.kickoff(
             inputs={
-                "input": self.state.mr_id,
+                "mr_id": self.state.mr_id,
                 "impact_assessment_report": self.state.impact_assessment,
             }
         ).raw
