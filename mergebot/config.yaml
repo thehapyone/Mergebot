@@ -7,12 +7,10 @@ repository:
   type: "gitlab"
 
   gitlab:
-    api_endpoint: "https://gitlab.example.com/api/v4"
+    url: "https://gitlab.example.com/api/v4"
     private_token: "your-gitlab-private-token"
-
-project:
-  id: "project-id-or-path"
-  name: "Your Project Name"
+    project: "dts/lestrade/aide-recorder"
+    base_branch: "main"
 
 crews:
   CodeAnalysis:

@@ -14,10 +14,10 @@ class LLMConfig(BaseModel):
 
 
 class GitLabConfig(BaseModel):
-    api_endpoint: str = Field(..., description="GitLab API endpoint URL")
-    private_token: str = Field(
-        ..., description="Private token for GitLab API authentication"
-    )
+    url: str = Field(..., description="GitLab API endpoint URL")
+    private_token: str = Field(..., description="Private token for GitLab API authentication")
+    project: str = Field(..., description="GitLab project path (e.g., 'username/project_name')")
+    base_branch: str = Field(default="main", description="Base branch for the project")
 
 
 class RepositoryConfig(BaseModel):
@@ -30,17 +30,11 @@ class RepositoryConfig(BaseModel):
         repo_type = values.get("type")
         gitlab_config = values.get("gitlab")
 
-        if repo_type == "gitlab":
-            if not gitlab_config:
-                raise ValueError(
-                    "GitLab configuration must be provided when repository type is 'gitlab'"
-                )
+        if repo_type == "gitlab" and not gitlab_config:
+            raise ValueError(
+                "GitLab configuration must be provided when repository type is 'gitlab'"
+            )
         return values
-
-
-class ProjectConfig(BaseModel):
-    id: str = Field(..., description="Identifier for the project")
-    name: str = Field(..., description="Name of the project")
 
 
 class CrewConfig(BaseModel):
@@ -50,7 +44,6 @@ class CrewConfig(BaseModel):
 class Config(BaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")
     repository: RepositoryConfig = Field(..., description="Repository configuration")
-    project: ProjectConfig = Field(..., description="Project configuration")
     crews: Dict[str, CrewConfig] = Field(..., description="Crew configurations")
 
     def get_llm_model_for_crew(self, crew_name: str) -> str:

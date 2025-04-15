@@ -11,12 +11,35 @@ from mergebot.tools.gitlab.prompts import (
     POST_MERGE_REQUEST_COMMENT_PROMPT,
     APPROVE_MERGE_REQUEST_PROMPT,
 )
+from mergebot.validator.config import load_config
 
 
 class GitLabAPIWrapperExtra(GitLabAPIWrapper):
     """
     Extended GitLab API Wrapper with additional merge request functionalities.
     """
+
+    def __init__(self, **kwargs):
+        # Load configuration from config.yaml
+        config = load_config()
+        gitlab_config = config.repository.gitlab
+
+        # Prepare parameters for the base GitLabAPIWrapper class
+        gitlab_url = gitlab_config.url
+        gitlab_repository = gitlab_config.project
+        gitlab_personal_access_token = gitlab_config.private_token
+        gitlab_branch = gitlab_config.base_branch
+        gitlab_base_branch = gitlab_config.base_branch
+
+        # Pass parameters to the parent GitLabAPIWrapper class
+        super().__init__(
+            gitlab_url=gitlab_url,
+            gitlab_repository=gitlab_repository,
+            gitlab_personal_access_token=gitlab_personal_access_token,
+            gitlab_branch=gitlab_branch,
+            gitlab_base_branch=gitlab_base_branch,
+            **kwargs
+        )
 
     def strip_ansi_codes(self, text: str) -> str:
         """
@@ -525,7 +548,6 @@ class GitlabPipelineTool(BaseTool):
     description: str = FETCH_PIPELINE_DETAILS_PROMPT
     args_schema: Type[BaseModel] = GitlabPipelineToolSchema
     api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
     )
 
     def _run(
@@ -557,7 +579,6 @@ class GitlabMergeRequestTool(BaseTool):
     description: str = GET_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = GitlabMRToolSchema
     api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
     )
 
     def _run(
@@ -592,7 +613,6 @@ class GitlabMergeCommentTool(BaseTool):
     description: str = POST_MERGE_REQUEST_COMMENT_PROMPT
     args_schema: Type[BaseModel] = GitlabCommentToolSchema
     api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
     )
 
     def _run(
@@ -619,7 +639,6 @@ class GitlabMergeApprovalTool(BaseTool):
     description: str = APPROVE_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = GitlabMRToolSchema
     api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
     )
 
     def _run(
@@ -639,7 +658,6 @@ class GitlabMergeApprovalTool(BaseTool):
 if __name__ == "__main__":
     mr_iid = 51  # Replace with your MR IID
     api_wrapper = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
     )
     # print(api_wrapper.approve_merge_request(mr_iid))
     # Replace '12345' with your actual pipeline ID
