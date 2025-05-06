@@ -10,6 +10,7 @@ from mergebot.tools.gitlab.prompts import (
 )
 from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
 
+
 class GitlabPipelineToolSchema(BaseModel):
     """Input for GitlabPipelineTool."""
 
@@ -23,9 +24,7 @@ class GitlabPipelineTool(BaseTool):
     name: str = "Get Pipeline Details"
     description: str = FETCH_PIPELINE_DETAILS_PROMPT
     args_schema: Type[BaseModel] = GitlabPipelineToolSchema
-    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
-    )
+    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra()
 
     def _run(
         self,
@@ -55,9 +54,7 @@ class GitlabMergeRequestTool(BaseTool):
     name: str = "Get Merge Requests"
     description: str = GET_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = GitlabMRToolSchema
-    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
-    )
+    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra()
 
     def _run(
         self,
@@ -90,9 +87,7 @@ class GitlabMergeCommentTool(BaseTool):
     name: str = "Post Merge Requests Comment"
     description: str = POST_MERGE_REQUEST_COMMENT_PROMPT
     args_schema: Type[BaseModel] = GitlabCommentToolSchema
-    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
-    )
+    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra()
 
     def _run(
         self,
@@ -117,9 +112,7 @@ class GitlabMergeApprovalTool(BaseTool):
     name: str = "Approve Merge Requests Comment"
     description: str = APPROVE_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = GitlabMRToolSchema
-    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra(
-        gitlab_branch="main",
-    )
+    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra()
 
     def _run(
         self,
@@ -132,4 +125,3 @@ class GitlabMergeApprovalTool(BaseTool):
             return "The Merge Request IID are required."
 
         return self.api_wrapper.run(self.mode, body={"mr_iid": int(mr_iid)})
-
