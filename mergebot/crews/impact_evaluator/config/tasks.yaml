@@ -15,28 +15,60 @@ evaluator_task:
     - **Overall Impact Score**: A number between 0 and 10.
     - **Recommendation**: A clear statement indicating whether the MR should be auto-approved and merged without human intervention.
     - **Justification**: A detailed and formatted impact assessment report justifying the score and recommendation, ready for posting as a comment on the Merge Request.
+    - If manual review is recommended, the report should be enriched with a summary table, triage information, reviewer guidance, and actionable findings for each agent, highlighting concrete issues and suggested remediations.
 
     **Output Format (Markdown ready for MR comment):**
 
-    ~~~
+    ~~~markdown
     # Impact Assessment Report for MR #<mr_id>
 
     **Overall Impact Score**: X.X
 
     **Recommendation**: [Auto-approve and merge] or [Requires human review]
 
+    ---
+
+    ## Summary Table
+
+    | Assessment Agent             | Score | Key Findings                        | Suggested Actions             |
+    |------------------------------|-------|-------------------------------------|-------------------------------|
+    | Code Analysis Agent          | X.X   | [Key finding for code analysis]      | [Suggested action]            |
+    | Complexity Assessment Agent  | X.X   | [Key finding for complexity]         | [Suggested action]            |
+    | Test Coverage Agent          | X.X   | [Key finding for test coverage]      | [Suggested action]            |
+    | Risk Assessment Agent        | X.X   | [Key finding for risk assessment]    | [Suggested action]            |
+
+    ---
+
     ## Detailed Assessments
 
     - **Code Analysis Agent**: Score X.X
-      - **Findings**: [Summary of code analysis]
+      - **Findings**: [Summary of code analysis, including specific concerns with examples or pointers to code if applicable.]
+      - **Suggested Action**: [Concrete, actionable next step or remediation.]
+
     - **Complexity Assessment Agent**: Score X.X
-      - **Findings**: [Summary of complexity assessment]
+      - **Findings**: [Summary of complexity assessment, highlighting complex or problematic areas.]
+      - **Suggested Action**: [How to reduce complexity or clarify logic.]
+
     - **Test Coverage Agent**: Score X.X
-      - **Findings**: [Summary of test coverage]
+      - **Findings**: [Areas with insufficient coverage or untested code paths.]
+      - **Suggested Action**: [Specific tests to add or coverage to improve.]
+
     - **Risk Assessment Agent**: Score X.X
-      - **Findings**: [Summary of risk assessment]
+      - **Findings**: [Potential risks, security/privacy concerns, or policy/process gaps.]
+      - **Suggested Action**: [Steps to mitigate identified risks.]
+
+    ---
+
+    ## Triage & Next Steps
+    **Triage Level**: [Low/Medium/High]  
+
+    - [Guidance for reviewers: what to focus on, open questions, or points that require judgment.]
+    - [Any blockers that must be addressed before approval.]
+
+    ---
 
     ## Justification
 
-    [Detailed reasoning behind the overall score and recommendation.]
+    [Detailed reasoning behind the overall score and recommendation, referring to the above findings and the context of the change.]
+
     ~~~
