@@ -23,15 +23,7 @@ class MRProcessor(BotBaseCrew):
             config=self.agents_config["mr_retriever"],
             llm=self.llm_model,
             tools=[GitlabMergeRequestTool(result_as_answer=True)],
-            verbose=True,
-        )
-
-    @agent
-    def pipeline_retriever(self) -> Agent:
-        return Agent(
-            config=self.agents_config["pipeline_retriever"],
-            llm=self.llm_model,
-            verbose=True,
+            verbose=False,
         )
 
     @task
@@ -42,6 +34,4 @@ class MRProcessor(BotBaseCrew):
 
     @task
     def mr_retriever_task(self) -> Task:
-        return Task(
-            config=self.tasks_config["mr_retriever_task"],
-        )
+        return Task(config=self.tasks_config["mr_retriever_task"])

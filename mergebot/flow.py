@@ -17,7 +17,7 @@ from mergebot.crews import (
 logging.basicConfig(level=logging.INFO)
 
 # Sample Input
-bot_input = "MR https://gitlab.its.getingecloud.net/dts/anthea/iac-layers/aks-iac/-/merge_requests/130"
+bot_input = "MR https://gitlab.its.getingecloud.net/dts/lestrade/aide-recorder/-/merge_requests/71"
 
 
 def extract_merge_request_id(output_string):

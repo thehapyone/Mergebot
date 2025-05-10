@@ -30,7 +30,7 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             gitlab_personal_access_token=gitlab_personal_access_token,
             gitlab_branch=gitlab_branch,
             gitlab_base_branch=gitlab_base_branch,
-            **kwargs
+            **kwargs,
         )
 
     def strip_ansi_codes(self, text: str) -> str:
@@ -125,57 +125,49 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
 
     def get_pipeline_details(self, pipeline_id: int) -> str:
         """
-        Retrieves detailed information of a pipeline, including job logs and summaries.
+        Retrieves detailed, human-readable pipeline info, including job logs and summaries.
 
         Parameters:
             pipeline_id (int): The ID of the pipeline.
 
         Returns:
-            str: A formatted string containing pipeline details and job summaries.
+            str: Formatted multi-line string with pipeline and job summary.
         """
         try:
-            # Fetch the pipeline
             pipeline = self.gitlab_repo_instance.pipelines.get(pipeline_id)
 
             # Basic pipeline info
-            pipeline_info = {
-                "id": pipeline.id,
-                "status": pipeline.status,
-                "ref": pipeline.ref,
-                "sha": pipeline.sha,
-                "created_at": pipeline.created_at,
-                "updated_at": pipeline.updated_at,
-                "web_url": pipeline.web_url,
-            }
+            info = [
+                "## Pipeline Information:",
+                f"  Pipeline ID : {pipeline.id}",
+                f"  Status      : {pipeline.status}",
+                f"  Ref         : {pipeline.ref}",
+                f"  Created At  : {pipeline.created_at}",
+                f"  Updated At  : {pipeline.updated_at}",
+                f"  Web URL     : {pipeline.web_url}",
+            ]
 
-            # Fetch jobs associated with the pipeline
+            # Fetch jobs and analyze
             jobs = pipeline.jobs.list(get_all=True)
-            jobs_details = []
             total_warnings = 0
             total_errors = 0
-
+            job_lines = ["  Jobs:"]
             for job in jobs:
-                # Fetch job log
                 job_detail = self.get_pipeline_job(job.id)
+                total_warnings += job_detail["warnings_count"]
+                total_errors += job_detail["errors_count"]
+                job_lines.append(json.dumps(job_detail, indent=2, default=str))
 
-                num_warnings = job_detail["warnings_count"]
-                num_errors = job_detail["errors_count"]
-                total_warnings += num_warnings
-                total_errors += num_errors
-                jobs_details.append(job_detail)
+            info.extend(
+                [
+                    f"  Total Jobs      : {len(jobs)}",
+                    f"  Total Warnings  : {total_warnings}",
+                    f"  Total Errors    : {total_errors}",
+                ]
+            )
+            info.extend(job_lines)
 
-            # Summarize pipeline results
-            summary = {
-                "Pipeline Info": pipeline_info,
-                "Total Jobs": len(jobs_details),
-                "Total Warnings": total_warnings,
-                "Total Errors": total_errors,
-                "Jobs Details": jobs_details,
-            }
-
-            # Format the output for better readability
-            formatted_output = json.dumps(summary, indent=2, default=str)
-            return formatted_output
+            return "\n".join(info)
 
         except Exception as e:
             return f"Failed to retrieve pipeline details for Pipeline ID {pipeline_id}: {str(e)}"
@@ -198,7 +190,8 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
 
         # Prepare MR Metadata string
         mr_metadata = [
-            "Merge Request Details:",
+            "## Merge Request Details:",
+            f"MR IID: {mr_details['mr']['iid']}",
             f"Title: {mr_details['mr']['title']}",
             f"Author: {mr_details['mr']['author']['name']} ({mr_details['mr']['author']['username']})",
             f"State: {mr_details['mr']['state']}",
@@ -207,7 +200,6 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             f"Source Branch: {mr_details['mr']['source_branch']}",
             f"Target Branch: {mr_details['mr']['target_branch']}",
             f"Labels: {', '.join(mr_details['mr']['labels'])}",
-            f"Pipeline Status: {mr_details['mr']['pipeline_status']}",
             f"Approvals Required: {mr_details['mr']['approvals_required']}",
             f"Approvals Received: {mr_details['mr']['approvals_received']}",
             f"Web URL: {mr_details['mr']['web_url']}",
@@ -224,8 +216,11 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             f"Assignees:\n{chr(10).join(assignee_info) if assignee_info else 'None'}"
         )
 
+        # Add Pipeline Summary block if available
+        pipeline_summary = mr_details.get("pipeline")
+
         # Prepare Changes and Statistics strings
-        changes_info = ["\nChanges:"]
+        changes_info = ["\n## Changes:"]
         for change in mr_details["changes"]:
             changes_info.extend(
                 [
@@ -239,14 +234,16 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             )
 
         stats_info = [
-            "Statistics:",
+            "## Statistics:",
             f"Total Files Changed: {mr_details['stats']['total_files_changed']}",
             f"Total Lines Added: {mr_details['stats']['total_lines_added']}",
             f"Total Lines Removed: {mr_details['stats']['total_lines_removed']}",
         ]
 
         # Compile all information into a single string for output
-        full_output = "\n".join(mr_metadata + changes_info + stats_info)
+        full_output = "\n".join(
+            mr_metadata + changes_info + stats_info + [pipeline_summary]
+        )
 
         # Return the formatted string
         return full_output
@@ -335,6 +332,13 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             #         data = {"discussion_id": discussion_id, "note": note}
             #         discussion_notes.append(data)
 
+            # --- Pipeline info (and detailed pipeline if present) ---
+            pipeline_details = (
+                self.get_pipeline_details(mr.head_pipeline["id"])
+                if mr.head_pipeline and mr.head_pipeline.get("id")
+                else None
+            )
+
             # Compile the final MR details
             mr_details = {
                 "mr": {
@@ -354,14 +358,12 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
                     "web_url": mr.web_url,
                     "merge_status": mr.detailed_merge_status,
                     "first_contribution": mr.first_contribution,
-                    "pipeline_status": (
-                        mr.head_pipeline.get("status") if mr.head_pipeline else None
-                    ),
                     "approvals_required": approvals.approvals_required,
                     "approvals_received": len(approvals.approved_by),
                     # "approvals_received": mr.approvals_received,
                     # "discussion_unresolved_count": mr.discussion_unresolved_count,
                 },
+                "pipeline": pipeline_details,
                 "changes": changes,
                 "stats": stats,
             }

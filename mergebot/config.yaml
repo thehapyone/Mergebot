@@ -8,16 +8,16 @@ repository:
 
   gitlab:
     url: "https://gitlab.its.getingecloud.net"
-    project: "dts/anthea/iac-layers/aks-iac"
-    base_branch: "master"
+    project: "dts/lestrade/aide-recorder"
+    base_branch: "main"
 
 crews:
-  CodeAnalysis:
-    llm:
-      model: "azure/o3-mini"
-  ImpactEvaluator:
-    llm:
-      model: "azure/o3-mini"
+  # CodeAnalysis:
+  #   llm:
+  #     model: "azure/o3-mini"
+  # ImpactEvaluator:
+  #   llm:
+  #     model: "azure/o3-mini"
   TestAnalysis:
     llm:
-      model: "azure/gpt-4.1"
+      model: "azure/gpt-4.1-mini"
