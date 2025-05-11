@@ -2,7 +2,7 @@ from crewai.flow.flow import Flow, listen, start, and_
 from crewai import Crew
 from pydantic import BaseModel
 import re
-import logging
+from mergebot.logging_config import logger
 from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
@@ -12,9 +12,6 @@ from mergebot.crews import (
     MRProcessor,
     Publication,
 )
-
-
-logging.basicConfig(level=logging.INFO)
 
 # Sample Input
 bot_input = "MR https://gitlab.its.getingecloud.net/dts/lestrade/aide-recorder/-/merge_requests/71"
@@ -48,6 +45,7 @@ class MergeBotCrews(BaseModel):
 class MergeBotState(BaseModel):
     """Defines the bot data state"""
 
+    mr_url: str = ""
     mr_details: str = ""
     mr_id: int = None
     code_analysis_assessment: str = ""
@@ -55,6 +53,7 @@ class MergeBotState(BaseModel):
     test_analysis_assessment: str = ""
     risk_assessment: str = ""
     impact_assessment: str = ""
+    impact_evaluator: str = ""
 
 
 class MergeBotFlow(Flow[MergeBotState]):
@@ -62,14 +61,15 @@ class MergeBotFlow(Flow[MergeBotState]):
 
     @start()
     def begin(self):
-        logging.info("Commencing and starting the MergeBot")
+        logger.info("Commencing and starting the MergeBot")
 
     @listen(begin)
     def mr_retriever(self):
         """Runs a Crew to extract Merge Request Details"""
-        mr_details = self.crews.mr_processor.kickoff(inputs={"input": bot_input}).raw
+        mr_details = self.crews.mr_processor.kickoff(
+            inputs={"input": self.state.mr_url}
+        ).raw
         self.state.mr_details = mr_details
-        self.state.mr_id = extract_merge_request_id(mr_details)
 
     @listen(mr_retriever)
     def code_analysis_assessment(self):
@@ -118,29 +118,43 @@ class MergeBotFlow(Flow[MergeBotState]):
                 "risk_assessment": self.state.risk_assessment,
             }
         ).raw
-        logging.info("\nFinal Impact Assessment Report:")
-        logging.info(self.state.impact_assessment)
+        logger.info("\nFinal Impact Assessment Report:")
+        logger.info(self.state.impact_assessment)
 
     @listen(impact_evaluator)
     def mr_decision(self):
         """Runs the MR decision crew on the impact assessment report"""
-        result = self.crews.publicator.kickoff(
+        self.state.impact_evaluator = self.crews.publicator.kickoff(
             inputs={
                 "mr_id": self.state.mr_id,
                 "impact_assessment_report": self.state.impact_assessment,
             }
         ).raw
 
-        logging.info("\nFinal Response:")
-        logging.info(result)
-
-    @listen(mr_decision)
-    def finish(self):
-        logging.info("MergeBot Processing Completed")
+        logger.info("\nFinal Response:")
+        logger.info(self.state.impact_evaluator)
 
 
-mergebot = MergeBotFlow()
+def run_flow(mr_url: str):
+    """
+    Initiates the MergeBotFlow to process a merge request URL.
 
-if __name__ == "__main__":
+    This function creates a new instance of the MergeBotFlow, logs the flow ID,
+    and starts the processing of the provided merge request URL. If a merge request
+    URL is not supplied, it uses the default input defined within the bot's context.
+    Args:
+        mr_url (str): The URL of the merge request to process.
+
+    Returns:
+        None: This function does not return any value. The flow's operations are handled internally.
+    """
+
+    mr_id = extract_merge_request_id(mr_url)
+    inital_state = {"mr_url": mr_url, "mr_id": mr_id}
+
+    mergebot = MergeBotFlow(**inital_state)
+    flow_id = mergebot.flow_id
+    # Log the flow ID
+    logger.info(f"Initiated MergeBotFlow with Flow ID: {flow_id}")
+
     mergebot.kickoff()
-    mergebot.plot("mergebot_flow")
