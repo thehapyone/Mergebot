@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Request, HTTPException
 import uvicorn
 from typing import Optional, Dict
+import asyncio
 from mergebot.logging_config import logger
 from mergebot.utils import get_platform_type
 from mergebot.flow import run_flow
@@ -66,13 +67,12 @@ class WebhookServer:
         """
         self.app.post("/webhook")(self.handle_webhook)
 
-    async def handle_webhook(self, request: Request, background_tasks: BackgroundTasks):
+    async def handle_webhook(self, request: Request):
         """
         Handle incoming webhook POST requests.
 
         Args:
             request (Request): The incoming FastAPI request object.
-            background_tasks (BackgroundTasks): FastAPI background task manager.
 
         Returns:
             dict: A response dictionary indicating the result.
@@ -111,7 +111,7 @@ class WebhookServer:
 
             if mr_url:
                 logger.info(f"Processing MR/PR: {mr_url}")
-                background_tasks.add_task(run_flow, mr_url)
+                asyncio.create_task(run_flow(mr_url))
             else:
                 logger.info("No actionable MR/PR found in event")
 

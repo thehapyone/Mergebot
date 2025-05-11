@@ -6,7 +6,9 @@ from mergebot.utils import get_platform_type
 from mergebot.webhook_server import WebhookServer
 
 
-def run_cli_mode(mr_url: str):
+import asyncio
+
+async def run_cli_mode(mr_url: str):
     """
     Run MergeBot in CLI mode for a given Merge Request URL.
 
@@ -20,7 +22,7 @@ def run_cli_mode(mr_url: str):
     if platform_type == "gitlab":
         logger.info(f"[CLI] Running in CLI mode for GitLab MR: {mr_url}")
         try:
-            run_flow(mr_url)
+            await run_flow(mr_url)
             logger.info("[CLI] MergeBot CLI flow completed successfully.")
         except Exception as e:
             logger.error(f"[CLI] Error during CLI flow: {e}", exc_info=True)
@@ -54,7 +56,7 @@ def run_webhook_mode(port: int):
         sys.exit(1)
 
 
-def main():
+async def main():
     """
     Main entry point for MergeBot. Parses command-line arguments and dispatches
     to the appropriate mode (CLI or webhook).
@@ -88,10 +90,10 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "cli":
-        run_cli_mode(args.mr_url)
+        await run_cli_mode(args.mr_url)
     elif args.mode == "webhook":
         run_webhook_mode(args.port)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

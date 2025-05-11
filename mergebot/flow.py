@@ -64,39 +64,49 @@ class MergeBotFlow(Flow[MergeBotState]):
         logger.info("Commencing and starting the MergeBot")
 
     @listen(begin)
-    def mr_retriever(self):
+    async def mr_retriever(self):
         """Runs a Crew to extract Merge Request Details"""
-        mr_details = self.crews.mr_processor.kickoff(
-            inputs={"input": self.state.mr_url}
+        mr_details = (
+            await self.crews.mr_processor.kickoff_async(
+                inputs={"input": self.state.mr_url}
+            )
         ).raw
         self.state.mr_details = mr_details
 
     @listen(mr_retriever)
-    def code_analysis_assessment(self):
+    async def code_analysis_assessment(self):
         """Runs the Code Analysis Assessment on the MR details"""
-        self.state.code_analysis_assessment = self.crews.code_analysis.kickoff(
-            inputs={"mr_details": self.state.mr_details}
+        self.state.code_analysis_assessment = (
+            await self.crews.code_analysis.kickoff_async(
+                inputs={"mr_details": self.state.mr_details}
+            )
         ).raw
 
     @listen(mr_retriever)
-    def complexity_assessment(self):
+    async def complexity_assessment(self):
         """Runs the Complexity Assessment on the MR details"""
-        self.state.complexity_assessment = self.crews.complexity_assessment.kickoff(
-            inputs={"mr_details": self.state.mr_details}
+        self.state.complexity_assessment = (
+            await self.crews.complexity_assessment.kickoff_async(
+                inputs={"mr_details": self.state.mr_details}
+            )
         ).raw
 
     @listen(mr_retriever)
-    def test_analysis_assessment(self):
+    async def test_analysis_assessment(self):
         """Runs the Test Analysis Assessment on the MR details"""
-        self.state.test_analysis_assessment = self.crews.test_analysis.kickoff(
-            inputs={"mr_details": self.state.mr_details}
+        self.state.test_analysis_assessment = (
+            await self.crews.test_analysis.kickoff_async(
+                inputs={"mr_details": self.state.mr_details}
+            )
         ).raw
 
     @listen(mr_retriever)
-    def risk_assessment(self):
+    async def risk_assessment(self):
         """Runs the Risk Analysis Assessment on the MR details"""
-        self.state.risk_assessment = self.crews.risk_analysis.kickoff(
-            inputs={"mr_details": self.state.mr_details}
+        self.state.risk_assessment = (
+            await self.crews.risk_analysis.kickoff_async(
+                inputs={"mr_details": self.state.mr_details}
+            )
         ).raw
 
     @listen(
@@ -107,35 +117,42 @@ class MergeBotFlow(Flow[MergeBotState]):
             risk_assessment,
         )
     )
-    def impact_evaluator(self):
+    async def impact_evaluator(self):
         """Runs the Impact Evaluator Analysis Assessment on the MR details"""
-        self.state.impact_assessment = self.crews.impact_evaluator.kickoff(
-            inputs={
-                "mr_id": self.state.mr_id,
-                "code_analysis_assessment": self.state.code_analysis_assessment,
-                "complexity_assessment": self.state.complexity_assessment,
-                "test_analysis": self.state.test_analysis_assessment,
-                "risk_assessment": self.state.risk_assessment,
-            }
+        self.state.impact_assessment = (
+            await self.crews.impact_evaluator.kickoff_async(
+                inputs={
+                    "mr_id": self.state.mr_id,
+                    "code_analysis_assessment": self.state.code_analysis_assessment,
+                    "complexity_assessment": self.state.complexity_assessment,
+                    "test_analysis": self.state.test_analysis_assessment,
+                    "risk_assessment": self.state.risk_assessment,
+                }
+            )
         ).raw
         logger.info("\nFinal Impact Assessment Report:")
         logger.info(self.state.impact_assessment)
 
     @listen(impact_evaluator)
-    def mr_decision(self):
+    async def mr_decision(self):
         """Runs the MR decision crew on the impact assessment report"""
-        self.state.impact_evaluator = self.crews.publicator.kickoff(
-            inputs={
-                "mr_id": self.state.mr_id,
-                "impact_assessment_report": self.state.impact_assessment,
-            }
+        self.state.impact_evaluator = (
+            await self.crews.publicator.kickoff_async(
+                inputs={
+                    "mr_id": self.state.mr_id,
+                    "impact_assessment_report": self.state.impact_assessment,
+                }
+            )
         ).raw
 
         logger.info("\nFinal Response:")
         logger.info(self.state.impact_evaluator)
 
 
-def run_flow(mr_url: str):
+import asyncio
+
+
+async def run_flow(mr_url: str):
     """
     Initiates the MergeBotFlow to process a merge request URL.
 
@@ -157,4 +174,4 @@ def run_flow(mr_url: str):
     # Log the flow ID
     logger.info(f"Initiated MergeBotFlow with Flow ID: {flow_id}")
 
-    mergebot.kickoff()
+    await mergebot.kickoff_async()
