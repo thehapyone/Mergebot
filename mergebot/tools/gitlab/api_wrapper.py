@@ -8,8 +8,37 @@ from mergebot.validator.config import load_config
 
 class GitLabAPIWrapperExtra(GitLabAPIWrapper):
     """
-    Extended GitLab API Wrapper with additional merge request functionalities.
+    Extended GitLab API Wrapper with additional merge request and issue functionalities.
     """
+
+    def search_issues(self, project_id: str, title: str):
+        """
+        Search for issues in the project by title.
+        Returns a list of issues whose title matches (case-insensitive).
+        """
+        project = self.gitlab_repo_instance
+        issues = project.issues.list(search=title, all=True)
+        # Optionally filter by exact title match
+        return [issue.attributes for issue in issues if issue.title.strip().lower() == title.strip().lower()]
+
+    def create_issue(self, project_id: str, title: str, description: str):
+        """
+        Create a new issue in the project.
+        Returns the created issue object (as dict).
+        """
+        project = self.gitlab_repo_instance
+        issue = project.issues.create({"title": title, "description": description})
+        return issue.attributes
+
+    def update_issue(self, project_id: str, issue_iid: int, description: str):
+        """
+        Update the description/body of an issue.
+        """
+        project = self.gitlab_repo_instance
+        issue = project.issues.get(issue_iid)
+        issue.description = description
+        issue.save()
+        return issue.attributes
 
     def __init__(self, **kwargs):
         # Load configuration from config.yaml

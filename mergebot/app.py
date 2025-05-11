@@ -4,9 +4,11 @@ from mergebot.logging_config import logger
 from mergebot.flow import run_flow
 from mergebot.utils import get_platform_type
 from mergebot.webhook_server import WebhookServer
+from mergebot.ondemand_runner import OndemandRunner
 
 
 import asyncio
+
 
 async def run_cli_mode(mr_url: str):
     """
@@ -59,9 +61,11 @@ def run_webhook_mode(port: int):
 async def main():
     """
     Main entry point for MergeBot. Parses command-line arguments and dispatches
-    to the appropriate mode (CLI or webhook).
+    to the appropriate mode (CLI, webhook, or ondemand).
     """
-    parser = argparse.ArgumentParser(description="Run MergeBot in CLI or webhook mode.")
+    parser = argparse.ArgumentParser(
+        description="Run MergeBot in CLI, webhook, or ondemand mode."
+    )
     subparsers = parser.add_subparsers(dest="mode", required=True)
 
     # CLI subcommand
@@ -82,6 +86,17 @@ async def main():
         help="Port for webhook listener (default: 8000)",
     )
 
+    # Ondemand subcommand
+    ondemand_parser = subparsers.add_parser(
+        "ondemand", help="Run in ondemand (periodic or one-shot) mode"
+    )
+    ondemand_parser.add_argument(
+        "--interval",
+        type=int,
+        default=None,
+        help="Interval in seconds to rerun the dashboard scan (if not set, runs once)",
+    )
+
     # Show help if no arguments are provided
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
@@ -93,6 +108,12 @@ async def main():
         await run_cli_mode(args.mr_url)
     elif args.mode == "webhook":
         run_webhook_mode(args.port)
+    elif args.mode == "ondemand":
+        runner = OndemandRunner()
+        if args.interval:
+            await runner.run_periodic(args.interval)
+        else:
+            await runner.run_once()
 
 
 if __name__ == "__main__":
