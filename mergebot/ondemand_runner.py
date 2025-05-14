@@ -32,15 +32,17 @@ class OndemandRunner:
         for mr_iid, mr in open_mr_iids.items():
             if mr_iid not in tracked_mrs or mr_iid in rerun_requests:
                 mrs_to_analyze.append(mr)
+
         logger.info(f"[Ondemand] MRs to analyze: {[mr.iid for mr in mrs_to_analyze]}")
         # 5. For each MR needing analysis, trigger run_flow and collect results
         analysis_results = []
         for mr in mrs_to_analyze:
             logger.info(f"[Ondemand] Analyzing MR !{mr.iid} ({mr.title})")
-            await run_flow(
-                mr.web_url,
-                dashboard_manager=None,  # We'll update dashboard for all MRs below
-            )
+            # await run_flow(
+            #     mr.web_url,
+            #     dashboard_manager=None,  # We'll update dashboard for all MRs below
+            # )
+
         # 6. Collect latest MR data for dashboard (all open MRs)
         for mr in open_mrs:
             analysis_results.append({
@@ -52,10 +54,12 @@ class OndemandRunner:
                 "analysis_link": "#",    # TODO: Link to detailed report if available
                 "web_url": mr.web_url,
             })
+
         # 7. Update dashboard with all open MRs, current rerun requests, and empty action log/analytics
         self.dashboard_manager.update_dashboard(
             mr_data=analysis_results,
-            rerun_requests=list(rerun_requests),
+            # Reset the rerun requests after processing them
+            rerun_requests=[],
             action_log=[],
             analytics={},
         )

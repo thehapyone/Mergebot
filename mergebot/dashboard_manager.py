@@ -1,5 +1,8 @@
+from functools import lru_cache
 import re
 from typing import Optional, Dict, List, Any
+from pathlib import Path
+
 from datetime import datetime
 from jinja2 import Template
 
@@ -9,6 +12,7 @@ ACTIVE_MRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_MRS -->"
 RERUNS_MARKER = "<!-- marker:MERGEBOT_RERUNS -->"
 ACTIONS_MARKER = "<!-- marker:MERGEBOT_ACTIONS -->"
 ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
+
 
 class DashboardManager:
     """
@@ -41,12 +45,18 @@ class DashboardManager:
         """
         raise NotImplementedError
 
+
 class GitLabDashboardManager(DashboardManager):
     """
     GitLab-specific dashboard manager.
     """
 
-    def __init__(self, api_wrapper, project_id: str, dashboard_title: str = "🛠️ Mergebot Project Dashboard"):
+    def __init__(
+        self,
+        api_wrapper,
+        project_id: str,
+        dashboard_title: str = "🛠️ Mergebot Project Dashboard",
+    ):
         self.api = api_wrapper
         self.project_id = project_id
         self.dashboard_title = dashboard_title
@@ -63,7 +73,9 @@ class GitLabDashboardManager(DashboardManager):
                 return {"id": issue["iid"], "body": issue["description"]}
         # Not found, create new
         initial_body = self._initial_dashboard_body()
-        issue = self.api.create_issue(self.project_id, self.dashboard_title, initial_body)
+        issue = self.api.create_issue(
+            self.project_id, self.dashboard_title, initial_body
+        )
         return {"id": issue["iid"], "body": issue["description"]}
 
     def parse_dashboard(self, markdown: str) -> Dict[str, Any]:
@@ -71,6 +83,7 @@ class GitLabDashboardManager(DashboardManager):
         Extracts sections from the dashboard markdown using markers.
         Returns a dict with section contents and parsed data.
         """
+
         def extract_section(marker):
             pattern = rf"{re.escape(marker)}(.*?){re.escape(marker)}"
             match = re.search(pattern, markdown, re.DOTALL)
@@ -114,35 +127,22 @@ class GitLabDashboardManager(DashboardManager):
         """
         Regenerate the dashboard markdown and update the issue.
         """
-        dashboard_body = self._generate_dashboard_body(mr_data, rerun_requests, action_log, analytics)
+        dashboard_body = self._generate_dashboard_body(
+            mr_data, rerun_requests, action_log, analytics
+        )
         dashboard = self.get_or_create_dashboard()
         self.api.update_issue(self.project_id, dashboard["id"], dashboard_body)
 
+    @lru_cache(maxsize=None)
     def _initial_dashboard_body(self) -> str:
-        # Load the dashboard template from file for maintainability
-        try:
-            with open("dashboard_layout.md", "r", encoding="utf-8") as f:
-                return f.read()
-        except Exception:
-            # Fallback to a minimal template if file is missing
-            return (
-                "# 🛠️ Mergebot Project Dashboard\n"
-                f"{DASHBOARD_MARKER}\n"
-                "_This dashboard is your real-time view of all active merge requests and Mergebot automation in this project._\n"
-                "\n_Last updated: **(not yet run)**_\n"
-                "\n---\n"
-                "## 🧩 **Active Merge Requests**\n"
-                "| MR | Title | Status | Impact Score | Last Reviewed | Analysis |\n"
-                "|----|-------|--------|-------------|---------------|----------|\n"
-                "\n---\n"
-                "### 🔁 **Request a Rerun**\n"
-                "\n---\n"
-                "## ✅ **Recent Actions**\n"
-                "\n---\n"
-                "## 📊 **Analytics (Past 7 Days)**\n"
-                "\n"
-                f"{DASHBOARD_MARKER}\n"
-            )
+        # Load the dashboard template from a file located in the same directory as this script
+
+        current_directory = Path(__file__).parent
+        template_path = current_directory / "dashboard_layout.md"
+
+        # Read and return the content of the template file
+        with template_path.open("r", encoding="utf-8") as f:
+            return f.read()
 
     def _generate_dashboard_body(
         self,
@@ -175,13 +175,17 @@ class GitLabDashboardManager(DashboardManager):
             )
         return header + "\n" + "\n".join(rows)
 
-    def _render_rerun_checklist(self, mr_data: List[Dict[str, Any]], rerun_requests: List[str]) -> str:
+    def _render_rerun_checklist(
+        self, mr_data: List[Dict[str, Any]], rerun_requests: List[str]
+    ) -> str:
         if not mr_data:
             return "_No merge requests available for rerun._"
         lines = []
         for mr in mr_data:
             checked = "x" if str(mr["iid"]) in rerun_requests else " "
-            lines.append(f"- [{checked}] Rerun agent analysis for [!{mr['iid']}]({mr.get('web_url', '#')})")
+            lines.append(
+                f"- [{checked}] Rerun agent analysis for [!{mr['iid']}]({mr.get('web_url', '#')})"
+            )
         return "\n".join(lines)
 
     def _render_action_log(self, action_log: List[str]) -> str:

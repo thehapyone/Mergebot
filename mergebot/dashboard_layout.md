@@ -1,4 +1,3 @@
-# 🛠️ Mergebot Project Dashboard
 <!-- marker:MERGEBOT_DASHBOARD -->
 
 _This dashboard is your real-time view of all active merge requests and Mergebot automation in this project._
