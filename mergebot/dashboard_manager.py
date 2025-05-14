@@ -123,6 +123,7 @@ class GitLabDashboardManager(DashboardManager):
         rerun_requests: List[str],
         action_log: List[str],
         analytics: Dict[str, Any],
+        **kwargs
     ) -> None:
         """
         Regenerate the dashboard markdown and update the issue.
@@ -154,24 +155,57 @@ class GitLabDashboardManager(DashboardManager):
         # Load the dashboard template
         template_str = self._initial_dashboard_body()
         template = Template(template_str)
+
+        # Extract previous MR table for Last Reviewed preservation
+        previous_table = None
+        try:
+            # Find the Active Merge Requests table in the current dashboard
+            dashboard = self.get_or_create_dashboard()
+            body = dashboard.get("body", "")
+            table_match = re.search(
+                r"## 🧩 \*\*Active Merge Requests\*\*.*?\n((?:\|.*\n)+)", body, re.DOTALL
+            )
+            if table_match:
+                previous_table = table_match.group(1)
+        except Exception:
+            previous_table = None
+
         # Render all sections
         rendered = template.render(
             last_updated=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
-            active_mrs_table=self._render_active_mrs_table(mr_data),
+            active_mrs_table=self._render_active_mrs_table(mr_data, previous_table),
             rerun_checklist=self._render_rerun_checklist(mr_data, rerun_requests),
             action_log=self._render_action_log(action_log),
             analytics_table=self._render_analytics_table(analytics),
         )
         return rendered
 
-    def _render_active_mrs_table(self, mr_data: List[Dict[str, Any]]) -> str:
+    def _render_active_mrs_table(self, mr_data: List[Dict[str, Any]], previous_table: str = None) -> str:
+        """
+        Render the MR table, preserving Last Reviewed from previous_table unless MR was just analyzed.
+        """
+        # Parse previous Last Reviewed values if available
+        last_reviewed_map = {}
+        if previous_table:
+            # Parse each row for MR iid and Last Reviewed
+            for line in previous_table.splitlines():
+                match = re.match(r"\|\s*\[!(\d+)\][^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|", line)
+                if match:
+                    iid, last_reviewed = match.group(1), match.group(2).strip()
+                    last_reviewed_map[iid] = last_reviewed
+
         if not mr_data:
             return "_No active merge requests._"
         header = "| MR | Title | Status | Impact Score | Last Reviewed | Analysis |\n|-----|-------|--------|-------------|---------------|----------|"
         rows = []
         for mr in mr_data:
+            iid_str = str(mr['iid'])
+            # If this MR was just analyzed, use the new value; else, preserve previous
+            last_reviewed = mr.get('last_reviewed', '').strip()
+            if not last_reviewed or last_reviewed == "N/A":
+                last_reviewed = last_reviewed_map.get(iid_str, "N/A")
             rows.append(
-                f"| [!{mr['iid']}]({mr.get('web_url', '#')}) | {mr.get('title', '')} | {mr.get('status', '')} | {mr.get('impact_score', '')} | {mr.get('last_reviewed', '')} | [View Report]({mr.get('analysis_link', '#')}) |"
+                f"| [!{mr['iid']}]({mr.get('web_url', '#')}) | {mr.get('title', '')} | {mr.get('status', '')} | {mr.get('impact_score', '')} | {last_reviewed} | [View Report]({mr.get('analysis_link', '#')}) |"
             )
         return header + "\n" + "\n".join(rows)
 
@@ -194,8 +228,83 @@ class GitLabDashboardManager(DashboardManager):
         return "\n".join(f"- {entry}" for entry in action_log)
 
     def _render_analytics_table(self, analytics: Dict[str, Any]) -> str:
+        """
+        Render the analytics summary table from a dict of metrics.
+        """
         if not analytics:
             return "_No analytics data available._"
-        header = "| Metric | Value |\n|--------|-------|"
-        rows = [f"| {k} | {v} |" for k, v in analytics.items()]
+        header = "| Metric | Value |\n|-------------------------------|-----------|"
+        rows = [f"| {k} | **{v}** |" for k, v in analytics.items()]
         return header + "\n" + "\n".join(rows)
+
+    def parse_analytics_summary(self, markdown: str) -> dict:
+        """
+        Parse the analytics summary table from the dashboard markdown.
+        Returns a dict of metrics.
+        """
+        # Look for the analytics table by header
+        pattern = r"\| Metric \| Value \|.*?\n((?:\|.*\n)+)"
+        match = re.search(pattern, markdown)
+        if not match:
+            return {}
+        rows = match.group(1).strip().split("\n")
+        summary = {}
+        for row in rows:
+            cols = [c.strip() for c in row.strip("|").split("|")]
+            if len(cols) < 2:
+                continue
+            key, value = cols[0], cols[1].strip("* ")
+            # Try to parse as int, else keep as string
+            try:
+                summary[key] = int(value)
+            except Exception:
+                summary[key] = value
+        return summary
+
+    def parse_analytics_table(self, markdown: str) -> list:
+        """
+        Parse the analytics markdown table into a list of dicts.
+        """
+        table_pattern = r"\| Timestamp\s*\|.*?\n((?:\|.*\n)+)"
+        match = re.search(table_pattern, markdown)
+        if not match:
+            return []
+        rows = match.group(1).strip().split("\n")
+        parsed = []
+        for row in rows:
+            cols = [c.strip() for c in row.strip("|").split("|")]
+            if len(cols) < 6:
+                continue
+            parsed.append({
+                "Timestamp": cols[0],
+                "Action": cols[1],
+                "MR": cols[2],
+                "Result": cols[3],
+                "Impact Score": cols[4],
+                "Duration": cols[5],
+            })
+        return parsed
+
+    def append_analytics_row(self, rows: list, new_row: dict) -> list:
+        """
+        Append a new analytics row (dict) to the list.
+        """
+        return [new_row] + rows
+
+    def trim_analytics_rows(self, rows: list, max_rows: int = 20) -> list:
+        """
+        Trim the analytics rows to the last max_rows.
+        """
+        return rows[:max_rows]
+
+    def render_analytics_table(self, rows: list) -> str:
+        """
+        Render a list of analytics row dicts as a markdown table.
+        """
+        header = "| Timestamp | Action | MR | Result | Impact Score | Duration |\n|-----------|--------|----|--------|--------------|----------|"
+        lines = [header]
+        for row in rows:
+            lines.append(
+                f"| {row['Timestamp']} | {row['Action']} | {row['MR']} | {row['Result']} | {row['Impact Score']} | {row['Duration']} |"
+            )
+        return "\n".join(lines)
