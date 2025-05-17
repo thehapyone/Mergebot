@@ -92,11 +92,13 @@ class GitLabDashboardManager(DashboardManager):
         dashboard_section = extract_section(DASHBOARD_MARKER)
         rerun_requests = self.extract_rerun_requests(dashboard_section)
         tracked_mrs = self.extract_tracked_mrs(dashboard_section)
+        analytics_section = self.parse_analytics_summary(markdown)
 
         return {
             "dashboard": dashboard_section,
             "rerun_requests": rerun_requests,
             "tracked_mrs": tracked_mrs,
+            "analytics": analytics_section,
         }
 
     def extract_rerun_requests(self, dashboard_section: str) -> list:
@@ -260,51 +262,3 @@ class GitLabDashboardManager(DashboardManager):
             except Exception:
                 summary[key] = value
         return summary
-
-    def parse_analytics_table(self, markdown: str) -> list:
-        """
-        Parse the analytics markdown table into a list of dicts.
-        """
-        table_pattern = r"\| Timestamp\s*\|.*?\n((?:\|.*\n)+)"
-        match = re.search(table_pattern, markdown)
-        if not match:
-            return []
-        rows = match.group(1).strip().split("\n")
-        parsed = []
-        for row in rows:
-            cols = [c.strip() for c in row.strip("|").split("|")]
-            if len(cols) < 6:
-                continue
-            parsed.append({
-                "Timestamp": cols[0],
-                "Action": cols[1],
-                "MR": cols[2],
-                "Result": cols[3],
-                "Impact Score": cols[4],
-                "Duration": cols[5],
-            })
-        return parsed
-
-    def append_analytics_row(self, rows: list, new_row: dict) -> list:
-        """
-        Append a new analytics row (dict) to the list.
-        """
-        return [new_row] + rows
-
-    def trim_analytics_rows(self, rows: list, max_rows: int = 20) -> list:
-        """
-        Trim the analytics rows to the last max_rows.
-        """
-        return rows[:max_rows]
-
-    def render_analytics_table(self, rows: list) -> str:
-        """
-        Render a list of analytics row dicts as a markdown table.
-        """
-        header = "| Timestamp | Action | MR | Result | Impact Score | Duration |\n|-----------|--------|----|--------|--------------|----------|"
-        lines = [header]
-        for row in rows:
-            lines.append(
-                f"| {row['Timestamp']} | {row['Action']} | {row['MR']} | {row['Result']} | {row['Impact Score']} | {row['Duration']} |"
-            )
-        return "\n".join(lines)

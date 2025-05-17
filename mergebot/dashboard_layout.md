@@ -43,6 +43,6 @@ _Check a box below to ask Mergebot to reanalyze any MR. The bot will process che
 
 </details>
 
-Powered by [Mergebot](https://github.com/your-org/mergebot)
+Powered by [Mergebot](https://github.com/thehapyone/mergebot)
 
 <!-- marker:MERGEBOT_DASHBOARD -->

@@ -23,6 +23,8 @@ class OndemandRunner:
         dashboard = self.dashboard_manager.get_or_create_dashboard()
         open_mrs = self.api.gitlab_repo_instance.mergerequests.list(state="opened", all=True)
         open_mr_iids = {str(mr.iid): mr for mr in open_mrs}
+        
+        # Parse Dashboard
         dashboard_data = self.dashboard_manager.parse_dashboard(dashboard["body"])
         rerun_requests = set(dashboard_data["rerun_requests"])
         tracked_mrs = set(dashboard_data["tracked_mrs"])
@@ -36,8 +38,10 @@ class OndemandRunner:
         analysis_results = []
         analysis_durations = []
         errors = []
+        
+        # Perfrom Analysis for MRs
         for mr in mrs_to_analyze:
-            logger.info(f"[Ondemand] Analyzing MR !{mr.iid} ({mr.title})")
+            logger.info(f"[Ondemand] Analyzing MR !{mr.iid}: ({mr.title})")
             start = time.time()
             try:
                 # await run_flow(
@@ -64,8 +68,7 @@ class OndemandRunner:
             })
 
         # Compute analytics summary metrics, accumulating with previous values
-        dashboard_body = dashboard.get("body", "")
-        prev_analytics = self.dashboard_manager.parse_analytics_summary(dashboard_body)
+        prev_analytics = dashboard_data["analytics"]
         mrs_processed = prev_analytics.get("MRs Processed", 0) + len(mrs_to_analyze)
         auto_merges = prev_analytics.get("Auto-merges", 0)  # TODO: Implement auto-merge detection if available
         manual_reviews = prev_analytics.get("Manual Reviews", 0)  # TODO: Implement manual review detection if available
