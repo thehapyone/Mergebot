@@ -1,44 +1,44 @@
 publication_task:
   description: |
-      Receive the impact assessment report and the recommendation from the Impact Evaluator Crew.
+    Receive the impact assessment report and the recommendation from the Impact Evaluator Crew.
 
-      **Tasks**:
-      - Format the impact assessment report using Markdown for readability and consistency.
-      - Post the formatted report as a comment on the MR, making it available to all stakeholders.
+    **Tasks**:
+    - Format the impact assessment report using Markdown for readability and consistency.
+    - Post the formatted report as a comment on the MR, making it available to all stakeholders.
 
-      **Inputs**:
-      - **MR ID**: {mr_id}
-      - **Impact Assessment Report**:
-      {impact_assessment_report}
+    **Inputs**:
+    - **MR ID**: {mr_id}
+    - **Impact Assessment Report**:
+    {impact_assessment_report}
   agent: publicator
   expected_output: |
     - The impact assessment report is posted on the MR as a comment, properly formatted in Markdown.
-    - The comment is visible to all MR participants and stakeholders.
-    - Confirmation that the posting was successful, or an error message if it failed.
+    - Returns only the direct link (URL) to the posted comment.
+    - If posting fails, returns a clear error message.
 
 execution_task:
   description: |
-      Based on the recommendation from the Impact Evaluator Crew, execute the following:
+    Based on the recommendation from the Impact Evaluator Crew, execute the following:
 
-      **If the recommendation is to "Auto-approve and merge"**:
-      - Approve the MR using the GitLab API.
-      - Post a confirmation comment on the MR indicating that it has been approved.
+    **If the recommendation is to "Auto-approve and merge"**:
+    - Approve the MR using the GitLab API.
+    - Post a confirmation comment on the MR indicating whether the approval and merge actions succeeded or failed, including any error messages or warnings.
 
-      **If the recommendation is "Requires human review"**:
-      - Leave the MR open for manual review.
-      - Post a comment on the MR indicating that the MR requires further review due to its impact assessment.
+    **If the recommendation is "Requires human review"**:
+    - Leave the MR open for manual review.
+    - Post a comment on the MR indicating that the MR requires further review due to its impact assessment, and include any warnings or errors encountered during processing.
 
-      **Inputs**:
-      - **MR ID**: {mr_id}
-      - **Impact Assessment Report**:
-      {impact_assessment_report}
+    **Inputs**:
+    - **MR ID**: {mr_id}
+    - **Impact Assessment Report**:
+    {impact_assessment_report}
+
   agent: executor
   expected_output: |
+    - A confirmation comment is always posted on the MR, summarizing the outcome of the action (success, failure, and any warnings or errors encountered).
     - **If auto-approved and merged**:
-      - The MR is approved.
-      - The MR is merged into the target branch.
-      - A confirmation comment is posted on the MR indicating successful approval and merge.
-      - Logs confirm that the actions were successful, or error messages detail any failures.
+      - The MR is approved and merged into the target branch (if possible).
+      - The comment clearly states whether the operation succeeded or failed, and includes any warnings or errors (such as authorization failures).
     - **If not auto-approved**:
       - The MR remains open for manual review.
-      - A comment is posted on the MR indicating that the MR requires further review due to its impact assessment.
+      - The comment clearly states that further review is required and includes any processing warnings or errors.

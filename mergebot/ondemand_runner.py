@@ -44,13 +44,11 @@ class OndemandRunner:
             logger.info(f"[Ondemand] Analyzing MR !{mr.iid}: ({mr.title})")
             start = time.time()
             try:
-                # await run_flow(
-                #     mr.web_url,
-                #     dashboard_manager=None,
-                # )
-                result = "Success"
+                result = await run_flow(
+                    mr.web_url,
+                    mr_title=mr.title,
+                )
             except Exception as e:
-                result = f"Error: {e}"
                 errors.append((mr.iid, str(e)))
             duration = time.time() - start
             analysis_durations.append(duration)

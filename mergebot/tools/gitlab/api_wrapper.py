@@ -417,8 +417,9 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         """
         try:
             mr = self.gitlab_repo_instance.mergerequests.get(mr_iid)
-            mr.notes.create({"body": comment.strip()})
-            return f"Successfully posted comment to Merge Request {mr_iid}."
+            note = mr.notes.create({"body": comment.strip()})
+            note_url = f"{mr.web_url}#note_{note.id}"
+            return f"Comment posted at {note_url}"
         except Exception as e:
             return f"Failed to post comment to Merge Request {mr_iid}: {str(e)}"
 
