@@ -10,7 +10,6 @@ _Last updated: **{{ last_updated }}**_
 
 {{ active_mrs_table }}
 
-> **Legend:** 🟢=Ready, 🔴=Blocked, 🟡=Needs review  
 > **Impact Score:** _0–10 (lower = more confident for auto-merge)_
 
 ---
@@ -29,7 +28,7 @@ _Check a box below to ask Mergebot to reanalyze any MR. The bot will process che
 
 ---
 
-## 📊 **Analytics (Past 7 Days)**
+## 📊 **Analytics**
 
 {{ analytics_table }}
 

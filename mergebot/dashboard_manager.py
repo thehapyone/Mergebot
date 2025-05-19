@@ -125,7 +125,7 @@ class GitLabDashboardManager(DashboardManager):
         rerun_requests: List[str],
         action_log: List[str],
         analytics: Dict[str, Any],
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Regenerate the dashboard markdown and update the issue.
@@ -165,7 +165,9 @@ class GitLabDashboardManager(DashboardManager):
             dashboard = self.get_or_create_dashboard()
             body = dashboard.get("body", "")
             table_match = re.search(
-                r"## 🧩 \*\*Active Merge Requests\*\*.*?\n((?:\|.*\n)+)", body, re.DOTALL
+                r"## 🧩 \*\*Active Merge Requests\*\*.*?\n((?:\|.*\n)+)",
+                body,
+                re.DOTALL,
             )
             if table_match:
                 previous_table = table_match.group(1)
@@ -182,32 +184,50 @@ class GitLabDashboardManager(DashboardManager):
         )
         return rendered
 
-    def _render_active_mrs_table(self, mr_data: List[Dict[str, Any]], previous_table: str = None) -> str:
+    def _render_active_mrs_table(
+        self, mr_data: List[Dict[str, Any]], previous_table: str = None
+    ) -> str:
         """
         Render the MR table, preserving Last Reviewed from previous_table unless MR was just analyzed.
         """
         # Parse previous Last Reviewed values if available
         last_reviewed_map = {}
+        recommendation_map = {}
+        impact_score_map = {}
         if previous_table:
-            # Parse each row for MR iid and Last Reviewed
+            # Parse each row for MR iid, Impact Score, Recommendation, and Last Reviewed
             for line in previous_table.splitlines():
-                match = re.match(r"\|\s*\[!(\d+)\][^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|", line)
+                match = re.match(
+                    r"\|\s*\[!(\d+)\][^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|([^\|]*)\|([^\|]*)\|",
+                    line,
+                )
                 if match:
-                    iid, last_reviewed = match.group(1), match.group(2).strip()
+                    iid = match.group(1)
+                    impact_score = match.group(2).strip()
+                    recommendation = match.group(3).strip()
+                    last_reviewed = match.group(4).strip()
+                    impact_score_map[iid] = impact_score
+                    recommendation_map[iid] = recommendation
                     last_reviewed_map[iid] = last_reviewed
 
         if not mr_data:
             return "_No active merge requests._"
-        header = "| MR | Title | Status | Impact Score | Last Reviewed | Analysis |\n|-----|-------|--------|-------------|---------------|----------|"
+        header = "| MR | Title | Status | Impact Score | Recommendation | Last Reviewed | Analysis |\n|-----|-------|--------|-------------|----------------|---------------|----------|"
         rows = []
         for mr in mr_data:
-            iid_str = str(mr['iid'])
+            iid_str = str(mr["iid"])
             # If this MR was just analyzed, use the new value; else, preserve previous
-            last_reviewed = mr.get('last_reviewed', '').strip()
+            last_reviewed = mr.get("last_reviewed", "").strip()
+            recommendation = mr.get("recommendation", "").strip()
+            impact_score = mr.get("impact_score", "").strip()
             if not last_reviewed or last_reviewed == "N/A":
                 last_reviewed = last_reviewed_map.get(iid_str, "N/A")
+            if not recommendation:
+                recommendation = recommendation_map.get(iid_str, "")
+            if not impact_score or impact_score == "N/A":
+                impact_score = impact_score_map.get(iid_str, "N/A")
             rows.append(
-                f"| [!{mr['iid']}]({mr.get('web_url', '#')}) | {mr.get('title', '')} | {mr.get('status', '')} | {mr.get('impact_score', '')} | {last_reviewed} | [View Report]({mr.get('analysis_link', '#')}) |"
+                f"| [!{mr['iid']}]({mr.get('web_url', '#')}) | {mr.get('title', '')} | {mr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({mr.get('analysis_link', '#')}) |"
             )
         return header + "\n" + "\n".join(rows)
 
