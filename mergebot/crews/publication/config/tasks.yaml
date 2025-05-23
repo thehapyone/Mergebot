@@ -13,7 +13,7 @@ publication_task:
   agent: publicator
   expected_output: |
     - The impact assessment report is posted on the MR as a comment, properly formatted in Markdown.
-    - Returns only the direct link (URL) to the posted comment.
+    - Returns only the direct link (URL) to the posted comment and summary of the assessment report
     - If posting fails, returns a clear error message.
 
 execution_task:
@@ -30,8 +30,7 @@ execution_task:
 
     **Inputs**:
     - **MR ID**: {mr_id}
-    - **Impact Assessment Report**:
-    {impact_assessment_report}
+
 
   agent: executor
   expected_output: |
