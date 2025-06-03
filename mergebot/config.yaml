@@ -1,21 +1,23 @@
 # config.yaml
 
 llm:
-  model: "azure/gpt-4o-mini"
+  model: "azure/gpt-4.1"
 
 repository:
   type: "gitlab"
 
   gitlab:
-    url: "https://gitlab.example.com/api/v4"
-    private_token: "your-gitlab-private-token"
+    url: "https://gitlab.its.getingecloud.net"
     project: "dts/lestrade/aide-recorder"
     base_branch: "main"
 
 crews:
-  CodeAnalysis:
+  # CodeAnalysis:
+  #   llm:
+  #     model: "azure/o3-mini"
+  # ImpactEvaluator:
+  #   llm:
+  #     model: "azure/o3-mini"
+  TestAnalysis:
     llm:
-      model: "groq/llama-3.1-8b-instant"
-  RiskAnalysis:
-    llm:
-      model: "gpt-3.5-turbo"
+      model: "azure/gpt-4.1-mini"

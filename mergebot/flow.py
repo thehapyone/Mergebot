@@ -1,8 +1,10 @@
+from datetime import datetime
+import re
+from typing import Optional
+from pydantic import BaseModel, Field, ValidationError
 from crewai.flow.flow import Flow, listen, start, and_
 from crewai import Crew
-from pydantic import BaseModel
-import re
-import logging
+from mergebot.logging_config import logger
 from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
@@ -14,10 +16,51 @@ from mergebot.crews import (
 )
 
 
-logging.basicConfig(level=logging.INFO)
+def extract_url_from_text(text: str) -> str:
+    """
+    Extracts the first URL found in a text string, even if it is enclosed in markdown format.
+    Returns the URL if found, else an empty string.
+    """
+    match = re.search(r"https?://[^\s)\]]+", text)
+    return match.group(0) if match else "N/A"
 
-# Sample Input
-bot_input = "MR https://gitlab.its.getingecloud.net/dts/lestrade/aide-recorder/-/merge_requests/53"
+
+def extract_assessment(impact_assessment: str) -> dict:
+    """
+    Extracts assessment metrics from the impact assessment string:
+     - Overall Impact Score
+     - Recommendation
+     - Report
+
+    Args:
+        impact_assessment (str): The impact assessment details.
+
+    Returns:
+        dict: A dictionary containing extracted metrics: score, recommendation, and full report.
+    """
+    # Flexible patterns: allows asterisks (markdown bold/italic) or none, preserves robustness
+    patterns = {
+        "score": r"^\s*\*+?\s*Overall Impact Score\s*\*+?\s*:\s*(.+)$",
+        "recommendation": r"^\s*\*+?\s*Recommendation\s*\*+?\s*:\s*(.+)$",
+    }
+
+    extracted_metrics = {
+        key: re.search(pattern, impact_assessment, re.MULTILINE | re.IGNORECASE)
+        for key, pattern in patterns.items()
+    }
+    return {
+        "score": (
+            extracted_metrics["score"].group(1).strip()
+            if extracted_metrics["score"]
+            else "N/A"
+        ),
+        "recommendation": (
+            extracted_metrics["recommendation"].group(1).strip()
+            if extracted_metrics["recommendation"]
+            else ""
+        ),
+        "report": impact_assessment.strip(),
+    }
 
 
 def extract_merge_request_id(output_string):
@@ -48,13 +91,29 @@ class MergeBotCrews(BaseModel):
 class MergeBotState(BaseModel):
     """Defines the bot data state"""
 
-    mr_details: str = ""
+    mr_url: str = ""
     mr_id: int = None
+    mr_title: str = ""
+    mr_details: str = ""
     code_analysis_assessment: str = ""
     complexity_assessment: str = ""
     test_analysis_assessment: str = ""
     risk_assessment: str = ""
-    impact_assessment: str = ""
+    impact_assessment: dict = {
+        "score": "",
+        "recommendation": "",
+        "report": "",
+    }
+    analysis_link: str = ""
+    impact_evaluator: str = ""
+
+class AnalysisResult(BaseModel):
+    title: str
+    iid: int
+    impact_score: str = Field(default="")
+    recommendation: str = Field(default="")
+    last_reviewed: str
+    analysis_link: str
 
 
 class MergeBotFlow(Flow[MergeBotState]):
@@ -62,41 +121,52 @@ class MergeBotFlow(Flow[MergeBotState]):
 
     @start()
     def begin(self):
-        logging.info("Commencing and starting the MergeBot")
+        logger.info("Commencing and starting the MergeBot")
 
     @listen(begin)
-    def mr_retriever(self):
+    async def mr_retriever(self):
         """Runs a Crew to extract Merge Request Details"""
-        mr_details = self.crews.mr_processor.kickoff(inputs={"input": bot_input}).raw
+        mr_details = (
+            await self.crews.mr_processor.kickoff_async(
+                inputs={"input": self.state.mr_url}
+            )
+        ).raw
         self.state.mr_details = mr_details
-        self.state.mr_id = extract_merge_request_id(mr_details)
 
     @listen(mr_retriever)
-    def code_analysis_assessment(self):
+    async def code_analysis_assessment(self):
         """Runs the Code Analysis Assessment on the MR details"""
-        self.state.code_analysis_assessment = self.crews.code_analysis.kickoff(
-            inputs={"mr_details": self.state.mr_details}
+        self.state.code_analysis_assessment = (
+            await self.crews.code_analysis.kickoff_async(
+                inputs={"mr_details": self.state.mr_details}
+            )
         ).raw
 
     @listen(mr_retriever)
-    def complexity_assessment(self):
+    async def complexity_assessment(self):
         """Runs the Complexity Assessment on the MR details"""
-        self.state.complexity_assessment = self.crews.complexity_assessment.kickoff(
-            inputs={"mr_details": self.state.mr_details}
+        self.state.complexity_assessment = (
+            await self.crews.complexity_assessment.kickoff_async(
+                inputs={"mr_details": self.state.mr_details}
+            )
         ).raw
 
     @listen(mr_retriever)
-    def test_analysis_assessment(self):
+    async def test_analysis_assessment(self):
         """Runs the Test Analysis Assessment on the MR details"""
-        self.state.test_analysis_assessment = self.crews.test_analysis.kickoff(
-            inputs={"mr_details": self.state.mr_details}
+        self.state.test_analysis_assessment = (
+            await self.crews.test_analysis.kickoff_async(
+                inputs={"mr_details": self.state.mr_details}
+            )
         ).raw
 
     @listen(mr_retriever)
-    def risk_assessment(self):
+    async def risk_assessment(self):
         """Runs the Risk Analysis Assessment on the MR details"""
-        self.state.risk_assessment = self.crews.risk_analysis.kickoff(
-            inputs={"mr_details": self.state.mr_details}
+        self.state.risk_assessment = (
+            await self.crews.risk_analysis.kickoff_async(
+                inputs={"mr_details": self.state.mr_details}
+            )
         ).raw
 
     @listen(
@@ -107,40 +177,74 @@ class MergeBotFlow(Flow[MergeBotState]):
             risk_assessment,
         )
     )
-    def impact_evaluator(self):
+    async def impact_evaluator(self):
         """Runs the Impact Evaluator Analysis Assessment on the MR details"""
-        self.state.impact_assessment = self.crews.impact_evaluator.kickoff(
-            inputs={
-                "mr_id": self.state.mr_id,
-                "code_analysis_assessment": self.state.code_analysis_assessment,
-                "complexity_assessment": self.state.complexity_assessment,
-                "test_analysis": self.state.test_analysis_assessment,
-                "risk_assessment": self.state.risk_assessment,
-            }
-        ).raw
-        logging.info("\nFinal Impact Assessment Report:")
-        logging.info(self.state.impact_assessment)
+        self.state.impact_assessment = extract_assessment(
+            (
+                await self.crews.impact_evaluator.kickoff_async(
+                    inputs={
+                        "mr_id": self.state.mr_id,
+                        "code_analysis_assessment": self.state.code_analysis_assessment,
+                        "complexity_assessment": self.state.complexity_assessment,
+                        "test_analysis": self.state.test_analysis_assessment,
+                        "risk_assessment": self.state.risk_assessment,
+                    }
+                )
+            ).raw
+        )
 
     @listen(impact_evaluator)
-    def mr_decision(self):
+    async def mr_decision(self):
         """Runs the MR decision crew on the impact assessment report"""
-        result = self.crews.publicator.kickoff(
+        response = await self.crews.publicator.kickoff_async(
             inputs={
                 "mr_id": self.state.mr_id,
                 "impact_assessment_report": self.state.impact_assessment,
             }
-        ).raw
+        )
+        self.state.analysis_link = extract_url_from_text(response.tasks_output[0].raw)
+        self.state.impact_evaluator = response.raw
 
-        logging.info("\nFinal Response:")
-        logging.info(result)
-
-    @listen(mr_decision)
-    def finish(self):
-        logging.info("MergeBot Processing Completed")
+        logger.info("\nFinal Response:")
+        logger.info(self.state.impact_evaluator)
 
 
-mergebot = MergeBotFlow()
+async def run_flow(mr_url: str, mr_iid: int = None, mr_title: str = "") -> AnalysisResult:
+    """
+    Initiates the MergeBotFlow to process a merge request URL.
 
-if __name__ == "__main__":
-    mergebot.kickoff()
-    mergebot.plot("mergebot_flow")
+    Args:
+        mr_url (str): The URL of the merge request to process.
+        mr_iid (int): Optional merge request ID to process.
+        mr_title (str): Optional merge request title.
+
+    Returns:
+        AnalysisResult: Validated analysis result for dashboard/tracking.
+    """
+    mr_id = mr_iid or extract_merge_request_id(mr_url)
+    if not mr_id:
+        raise Exception(f"Failed to extract MR ID from URL: {mr_url}")
+
+    inital_state = {"mr_url": mr_url, "mr_id": mr_id, "mr_title": mr_title}
+
+    mergebot = MergeBotFlow(**inital_state)
+    flow_id = mergebot.flow_id
+
+    logger.info(f"Initiated MergeBotFlow with Flow ID: {flow_id}")
+
+    await mergebot.kickoff_async()
+
+    try:
+        analysis_result = AnalysisResult(
+            title=mergebot.state.mr_title,
+            iid=mergebot.state.mr_id,
+            impact_score=mergebot.state.impact_assessment.get("score"),
+            recommendation=mergebot.state.impact_assessment.get("recommendation"),
+            last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
+            analysis_link=mergebot.state.analysis_link,
+        )
+    except ValidationError as e:
+        logger.error(f"AnalysisResult validation failed: {e}")
+        raise
+
+    return analysis_result
