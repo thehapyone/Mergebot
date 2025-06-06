@@ -3,11 +3,11 @@
 from functools import lru_cache
 import os
 import sys
-from pydantic import BaseModel, Field, ValidationError
-from pydantic import model_validator, field_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator, field_validator
 from typing import Dict, Optional
 import yaml
 from mergebot.logging_config import logger
+
 
 class LLMConfig(BaseModel):
     model: str = Field(..., description="LLM model to be used")
@@ -55,10 +55,49 @@ class RepositoryConfig(BaseModel):
 class CrewConfig(BaseModel):
     llm: Optional[LLMConfig] = None
 
+
 class ApprovalPolicy(BaseModel):
+    """
+    Represents the policy for approving changes based on weighted scores of various agents.
+
+    Attributes:
+        enabled (bool): Indicates whether the approval policy is active. Default is False.
+        threshold (float): The threshold score below which changes are auto-approved. Default is 3.0.
+        weights (Dict[str, float]): A dictionary of agent/crew names with their corresponding weight values.
+
+    Methods:
+        validate_weights_agents:
+            Validates that all agents specified in `weights` are among the predefined valid agents.
+            Ensures each valid agent is defined in `weights` with an associated weight value.
+
+        to_markdown:
+            Returns a formatted string in Markdown describing the approval policy, including weights and threshold.
+    """
+
     enabled: bool = False
     threshold: float = 3.0
     weights: Dict[str, float] = {}
+
+    @model_validator(mode="after")
+    def validate_weights_agents(self):
+        # Hardcoded valid agent/crew names
+        valid_agents = {
+            "CodeAnalysis",
+            "ComplexityAnalysis",
+            "TestAnalysis",
+            "RiskAnalysis",
+        }
+        invalid = [k for k in self.weights if k not in valid_agents]
+        if invalid:
+            raise ValueError(
+                f"Invalid agent(s) in approval_policy.weights: {', '.join(invalid)}. "
+                f"Valid agents are: {', '.join(valid_agents)}"
+            )
+        if len(self.weights) != len(valid_agents):
+            raise ValueError(
+                f"approval_policy.weights must define exactly {len(valid_agents)} agents: {', '.join(valid_agents)}"
+            )
+        return self
 
     def to_markdown(self) -> str:
         if not self.enabled or not self.weights:
@@ -70,6 +109,7 @@ class ApprovalPolicy(BaseModel):
             f"- Weights:\n{weights_str}\n"
             "Auto-approve if weighted impact score <= threshold.\n"
         )
+
 
 class Config(BaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")

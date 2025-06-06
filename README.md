@@ -8,7 +8,7 @@ It can automatically approve and merge low-risk MRs, or escalate complex changes
 
 ---
 
-## How It Works: AI Crews & Automated Impact Assessment
+## How It Works: AI Crews, Impact Assessment, and Approval Policy
 
 - **AI Crews/Agents**: Each crew (e.g., Code Analysis, Complexity, Risk, Test, Impact Evaluation) is an AI agent specialized for a review task. Crews are defined in modular Python classes and orchestrated in a flow.
 - **Automated Review Flow**: When an MR is submitted, Mergebot's flow triggers each crew in sequence:
@@ -17,18 +17,16 @@ It can automatically approve and merge low-risk MRs, or escalate complex changes
   3. **Complexity Crew**: Assesses the complexity and maintainability of the changes.
   4. **Test Analysis Crew**: Checks for test coverage and quality.
   5. **Risk Analysis Crew**: Evaluates potential risks introduced by the MR.
-  6. **Impact Evaluator**: Aggregates all assessments to determine the overall impact.
+  6. **Impact Evaluator**: Aggregates all assessments, applies the approval policy (if configured), and determines the overall impact and recommendation.
   7. **Publication Crew**: Decides whether to approve/merge the MR or escalate for human review.
-- **Outcome**: Low-risk, compliant MRs are merged automatically. High-impact or risky changes are flagged for human attention.
-
-**This means developers can focus on shipping features, not on the noise of continuous MRs—while always having an AI reviewer to ensure code quality and compliance.**
+- **Outcome**: Low-risk, compliant MRs are merged automatically (if they meet the approval policy). High-impact or risky changes are flagged for human attention.
 
 ---
 
 ## Features
 
 - **AI-Driven Code Review**: Modular AI crews/agents perform deep, multi-dimensional analysis of every MR.
-- **Automated Impact Assessment**: MRs are automatically approved, merged, or escalated based on AI review.
+- **Automated Impact Assessment & Approval Policy**: MRs are automatically approved, merged, or escalated based on AI review and a configurable approval policy.
 - **Configurable Workflows**: Define merge criteria, code analysis, risk assessment, and more via a single YAML config.
 - **Modern, Centralized Logging**: All modules use a visually appealing, colorized logging system powered by [Rich](https://github.com/Textualize/rich).
 - **Unified Configuration Validation**: All configuration is loaded and validated through a single, robust system.
@@ -40,9 +38,10 @@ It can automatically approve and merge low-risk MRs, or escalate complex changes
 ## Configuration
 
 All configuration is managed via `mergebot/config.yaml` and validated by `mergebot/validator/config.py`.  
-Key fields include repository type, platform credentials, and crew settings.
+Key fields include repository type, platform credentials, crew settings, and (optionally) the approval policy.
 
 Example:
+
 ```yaml
 repository:
   type: gitlab
@@ -54,10 +53,43 @@ repository:
 llm:
   model: gpt-4
 crews:
-  code_analysis:
+  CodeAnalysis:
     llm:
       model: gpt-4
+
+# Optional approval policy for auto-approval logic
+approval_policy:
+  enabled: true
+  threshold: 3.0
+  weights:
+    CodeAnalysis: 0.5
+    ComplexityAnalysis: 0.2
+    TestAnalysis: 0.2
+    TestAnalysis: 0.1
 ```
+
+---
+
+## Approval Policy
+
+Mergebot supports an optional **approval policy** system that allows you to configure the criteria for auto-approving merge requests based on agent scores.
+
+- The approval policy lets you specify a weighted scoring system for the impact evaluator.
+- You can define a threshold and assign weights to each agent (e.g., CodeAnalysis, ComplexityAnalysis).
+- If the weighted impact score is less than or equal to the threshold, the MR is auto-approved; otherwise, it requires human review.
+- If no approval_policy is defined, Mergebot uses its default logic.
+
+### Validation Rules
+
+- **Agent Names:** The weights must use only the valid agent names: `CodeAnalysis`, `ComplexityAnalysis`, `TestAnalysis`, `RiskAnalysis`.
+- **Weights:** You must define a weight for each agent—no more, no less.
+- **Threshold:** The threshold is a float value that determines the cutoff for auto-approval.
+- **Validation:** If the policy is misconfigured (e.g., wrong agent names, missing weights), Mergebot will fail fast with a clear error message.
+
+### How to Use
+
+- The approval policy is injected into the impact evaluator at runtime and used to guide the auto-approval decision.
+- If the policy is not enabled or not present, Mergebot falls back to its default approval logic.
 
 ---
 
