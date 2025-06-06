@@ -55,6 +55,21 @@ class RepositoryConfig(BaseModel):
 class CrewConfig(BaseModel):
     llm: Optional[LLMConfig] = None
 
+class ApprovalPolicy(BaseModel):
+    enabled: bool = False
+    threshold: float = 3.0
+    weights: Dict[str, float] = {}
+
+    def to_markdown(self) -> str:
+        if not self.enabled or not self.weights:
+            return ""
+        weights_str = "\n".join(f"  - {k}: {v:.2f}" for k, v in self.weights.items())
+        return (
+            f"**Approval Policy**:\n"
+            f"- Threshold: {self.threshold}\n"
+            f"- Weights:\n{weights_str}\n"
+            "Auto-approve if weighted impact score <= threshold.\n"
+        )
 
 class Config(BaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")
@@ -62,6 +77,7 @@ class Config(BaseModel):
     crews: Optional[Dict[str, CrewConfig]] = Field(
         None, description="Crew configurations"
     )
+    approval_policy: Optional[ApprovalPolicy] = None
 
     def get_llm_model_for_crew(self, crew_name: str) -> str:
         """Get LLM model for the crew"""
