@@ -21,6 +21,7 @@ RUN adduser --disabled-password --gecos '' appuser
 # Set work directory
 WORKDIR /home/appuser
 ENV PYTHONPATH=/home/appuser
+ENV PATH="/home/appuser/.local/bin:$PATH"
 
 # Install Poetry
 RUN pip install --upgrade pip && \

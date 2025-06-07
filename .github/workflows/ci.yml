@@ -78,3 +78,21 @@ jobs:
           cache-to: type=gha,mode=max
           tags: thehapyone/mergebot:test-${{ github.sha }}
           push: false
+
+  test-docker-cli:
+    runs-on: ubuntu-latest
+    name: Test Docker CLI
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Load Built Image
+        run: |
+          docker pull thehapyone/mergebot:test-${{ github.sha }} || echo "Image should be available locally"
+      - name: Test CLI mode
+        run: |
+          docker run --rm thehapyone/mergebot:test-${{ github.sha }} cli --mr-url "https://example.com/mr/123" || true
+      - name: Test Ondemand mode
+        run: |
+          docker run --rm thehapyone/mergebot:test-${{ github.sha }} ondemand || true

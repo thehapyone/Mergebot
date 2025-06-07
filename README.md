@@ -89,6 +89,10 @@ Mergebot supports an optional **approval policy** system that allows you to conf
 Process a Merge Request directly from the command line:
 
 ```bash
+# If installed via Poetry or pipx
+mergebot cli --mr-url "https://gitlab.example.com/your/project/-/merge_requests/123"
+
+# Or using Python directly
 python3 -m mergebot.app cli --mr-url "https://gitlab.example.com/your/project/-/merge_requests/123"
 ```
 
@@ -99,6 +103,52 @@ Run as a webhook server to process MRs automatically:
 ```bash
 python3 -m mergebot.app webhook --port 8000
 ```
+
+---
+
+## Running with Docker
+
+You can run Mergebot in any mode using Docker:
+
+```bash
+# CLI mode
+docker run --rm thehapyone/mergebot:test-latest cli --mr-url "https://gitlab.example.com/your/project/-/merge_requests/123"
+
+# Ondemand mode
+docker run --rm thehapyone/mergebot:test-latest ondemand
+
+# Webhook mode (exposes port 8000)
+docker run --rm -p 8000:8000 thehapyone/mergebot:test-latest webhook --port 8000
+```
+
+You can mount your own config file or data as needed:
+```bash
+docker run --rm -v $(pwd)/mergebot/config.yaml:/home/appuser/mergebot/config.yaml thehapyone/mergebot:test-latest cli --mr-url ...
+```
+
+---
+
+## Docker Compose
+
+A `docker-compose.yml` is provided for easy orchestration.
+
+**Default usage (CLI mode):**
+```bash
+docker compose up
+```
+This will run the CLI mode with the default command in `docker-compose.yml`.
+
+**Override the command for other modes:**
+```bash
+# Ondemand mode
+docker compose run mergebot ondemand
+
+# Webhook mode (exposes port 8000)
+docker compose run --service-ports mergebot webhook --port 8000
+```
+
+**Custom configuration:**
+Uncomment and edit the `volumes` section in `docker-compose.yml` to mount your own config or data.
 
 ---
 

@@ -1,13 +1,12 @@
 import argparse
 import sys
+import asyncio
+
 from mergebot.logging_config import logger
 from mergebot.flow import run_flow
 from mergebot.utils import get_platform_type
 from mergebot.webhook_server import WebhookServer
 from mergebot.ondemand_runner import OndemandRunner
-
-
-import asyncio
 
 
 async def run_cli_mode(mr_url: str):
@@ -114,6 +113,10 @@ async def main():
             await runner.run_periodic(args.interval)
         else:
             await runner.run_once()
+
+
+def cli_entry():
+    asyncio.run(main())
 
 
 if __name__ == "__main__":

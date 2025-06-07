@@ -1,0 +1,11 @@
+services:
+  mergebot:
+    image: thehapyone/mergebot:latest
+    container_name: mergebot
+    # Default command can be overridden with `docker compose run mergebot <args>`
+    command: ["ondemand"]
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes: []
+      # Uncomment and edit if you want to mount local config or data
+      # - ./mergebot/config.yaml:/home/appuser/mergebot/config.yaml

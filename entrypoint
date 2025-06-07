@@ -25,3 +25,5 @@ if [ -f "${CA_CERTIFICATES_PATH}" ]; then
 fi
 
 chown -R appuser:appuser /home/appuser
+
+exec mergebot "$@"
