@@ -108,6 +108,7 @@ class ApprovalPolicy(BaseModel):
             f"- Threshold: {self.threshold}\n"
             f"- Weights:\n{weights_str}\n"
             "Auto-approve if weighted impact score <= threshold.\n"
+            "Do not adjust, round, or reinterpret the score except for standard rounding."
         )
 
 

@@ -21,3 +21,12 @@ crews:
   TestAnalysis:
     llm:
       model: "azure/gpt-4.1-mini"
+
+approval_policy:
+  enabled: true
+  threshold: 3.0
+  weights:
+    CodeAnalysis: 0.4
+    ComplexityAnalysis: 0.2
+    TestAnalysis: 0.2
+    RiskAnalysis: 0.2

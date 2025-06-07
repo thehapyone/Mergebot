@@ -41,7 +41,6 @@ All configuration is managed via `mergebot/config.yaml` and validated by `mergeb
 Key fields include repository type, platform credentials, crew settings, and (optionally) the approval policy.
 
 Example:
-
 ```yaml
 repository:
   type: gitlab
@@ -65,31 +64,21 @@ approval_policy:
     CodeAnalysis: 0.5
     ComplexityAnalysis: 0.2
     TestAnalysis: 0.2
-    TestAnalysis: 0.1
+    RiskAnalysis: 0.1
 ```
 
 ---
 
 ## Approval Policy
 
+:book: **For a full, scenario-driven guide, worked examples, and best practices, see [APPROVAL_POLICY.md](./docs/APPROVAL_POLICY.md).**
+
 Mergebot supports an optional **approval policy** system that allows you to configure the criteria for auto-approving merge requests based on agent scores.
 
 - The approval policy lets you specify a weighted scoring system for the impact evaluator.
-- You can define a threshold and assign weights to each agent (e.g., CodeAnalysis, ComplexityAnalysis).
+- You can define a threshold and assign weights to each agent.
 - If the weighted impact score is less than or equal to the threshold, the MR is auto-approved; otherwise, it requires human review.
 - If no approval_policy is defined, Mergebot uses its default logic.
-
-### Validation Rules
-
-- **Agent Names:** The weights must use only the valid agent names: `CodeAnalysis`, `ComplexityAnalysis`, `TestAnalysis`, `RiskAnalysis`.
-- **Weights:** You must define a weight for each agent—no more, no less.
-- **Threshold:** The threshold is a float value that determines the cutoff for auto-approval.
-- **Validation:** If the policy is misconfigured (e.g., wrong agent names, missing weights), Mergebot will fail fast with a clear error message.
-
-### How to Use
-
-- The approval policy is injected into the impact evaluator at runtime and used to guide the auto-approval decision.
-- If the policy is not enabled or not present, Mergebot falls back to its default approval logic.
 
 ---
 
