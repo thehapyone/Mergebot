@@ -18,8 +18,6 @@ examples/
 *.pyc
 __pycache__/
 sandbox
-*.log
-*.tmp
 tmp/
 .files
 *_cache
@@ -29,7 +27,6 @@ coverage.xml
 
 ## Sage data dir
 data
-
 
 # Ignore files that are generated during the build process
 *.o

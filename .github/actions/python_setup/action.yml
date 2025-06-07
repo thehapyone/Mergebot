@@ -1,5 +1,4 @@
 # Action code from:
-# https://github.com/langchain-ai/langchain/blob/master/.github/actions/poetry_setup/action.yml
 name: poetry-install-with-caching
 description: Poetry install with support for caching of dependency groups.
 

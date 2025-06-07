@@ -1,4 +1,4 @@
-.PHONY: all format lint test tests
+.PHONY: all format lint spell_check spell_fix build deploy help
 
 # Default target executed when no arguments are given to make.
 all: help
@@ -7,14 +7,9 @@ all: help
 # LINTING AND FORMATTING
 ######################
 
-# Define a variable for Python and notebook files.
 PYTHON_FILES=.
-MYPY_CACHE=.mypy_cache
-lint format: PYTHON_FILES=.
-lint_tests: PYTHON_FILES=tests
-lint_tests: MYPY_CACHE=.mypy_cache_test
 
-lint lint_tests:
+lint:
 	poetry run ruff check $(PYTHON_FILES)
 
 format:
@@ -26,7 +21,6 @@ spell_check:
 
 spell_fix:
 	poetry run codespell --toml pyproject.toml -w
-
 
 ######################
 # BUILDING AND PUBLISHING
@@ -45,5 +39,10 @@ deploy:
 
 help:
 	@echo '----'
-	@echo 'format                       - run code formatters'
-	@echo 'lint                         - run linters'
+	@echo 'format        - run code formatters'
+	@echo 'lint          - run linters'
+	@echo 'spell_check   - run codespell for spelling errors'
+	@echo 'spell_fix     - auto-fix spelling errors with codespell'
+	@echo 'build         - build the Docker image'
+	@echo 'deploy        - push the Docker image to Docker Hub'
+	@echo 'help          - show this help message'
