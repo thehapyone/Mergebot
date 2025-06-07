@@ -1,11 +1,13 @@
 # mergebot/validator/config.py
 
-from functools import lru_cache
 import os
 import sys
-from pydantic import BaseModel, Field, ValidationError, model_validator, field_validator
+from functools import lru_cache
 from typing import Dict, Optional
+
 import yaml
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+
 from mergebot.logging_config import logger
 
 

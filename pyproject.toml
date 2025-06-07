@@ -15,11 +15,20 @@ dependencies = [
 ]
 
 
+[project.scripts]
+mergebot = "mergebot.app:cli_entry"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = true
 
 [tool.poetry.group.dev.dependencies]
 codespell = "^2.4.1"
 ruff = "^0.9.9"
 
+[tool.codespell]
+ignore-words-list = "allEdges,astroid"
+skip = "poetry.lock"

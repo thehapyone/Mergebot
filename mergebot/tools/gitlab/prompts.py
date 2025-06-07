@@ -1,4 +1,3 @@
-
 GET_MERGE_REQUEST_PROMPT = """
 This tool will fetch the complete details of a specific merge request.
 Example input: {\"merge_request_iid\": \"10\"}
@@ -45,4 +44,3 @@ FETCH_PIPELINE_DETAILS_PROMPT = """
 This tool will fetch detailed information of a specific pipeline, including job logs and summarized relevant information.  
 Example input: {"pipeline_id": "12345"}  
 """
-

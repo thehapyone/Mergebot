@@ -1,8 +1,8 @@
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, task, crew
+from crewai import Agent, Task
+from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
-from mergebot.tools.gitlab import GitlabMergeCommentTool, GitlabMergeApprovalTool
+from mergebot.tools.gitlab import GitlabMergeApprovalTool, GitlabMergeCommentTool
 
 
 @CrewBase

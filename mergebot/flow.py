@@ -1,19 +1,20 @@
-from datetime import datetime
 import re
-from typing import Optional
-from pydantic import BaseModel, Field, ValidationError
-from crewai.flow.flow import Flow, listen, start, and_
+from datetime import datetime
+
 from crewai import Crew
-from mergebot.logging_config import logger
+from crewai.flow.flow import Flow, and_, listen, start
+from pydantic import BaseModel, Field, ValidationError
+
 from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
-    RiskAnalysis,
-    TestAnalysis,
     ImpactEvaluator,
     MRProcessor,
     Publication,
+    RiskAnalysis,
+    TestAnalysis,
 )
+from mergebot.logging_config import logger
 from mergebot.validator.config import load_config
 
 
