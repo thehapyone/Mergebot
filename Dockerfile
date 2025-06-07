@@ -4,16 +4,8 @@ FROM python:3.12-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV POETRY_VERSION=1.8.3
+ENV POETRY_VERSION=2.1.2
 ENV REQUESTS_CA_BUNDLE="/etc/ssl/certs/ca-certificates.crt"
-ENV CURL_CA_BUNDLE="/etc/ssl/certs/ca-certificates.crt"
-
-# install basic dependencies
-RUN apt-get update && \
-    apt-get install --fix-broken --no-install-recommends -y \
-    git ffmpeg libsm6 libxext6 poppler-utils libmagic-mgc libmagic1 && \
-    apt-get autoremove -y && apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
 RUN adduser --disabled-password --gecos '' appuser
@@ -21,26 +13,26 @@ RUN adduser --disabled-password --gecos '' appuser
 # Set work directory
 WORKDIR /home/appuser
 ENV PYTHONPATH=/home/appuser
-ENV PATH="/home/appuser/.local/bin:$PATH"
+ENV PATH="/home/appuser/.venv/bin:$PATH"
 
 # Install Poetry
 RUN pip install --upgrade pip && \
     pip install "poetry==$POETRY_VERSION"
 
 # Copy only the files needed for installing dependencies
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml poetry.lock README.md ./
 
-# Install project dependencies
-RUN poetry config virtualenvs.create false && \
-    poetry install --no-cache --no-plugins --no-interaction --no-ansi
+USER appuser
+
+# Configure Poetry to use in-project virtualenvs and install dependencies (no-root)
+RUN poetry config virtualenvs.in-project true && \
+    poetry install --no-cache --no-plugins --no-interaction --no-ansi --no-root
 
 # Copy the rest of the application's code
-COPY --chmod=777 entrypoint /entrypoint
-COPY . .
+COPY mergebot ./mergebot
 
-STOPSIGNAL SIGQUIT
+# Install the current project (fast, only project code, not dependencies)
+RUN poetry install --no-cache --no-plugins --no-interaction --no-ansi
 
-RUN chown -R appuser:appuser /home/appuser
-
-# Run the application
-ENTRYPOINT ["/bin/bash", "/entrypoint"]
+# Use the CLI as the entrypoint
+ENTRYPOINT ["mergebot"]
