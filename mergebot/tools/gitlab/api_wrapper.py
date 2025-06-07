@@ -354,7 +354,7 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             # Get approvals
             approvals = mr.approvals.get()
 
-            # # MR Dicussions
+            # # MR Discussions
             # discussion_notes = []
 
             # discussions = mr.discussions.list(all=True)

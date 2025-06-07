@@ -28,3 +28,7 @@ package-mode = true
 [tool.poetry.group.dev.dependencies]
 codespell = "^2.4.1"
 ruff = "^0.9.9"
+
+[tool.codespell]
+ignore-words-list = "allEdges,astroid"
+skip = "poetry.lock"
