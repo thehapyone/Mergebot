@@ -152,6 +152,38 @@ Uncomment and edit the `volumes` section in `docker-compose.yml` to mount your o
 
 ---
 
+## CI/CD & Docker Hub
+
+On every merge to `master` or when a new tag is pushed, the GitHub Actions workflow will automatically build and push the Mergebot Docker image to [Docker Hub](https://hub.docker.com/r/thehapyone/mergebot).
+
+- **Image Tags:**
+  - On `master` merges: `latest`
+  - On tag pushes: the tag name (e.g., `v1.2.3`)
+
+- **Required GitHub Secrets:**
+  - `DOCKERHUB_USERNAME`: Your Docker Hub username
+  - `DOCKERHUB_TOKEN`: Your Docker Hub access token (create in Docker Hub > Account Settings > Security)
+
+- **How it works:**
+  1. The workflow logs in to Docker Hub using the provided secrets.
+  2. Builds the Docker image.
+  3. Pushes the image to Docker Hub with the appropriate tag.
+
+- **Example image reference:**
+  ```
+  thehapyone/mergebot:latest
+  thehapyone/mergebot:v1.2.3
+  ```
+
+You can then pull and run the image from Docker Hub in your environments:
+
+```bash
+docker pull thehapyone/mergebot:latest
+docker run --rm thehapyone/mergebot:latest cli --mr-url ...
+```
+
+---
+
 ## Logging
 
 Mergebot uses a centralized, visually appealing logging system based on [RichHandler](https://rich.readthedocs.io/en/stable/logging.html):
