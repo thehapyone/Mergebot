@@ -1,10 +1,12 @@
-from fastapi import FastAPI, Request, HTTPException
-import uvicorn
-from typing import Optional, Dict
 import asyncio
+from typing import Dict, Optional
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
+
+from mergebot.flow import run_flow
 from mergebot.logging_config import logger
 from mergebot.utils import get_platform_type
-from mergebot.flow import run_flow
 
 
 def parse_gitlab_mr_event(payload: dict) -> Optional[str]:

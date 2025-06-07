@@ -1,6 +1,6 @@
 from mergebot.tools.gitlab import (
-    GitlabMergeRequestTool,
     GitlabMergeApprovalTool,
     GitlabMergeCommentTool,
+    GitlabMergeRequestTool,
     GitlabPipelineTool,
 )

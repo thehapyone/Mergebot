@@ -1,8 +1,9 @@
+import json
 import re
 from typing import Any, Dict, List
-import json
 
 from langchain_community.utilities.gitlab import GitLabAPIWrapper
+
 from mergebot.validator.config import load_config
 
 
@@ -19,7 +20,11 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         project = self.gitlab_repo_instance
         issues = project.issues.list(search=title, all=True)
         # Optionally filter by exact title match
-        return [issue.attributes for issue in issues if issue.title.strip().lower() == title.strip().lower()]
+        return [
+            issue.attributes
+            for issue in issues
+            if issue.title.strip().lower() == title.strip().lower()
+        ]
 
     def create_issue(self, project_id: str, title: str, description: str):
         """
@@ -216,7 +221,6 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         return additions, deletions
 
     def pretty_print_merge_request(self, mr_details: dict):
-
         # Prepare MR Metadata string
         mr_metadata = [
             "## Merge Request Details:",

@@ -2,13 +2,14 @@ from typing import Any, Type
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
-from mergebot.tools.gitlab.prompts import (
-    GET_MERGE_REQUEST_PROMPT,
-    FETCH_PIPELINE_DETAILS_PROMPT,
-    POST_MERGE_REQUEST_COMMENT_PROMPT,
-    APPROVE_MERGE_REQUEST_PROMPT,
-)
+
 from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
+from mergebot.tools.gitlab.prompts import (
+    APPROVE_MERGE_REQUEST_PROMPT,
+    FETCH_PIPELINE_DETAILS_PROMPT,
+    GET_MERGE_REQUEST_PROMPT,
+    POST_MERGE_REQUEST_COMMENT_PROMPT,
+)
 
 
 class GitlabPipelineToolSchema(BaseModel):

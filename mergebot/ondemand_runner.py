@@ -1,11 +1,12 @@
 import asyncio
-from mergebot.dashboard_manager import GitLabDashboardManager
-from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
-from mergebot.flow import run_flow
-from mergebot.logging_config import logger
-from mergebot.utils import get_platform_type
 import time
 from datetime import datetime
+
+from mergebot.dashboard_manager import GitLabDashboardManager
+from mergebot.flow import run_flow
+from mergebot.logging_config import logger
+from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
+from mergebot.utils import get_platform_type
 
 
 class OndemandRunner:
@@ -107,7 +108,7 @@ class OndemandRunner:
         prev_avg = prev_analytics.get("Avg. Time Open→Merge", "N/A")
         if analysis_durations:
             avg_seconds = sum(analysis_durations) / len(analysis_durations)
-            avg_time = f"{int(avg_seconds//60)}h {int(avg_seconds%60)}m"
+            avg_time = f"{int(avg_seconds // 60)}h {int(avg_seconds % 60)}m"
         else:
             avg_time = prev_avg if prev_avg != "N/A" else "N/A"
 

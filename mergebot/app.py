@@ -1,12 +1,12 @@
 import argparse
-import sys
 import asyncio
+import sys
 
-from mergebot.logging_config import logger
 from mergebot.flow import run_flow
+from mergebot.logging_config import logger
+from mergebot.ondemand_runner import OndemandRunner
 from mergebot.utils import get_platform_type
 from mergebot.webhook_server import WebhookServer
-from mergebot.ondemand_runner import OndemandRunner
 
 
 async def run_cli_mode(mr_url: str):
