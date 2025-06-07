@@ -1,6 +1,5 @@
 import re
 from datetime import datetime
-from typing import Optional
 
 from crewai import Crew
 from crewai.flow.flow import Flow, and_, listen, start

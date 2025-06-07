@@ -4,3 +4,10 @@ from mergebot.tools.gitlab.tools import (
     GitlabMergeRequestTool,
     GitlabPipelineTool,
 )
+
+__all__ = [
+    "GitlabMergeApprovalTool",
+    "GitlabMergeCommentTool",
+    "GitlabMergeRequestTool",
+    "GitlabPipelineTool",
+]

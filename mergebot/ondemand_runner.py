@@ -1,6 +1,5 @@
 import asyncio
 import time
-from datetime import datetime
 
 from mergebot.dashboard_manager import GitLabDashboardManager
 from mergebot.flow import run_flow
