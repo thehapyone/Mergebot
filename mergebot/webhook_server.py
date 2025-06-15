@@ -51,14 +51,16 @@ class WebhookServer:
     MR/PR URLs, and triggers the Mergebot review flow.
     """
 
-    def __init__(self, port: int = 8000):
+    def __init__(self, port: int = 8000, project: str = None):
         """
         Initialize the WebhookServer.
 
         Args:
             port (int): The port to run the server on (default: 8000).
+            project (str): The GitLab project/repository path.
         """
         self.port = port
+        self.project = project
         self.platform_type = get_platform_type()
         self.app = FastAPI()
         self._setup_routes()
@@ -113,7 +115,7 @@ class WebhookServer:
 
             if mr_url:
                 logger.info(f"Processing MR/PR: {mr_url}")
-                asyncio.create_task(run_flow(mr_url))
+                asyncio.create_task(run_flow(mr_url, project=self.project))
             else:
                 logger.info("No actionable MR/PR found in event")
 

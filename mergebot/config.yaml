@@ -8,7 +8,6 @@ repository:
 
   gitlab:
     url: "https://gitlab.its.getingecloud.net"
-    project: "dts/lestrade/aide-recorder"
     base_branch: "main"
 
 crews:

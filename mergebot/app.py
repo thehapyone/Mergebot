@@ -9,21 +9,23 @@ from mergebot.utils import get_platform_type
 from mergebot.webhook_server import WebhookServer
 
 
-async def run_cli_mode(mr_url: str):
+async def run_cli_mode(mr_url: str, project: str):
     """
-    Run MergeBot in CLI mode for a given Merge Request URL.
+    Run MergeBot in CLI mode for a given Merge Request URL and project.
 
     Args:
         mr_url (str): The Merge Request URL to process.
+        project (str): The GitLab project/repository path.
     """
     platform_type = get_platform_type()
     logger.info(f"[CLI] Configured platform: {platform_type}")
     logger.debug(f"[CLI] Received MR URL: {mr_url}")
+    logger.debug(f"[CLI] Using project: {project}")
 
     if platform_type == "gitlab":
-        logger.info(f"[CLI] Running in CLI mode for GitLab MR: {mr_url}")
+        logger.info(f"[CLI] Running in CLI mode for GitLab MR: {mr_url} (project: {project})")
         try:
-            await run_flow(mr_url)
+            await run_flow(mr_url, project=project)
             logger.info("[CLI] MergeBot CLI flow completed successfully.")
         except Exception as e:
             logger.error(f"[CLI] Error during CLI flow: {e}", exc_info=True)
@@ -38,18 +40,19 @@ async def run_cli_mode(mr_url: str):
         sys.exit(1)
 
 
-def run_webhook_mode(port: int):
+def run_webhook_mode(port: int, project: str):
     """
-    Run MergeBot in webhook server mode on the specified port.
+    Run MergeBot in webhook server mode on the specified port and project.
 
     Args:
         port (int): The port number to run the webhook server on.
+        project (str): The GitLab project/repository path.
     """
     platform_type = get_platform_type()
     logger.info(f"[Webhook] Configured platform: {platform_type}")
-    logger.info(f"[Webhook] Running in webhook mode on port {port}")
+    logger.info(f"[Webhook] Running in webhook mode on port {port} (project: {project})")
     try:
-        server = WebhookServer(port=port)
+        server = WebhookServer(port=port, project=project)
         server.run()
         logger.info("[Webhook] Webhook server stopped.")
     except Exception as e:
@@ -70,6 +73,12 @@ async def main():
     # CLI subcommand
     cli_parser = subparsers.add_parser("cli", help="Run in CLI mode")
     cli_parser.add_argument(
+        "--project",
+        type=str,
+        required=True,
+        help="GitLab project/repository path (e.g., mygroup/myrepo)",
+    )
+    cli_parser.add_argument(
         "--mr-url",
         type=str,
         required=True,
@@ -78,6 +87,12 @@ async def main():
 
     # Webhook subcommand
     webhook_parser = subparsers.add_parser("webhook", help="Run in webhook mode")
+    webhook_parser.add_argument(
+        "--project",
+        type=str,
+        required=True,
+        help="GitLab project/repository path (e.g., mygroup/myrepo)",
+    )
     webhook_parser.add_argument(
         "--port",
         type=int,
@@ -88,6 +103,12 @@ async def main():
     # Ondemand subcommand
     ondemand_parser = subparsers.add_parser(
         "ondemand", help="Run in ondemand (periodic or one-shot) mode"
+    )
+    ondemand_parser.add_argument(
+        "--project",
+        type=str,
+        required=True,
+        help="GitLab project/repository path (e.g., mygroup/myrepo)",
     )
     ondemand_parser.add_argument(
         "--interval",
@@ -104,11 +125,11 @@ async def main():
     args = parser.parse_args()
 
     if args.mode == "cli":
-        await run_cli_mode(args.mr_url)
+        await run_cli_mode(args.mr_url, args.project)
     elif args.mode == "webhook":
-        run_webhook_mode(args.port)
+        run_webhook_mode(args.port, args.project)
     elif args.mode == "ondemand":
-        runner = OndemandRunner()
+        runner = OndemandRunner(project=args.project)
         if args.interval:
             await runner.run_periodic(args.interval)
         else:

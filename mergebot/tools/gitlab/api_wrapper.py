@@ -50,9 +50,13 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         config = load_config()
         gitlab_config = config.repository.gitlab
 
+        # Require project to be provided
+        if not kwargs.get("gitlab_repository"):
+            raise ValueError("GitLab project/repository must be provided via the --project CLI flag.")
+
         # Prepare parameters for the base GitLabAPIWrapper class
         gitlab_url = gitlab_config.url
-        gitlab_repository = gitlab_config.project
+        gitlab_repository = kwargs.get("gitlab_repository")
         gitlab_personal_access_token = gitlab_config.private_token
         gitlab_branch = gitlab_config.base_branch
         gitlab_base_branch = gitlab_config.base_branch

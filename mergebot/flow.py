@@ -204,7 +204,7 @@ class MergeBotFlow(Flow[MergeBotState]):
 
 
 async def run_flow(
-    mr_url: str, mr_iid: int = None, mr_title: str = ""
+    mr_url: str, mr_iid: int = None, mr_title: str = "", project: str = None
 ) -> AnalysisResult:
     """
     Initiates the MergeBotFlow to process a merge request URL.
@@ -213,6 +213,7 @@ async def run_flow(
         mr_url (str): The URL of the merge request to process.
         mr_iid (int): Optional merge request ID to process.
         mr_title (str): Optional merge request title.
+        project (str): The GitLab project/repository path.
 
     Returns:
         AnalysisResult: Validated analysis result for dashboard/tracking.
@@ -221,7 +222,7 @@ async def run_flow(
     if not mr_id:
         raise Exception(f"Failed to extract MR ID from URL: {mr_url}")
 
-    inital_state = {"mr_url": mr_url, "mr_id": mr_id, "mr_title": mr_title}
+    inital_state = {"mr_url": mr_url, "mr_id": mr_id, "mr_title": mr_title, "project": project}
 
     mergebot = MergeBotFlow(**inital_state)
     flow_id = mergebot.flow_id

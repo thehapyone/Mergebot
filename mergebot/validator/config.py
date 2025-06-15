@@ -21,9 +21,6 @@ class GitLabConfig(BaseModel):
         default=os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN"),
         description="Private token for GitLab API authentication",
     )
-    project: str = Field(
-        ..., description="GitLab project path (e.g., 'username/project_name')"
-    )
     base_branch: str = Field(default="main", description="Base branch for the project")
 
     @field_validator("private_token")

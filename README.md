@@ -37,6 +37,8 @@ It can automatically approve and merge low-risk MRs, or escalate complex changes
 
 ## Configuration
 
+> **Note:** The GitLab project/repository is now always provided via the required `--project` CLI flag.  
+
 All configuration is managed via `mergebot/config.yaml` and validated by `mergebot/validator/config.py`.  
 Key fields include repository type, platform credentials, crew settings, and (optionally) the approval policy.
 
@@ -47,7 +49,6 @@ repository:
   gitlab:
     url: https://gitlab.example.com/api/v4
     private_token: YOUR_TOKEN
-    project: your/project
     base_branch: main
 llm:
   model: gpt-4
@@ -68,6 +69,12 @@ approval_policy:
 ```
 
 ---
+
+## Usage
+
+> **Note:** The `--project` CLI flag is required for all running modes (`cli`, `ondemand`, `webhook`).  
+> The project/repository must always be specified on the command line.
+
 
 ## Approval Policy
 
@@ -90,18 +97,30 @@ Process a Merge Request directly from the command line:
 
 ```bash
 # If installed via Poetry or pipx
-mergebot cli --mr-url "https://gitlab.example.com/your/project/-/merge_requests/123"
+mergebot cli --project mygroup/myrepo --mr-url "https://gitlab.example.com/mygroup/myrepo/-/merge_requests/123"
 
 # Or using Python directly
-python3 -m mergebot.app cli --mr-url "https://gitlab.example.com/your/project/-/merge_requests/123"
+python3 -m mergebot.app cli --project mygroup/myrepo --mr-url "https://gitlab.example.com/mygroup/myrepo/-/merge_requests/123"
+```
+
+### Ondemand Mode
+
+Run a one-shot or periodic dashboard scan for a project:
+
+```bash
+mergebot ondemand --project mygroup/myrepo
+# Or
+python3 -m mergebot.app ondemand --project mygroup/myrepo
 ```
 
 ### Webhook Mode
 
-Run as a webhook server to process MRs automatically:
+Run as a webhook server to process MRs automatically for a project:
 
 ```bash
-python3 -m mergebot.app webhook --port 8000
+mergebot webhook --project mygroup/myrepo --port 8000
+# Or
+python3 -m mergebot.app webhook --project mygroup/myrepo --port 8000
 ```
 
 ---
@@ -112,39 +131,39 @@ You can run Mergebot in any mode using Docker:
 
 ```bash
 # CLI mode
-docker run --rm thehapyone/mergebot:test-latest cli --mr-url "https://gitlab.example.com/your/project/-/merge_requests/123"
+docker run --rm thehapyone/mergebot:test-latest cli --project mygroup/myrepo --mr-url "https://gitlab.example.com/mygroup/myrepo/-/merge_requests/123"
 
 # Ondemand mode
-docker run --rm thehapyone/mergebot:test-latest ondemand
+docker run --rm thehapyone/mergebot:test-latest ondemand --project mygroup/myrepo
 
 # Webhook mode (exposes port 8000)
-docker run --rm -p 8000:8000 thehapyone/mergebot:test-latest webhook --port 8000
+docker run --rm -p 8000:8000 thehapyone/mergebot:test-latest webhook --project mygroup/myrepo --port 8000
 ```
 
 You can mount your own config file or data as needed:
 ```bash
-docker run --rm -v $(pwd)/mergebot/config.yaml:/home/appuser/mergebot/config.yaml thehapyone/mergebot:test-latest cli --mr-url ...
+docker run --rm -v $(pwd)/mergebot/config.yaml:/home/appuser/mergebot/config.yaml thehapyone/mergebot:test-latest cli --project mygroup/myrepo --mr-url ...
 ```
 
 ---
 
 ## Docker Compose
 
-A `docker-compose.yml` is provided for easy orchestration.
+A `docker-compose.yml` is provided for easy orchestration. The `--project` flag is always required in all commands.
 
 **Default usage (CLI mode):**
 ```bash
-docker compose up
+docker compose run mergebot cli --project mygroup/myrepo --mr-url "https://gitlab.example.com/mygroup/myrepo/-/merge_requests/123"
 ```
-This will run the CLI mode with the default command in `docker-compose.yml`.
 
-**Override the command for other modes:**
+**Ondemand mode:**
 ```bash
-# Ondemand mode
-docker compose run mergebot ondemand
+docker compose run mergebot ondemand --project mygroup/myrepo
+```
 
-# Webhook mode (exposes port 8000)
-docker compose run --service-ports mergebot webhook --port 8000
+**Webhook mode (exposes port 8000):**
+```bash
+docker compose run --service-ports mergebot webhook --project mygroup/myrepo --port 8000
 ```
 
 **Custom configuration:**

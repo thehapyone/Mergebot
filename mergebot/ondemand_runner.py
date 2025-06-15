@@ -9,11 +9,11 @@ from mergebot.utils import get_platform_type
 
 
 class OndemandRunner:
-    def __init__(self):
+    def __init__(self, project: str = None):
         # Select platform based on get_platform_type()
         self.platform_type = get_platform_type()
         if self.platform_type == "gitlab":
-            self.api = GitLabAPIWrapperExtra()
+            self.api = GitLabAPIWrapperExtra(project=project)
             self.project_id = self.api.gitlab_repo_instance.id
             self.dashboard_manager = GitLabDashboardManager(self.api, self.project_id)
         else:
