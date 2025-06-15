@@ -30,7 +30,7 @@ It can automatically approve and merge low-risk MRs, or escalate complex changes
 - **Configurable Workflows**: Define merge criteria, code analysis, risk assessment, and more via a single YAML config.
 - **Modern, Centralized Logging**: All modules use a visually appealing, colorized logging system powered by [Rich](https://github.com/Textualize/rich).
 - **Unified Configuration Validation**: All configuration is loaded and validated through a single, robust system.
-- **Flexible CLI & Webhook Modes**: Run as a CLI tool or as a webhook server, with clear subcommands for each.
+- **Flexible Operation Modes**: Run as a webhook server or in ondemand mode, with clear subcommands for each.
 - **Extensible Architecture**: Easily add new analysis "crews" or extend platform support.
 
 ---
@@ -72,7 +72,7 @@ approval_policy:
 
 ## Usage
 
-> **Note:** The `--project` CLI flag is required for all running modes (`cli`, `ondemand`, `webhook`).  
+> **Note:** The `--project` flag is required for all running modes (`ondemand`, `webhook`).  
 > The project/repository must always be specified on the command line.
 
 
@@ -91,17 +91,7 @@ Mergebot supports an optional **approval policy** system that allows you to conf
 
 ## Usage
 
-### CLI Mode
-
-Process a Merge Request directly from the command line:
-
-```bash
-# If installed via Poetry or pipx
-mergebot cli --project mygroup/myrepo --mr-url "https://gitlab.example.com/mygroup/myrepo/-/merge_requests/123"
-
-# Or using Python directly
-python3 -m mergebot.app cli --project mygroup/myrepo --mr-url "https://gitlab.example.com/mygroup/myrepo/-/merge_requests/123"
-```
+<!-- CLI Mode removed: Mergebot no longer supports direct CLI mode for single MR processing. -->
 
 ### Ondemand Mode
 
@@ -127,12 +117,9 @@ python3 -m mergebot.app webhook --project mygroup/myrepo --port 8000
 
 ## Running with Docker
 
-You can run Mergebot in any mode using Docker:
+You can run Mergebot in `ondemand` or `webhook` mode using Docker. The `--project` flag is always required:
 
 ```bash
-# CLI mode
-docker run --rm thehapyone/mergebot:test-latest cli --project mygroup/myrepo --mr-url "https://gitlab.example.com/mygroup/myrepo/-/merge_requests/123"
-
 # Ondemand mode
 docker run --rm thehapyone/mergebot:test-latest ondemand --project mygroup/myrepo
 
@@ -142,7 +129,7 @@ docker run --rm -p 8000:8000 thehapyone/mergebot:test-latest webhook --project m
 
 You can mount your own config file or data as needed:
 ```bash
-docker run --rm -v $(pwd)/mergebot/config.yaml:/home/appuser/mergebot/config.yaml thehapyone/mergebot:test-latest cli --project mygroup/myrepo --mr-url ...
+docker run --rm -v $(pwd)/mergebot/config.yaml:/home/appuser/mergebot/config.yaml thehapyone/mergebot:test-latest ondemand --project mygroup/myrepo
 ```
 
 ---
@@ -150,11 +137,6 @@ docker run --rm -v $(pwd)/mergebot/config.yaml:/home/appuser/mergebot/config.yam
 ## Docker Compose
 
 A `docker-compose.yml` is provided for easy orchestration. The `--project` flag is always required in all commands.
-
-**Default usage (CLI mode):**
-```bash
-docker compose run mergebot cli --project mygroup/myrepo --mr-url "https://gitlab.example.com/mygroup/myrepo/-/merge_requests/123"
-```
 
 **Ondemand mode:**
 ```bash
@@ -216,7 +198,7 @@ Mergebot uses a centralized, visually appealing logging system based on [RichHan
 ## Development & Contribution
 
 - All configuration and platform logic is centralized for maintainability.
-- CLI and webhook logic are cleanly separated in `app.py`.
+- Webhook and ondemand logic are cleanly separated in `app.py`.
 - Utility functions (e.g., `get_platform_type`) are available in `mergebot/utils.py`.
 - Contributions are welcome! Please open issues or pull requests.
 
