@@ -14,16 +14,6 @@
             "justMyCode": false
         },
         {
-            "name": "Run Mergebot app.py (CLI)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/mergebot/app.py",
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env",
-            "justMyCode": false,
-            "args": ["cli", "--mr-url", "https://gitlab.its.getingecloud.net/dts/lestrade/aide-recorder/-/merge_requests/71"]
-        },
-        {
             "name": "Run Mergebot app.py (ondemand)",
             "type": "debugpy",
             "request": "launch",
@@ -31,7 +21,7 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env",
             "justMyCode": false,
-            "args": ["ondemand"]
+            "args": ["ondemand", "--project", "dts/lestrade/aide-recorder"]
         }
     ]
 }
