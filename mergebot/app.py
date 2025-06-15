@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import sys
 
-from mergebot.flow import run_flow
 from mergebot.logging_config import logger
 from mergebot.ondemand_runner import OndemandRunner
 from mergebot.utils import get_platform_type

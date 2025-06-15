@@ -13,7 +13,7 @@ class OndemandRunner:
         # Select platform based on get_platform_type()
         self.platform_type = get_platform_type()
         if self.platform_type == "gitlab":
-            self.api = GitLabAPIWrapperExtra(project=project)
+            self.api = GitLabAPIWrapperExtra(gitlab_repository=project)
             self.project_id = self.api.gitlab_repo_instance.id
             self.dashboard_manager = GitLabDashboardManager(self.api, self.project_id)
         else:
