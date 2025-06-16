@@ -12,6 +12,64 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
     Extended GitLab API Wrapper with additional merge request and issue functionalities.
     """
 
+    def get_mergebot_yml(self):
+        """
+        Checks for .mergebot.yml in the default branch and returns its contents as a string if found, else None.
+        """
+        project = self.gitlab_repo_instance
+        default_branch = project.default_branch
+        try:
+            file = project.files.get(file_path=".mergebot.yml", ref=default_branch)
+            import base64
+            import yaml
+            content = base64.b64decode(file.content).decode("utf-8")
+            # Optionally parse YAML here:
+            # return yaml.safe_load(content)
+            return content
+        except Exception:
+            # File not found or other error
+            return None
+
+    def create_onboarding_pr(self, default_content: str, branch_name: str = "mergebot/onboarding", pr_title: str = "Add .mergebot.yml", pr_body: str = "This PR adds a default .mergebot.yml to configure Mergebot. Please review and customize as needed."):
+        """
+        Creates an onboarding PR to add .mergebot.yml to the default branch.
+        """
+        project = self.gitlab_repo_instance
+        default_branch = project.default_branch
+
+        # Create a new branch from default
+        try:
+            project.branches.create({'branch': branch_name, 'ref': default_branch})
+        except Exception:
+            # Branch may already exist, ignore
+            pass
+
+        # Create the file in the new branch
+        try:
+            project.files.create({
+                'file_path': '.mergebot.yml',
+                'branch': branch_name,
+                'content': default_content,
+                'author_email': 'mergebot[bot]@noreply',
+                'author_name': 'Mergebot',
+                'commit_message': 'chore: add .mergebot.yml for onboarding'
+            })
+        except Exception:
+            # File may already exist, ignore
+            pass
+
+        # Create the merge request
+        try:
+            mr = project.mergerequests.create({
+                'source_branch': branch_name,
+                'target_branch': default_branch,
+                'title': pr_title,
+                'description': pr_body
+            })
+            return mr.web_url
+        except Exception as e:
+            return f"Failed to create onboarding PR: {e}"
+
     def search_issues(self, project_id: str, title: str):
         """
         Search for issues in the project by title.
