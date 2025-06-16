@@ -15,7 +15,8 @@ from mergebot.crews import (
     TestAnalysis,
 )
 from mergebot.logging_config import logger
-from mergebot.validator.config import get_runtime_config
+from mergebot.utils import get_platform_type
+from mergebot.validator.config import get_runtime_config, runtime_config
 
 
 def extract_url_from_text(text: str) -> str:
@@ -228,6 +229,9 @@ async def run_flow(
         "mr_title": mr_title,
         "project": project,
     }
+
+    if project and get_platform_type() == "gitlab":
+        runtime_config.set("repository.gitlab.gitlab_repository", project)
 
     mergebot = MergeBotFlow(**inital_state)
     flow_id = mergebot.flow_id
