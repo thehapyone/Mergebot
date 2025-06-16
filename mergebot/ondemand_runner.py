@@ -74,6 +74,9 @@ class OndemandRunner:
             analysis_durations.append(duration)
 
         # For MRs not analyzed in this run, preserve previous dashboard data
+        # TODO: Previous data should be fetched from the dashboard
+        #       instead of assuming it is in the dashboard_data.
+        #       Analysis link is not shown for example
         for mr in open_mrs:
             if mr.iid not in analyzed_iids:
                 analysis_results.append(
