@@ -12,20 +12,32 @@ from mergebot.tools.gitlab.prompts import (
 )
 
 
+class BaseGitLabTool(BaseTool):
+    """Base class for all GitLab tools with common functionality."""
+
+    _api_wrapper: GitLabAPIWrapperExtra = None
+
+    @property
+    def api_wrapper(self) -> GitLabAPIWrapperExtra:
+        """Lazy initialization of API wrapper to ensure project is available."""
+        if self._api_wrapper is None:
+            self._api_wrapper = GitLabAPIWrapperExtra()
+        return self._api_wrapper
+
+
 class GitlabPipelineToolSchema(BaseModel):
     """Input for GitlabPipelineTool."""
 
     pipeline_id: str = Field(..., description="The ID of the pipeline")
 
 
-class GitlabPipelineTool(BaseTool):
+class GitlabPipelineTool(BaseGitLabTool):
     """Tool for fetching and summarizing pipeline details from GitLab."""
 
     mode: str = "get_pipeline_details"
     name: str = "Get Pipeline Details"
     description: str = FETCH_PIPELINE_DETAILS_PROMPT
     args_schema: Type[BaseModel] = GitlabPipelineToolSchema
-    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra()
 
     def _run(
         self,
@@ -48,14 +60,13 @@ class GitlabMRToolSchema(BaseModel):
     )
 
 
-class GitlabMergeRequestTool(BaseTool):
+class GitlabMergeRequestTool(BaseGitLabTool):
     """Tool for getting merge requests from the GitLab API."""
 
     mode: str = "get_merge_request"
     name: str = "Get Merge Requests"
     description: str = GET_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = GitlabMRToolSchema
-    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra()
 
     def _run(
         self,
@@ -81,14 +92,13 @@ class GitlabCommentToolSchema(BaseModel):
     )
 
 
-class GitlabMergeCommentTool(BaseTool):
+class GitlabMergeCommentTool(BaseGitLabTool):
     """Tool for posting merge comments using the Gitlab API."""
 
     mode: str = "post_merge_request_comment"
     name: str = "Post Merge Requests Comment"
     description: str = POST_MERGE_REQUEST_COMMENT_PROMPT
     args_schema: Type[BaseModel] = GitlabCommentToolSchema
-    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra()
 
     def _run(
         self,
@@ -106,14 +116,13 @@ class GitlabMergeCommentTool(BaseTool):
         )
 
 
-class GitlabMergeApprovalTool(BaseTool):
+class GitlabMergeApprovalTool(BaseGitLabTool):
     """Tool for approving Gitlab merge requests."""
 
     mode: str = "approve_merge_request"
     name: str = "Approve Merge Requests Comment"
     description: str = APPROVE_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = GitlabMRToolSchema
-    api_wrapper: GitLabAPIWrapperExtra = GitLabAPIWrapperExtra()
 
     def _run(
         self,

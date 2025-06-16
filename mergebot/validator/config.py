@@ -2,11 +2,10 @@
 
 import os
 import sys
-from functools import lru_cache
 from typing import Dict, Optional
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from mergebot.logging_config import logger
 
@@ -20,9 +19,6 @@ class GitLabConfig(BaseModel):
     private_token: Optional[str] = Field(
         default=os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN"),
         description="Private token for GitLab API authentication",
-    )
-    project: str = Field(
-        ..., description="GitLab project path (e.g., 'username/project_name')"
     )
     base_branch: str = Field(default="main", description="Base branch for the project")
 
@@ -131,8 +127,84 @@ class Config(BaseModel):
             return self.llm.model
 
 
-@lru_cache
-def load_config() -> Config:
+class RuntimeConfig:
+    """
+    In-memory, mutable runtime config that overlays changes on top of the default config.
+    Allows arbitrary updates, including new keys not present in the default schema.
+    Changes are not persisted.
+    """
+
+    def __init__(self, base_config: dict):
+        self._default = dict(base_config)  # shallow copy is enough if we never mutate
+        self._runtime = {}
+
+    def set(self, key_path: str, value):
+        """Set a value at a dot-separated key path (supports nested and new keys)."""
+        keys = key_path.split(".")
+        d = self._runtime
+        for k in keys[:-1]:
+            d = d.setdefault(k, {})
+        d[keys[-1]] = value
+
+    def set_many(self, updates: dict):
+        """Set multiple key paths at once. updates: {key_path: value, ...}"""
+        for key_path, value in updates.items():
+            self.set(key_path, value)
+
+    def get(self, key_path: str, default=None):
+        """Get a value from the runtime config, falling back to default config."""
+        keys = key_path.split(".")
+        d = self._runtime
+        for k in keys[:-1]:
+            d = d.get(k, {})
+        if keys[-1] in d:
+            return d[keys[-1]]
+        # Fallback to default
+        d = self._default
+        for k in keys[:-1]:
+            d = d.get(k, {})
+        return d.get(keys[-1], default)
+
+    def delete(self, key_path: str):
+        """Delete a key from the runtime config only."""
+        keys = key_path.split(".")
+        d = self._runtime
+        for k in keys[:-1]:
+            d = d.get(k, {})
+        d.pop(keys[-1], None)
+
+    def reset(self):
+        """Reset all runtime changes."""
+        self._runtime = {}
+
+    def get_config(self):
+        """Return a merged dict of default config overlaid with runtime changes."""
+
+        def merge(a, b):
+            # Simple recursive merge: b has priority
+            if not isinstance(a, dict) or not isinstance(b, dict):
+                return b
+            result = dict(a)
+            for k, v in b.items():
+                if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+                    result[k] = merge(result[k], v)
+                else:
+                    result[k] = v
+            return result
+
+        return merge(self._default, self._runtime)
+
+    def as_dict(self):
+        """Alias for get_config()."""
+        return self.get_config()
+
+    def validate(self):
+        """Validate the current runtime config against the Pydantic schema. Raises ValidationError if invalid."""
+        Config(**self.get_config())
+
+
+def _load_config_dict_from_disk():
+    """Internal helper to load the config dict from disk (config.yaml or CONFIG_PATH)."""
     config_path = os.getenv("CONFIG_PATH", "config.yaml")
     try:
         with open(config_path, "r") as f:
@@ -143,10 +215,19 @@ def load_config() -> Config:
     except yaml.YAMLError as e:
         logger.error(f"Error parsing YAML: {e}")
         sys.exit(1)
+    return config_dict
 
-    try:
-        config = Config(**config_dict)
-        return config
-    except ValidationError as e:
-        logger.error(f"Configuration validation error: {e}")
-        sys.exit(1)
+
+# Initialize the runtime config singleton
+runtime_config = RuntimeConfig(_load_config_dict_from_disk())
+
+
+def get_runtime_config(as_pydantic: bool = False):
+    """
+    Returns the current runtime config as a dict (merged view).
+    If as_pydantic is True, returns a Config object (validates against schema).
+    """
+    merged = runtime_config.get_config()
+    if as_pydantic:
+        return Config(**merged)
+    return merged

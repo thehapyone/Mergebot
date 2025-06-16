@@ -15,7 +15,8 @@ from mergebot.crews import (
     TestAnalysis,
 )
 from mergebot.logging_config import logger
-from mergebot.validator.config import load_config
+from mergebot.utils import get_platform_type
+from mergebot.validator.config import get_runtime_config, runtime_config
 
 
 def extract_url_from_text(text: str) -> str:
@@ -170,7 +171,7 @@ class MergeBotFlow(Flow[MergeBotState]):
     )
     async def impact_evaluator(self):
         """Runs the Impact Evaluator Analysis Assessment on the MR details"""
-        approval_policy = load_config().approval_policy
+        approval_policy = get_runtime_config(as_pydantic=True).approval_policy
         policy_str = approval_policy.to_markdown() if approval_policy else ""
         self.state.impact_assessment = extract_assessment(
             (
@@ -204,7 +205,7 @@ class MergeBotFlow(Flow[MergeBotState]):
 
 
 async def run_flow(
-    mr_url: str, mr_iid: int = None, mr_title: str = ""
+    mr_url: str, mr_iid: int = None, mr_title: str = "", project: str = None
 ) -> AnalysisResult:
     """
     Initiates the MergeBotFlow to process a merge request URL.
@@ -213,6 +214,7 @@ async def run_flow(
         mr_url (str): The URL of the merge request to process.
         mr_iid (int): Optional merge request ID to process.
         mr_title (str): Optional merge request title.
+        project (str): The GitLab project/repository path.
 
     Returns:
         AnalysisResult: Validated analysis result for dashboard/tracking.
@@ -221,7 +223,15 @@ async def run_flow(
     if not mr_id:
         raise Exception(f"Failed to extract MR ID from URL: {mr_url}")
 
-    inital_state = {"mr_url": mr_url, "mr_id": mr_id, "mr_title": mr_title}
+    inital_state = {
+        "mr_url": mr_url,
+        "mr_id": mr_id,
+        "mr_title": mr_title,
+        "project": project,
+    }
+
+    if project and get_platform_type() == "gitlab":
+        runtime_config.set("repository.gitlab.gitlab_repository", project)
 
     mergebot = MergeBotFlow(**inital_state)
     flow_id = mergebot.flow_id
