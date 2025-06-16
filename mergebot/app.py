@@ -8,8 +8,6 @@ from mergebot.utils import get_platform_type
 from mergebot.webhook_server import WebhookServer
 
 
-
-
 def run_webhook_mode(port: int, project: str):
     """
     Run MergeBot in webhook server mode on the specified port and project.
@@ -20,7 +18,9 @@ def run_webhook_mode(port: int, project: str):
     """
     platform_type = get_platform_type()
     logger.info(f"[Webhook] Configured platform: {platform_type}")
-    logger.info(f"[Webhook] Running in webhook mode on port {port} (project: {project})")
+    logger.info(
+        f"[Webhook] Running in webhook mode on port {port} (project: {project})"
+    )
     try:
         server = WebhookServer(port=port, project=project)
         server.run()

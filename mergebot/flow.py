@@ -222,7 +222,12 @@ async def run_flow(
     if not mr_id:
         raise Exception(f"Failed to extract MR ID from URL: {mr_url}")
 
-    inital_state = {"mr_url": mr_url, "mr_id": mr_id, "mr_title": mr_title, "project": project}
+    inital_state = {
+        "mr_url": mr_url,
+        "mr_id": mr_id,
+        "mr_title": mr_title,
+        "project": project,
+    }
 
     mergebot = MergeBotFlow(**inital_state)
     flow_id = mergebot.flow_id

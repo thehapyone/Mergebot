@@ -5,7 +5,7 @@ import sys
 from typing import Dict, Optional
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from mergebot.logging_config import logger
 
