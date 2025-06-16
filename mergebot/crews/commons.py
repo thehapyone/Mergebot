@@ -3,7 +3,7 @@ import re
 from crewai import Crew, Process
 from crewai.project import crew
 
-from mergebot.validator.config import load_config
+from mergebot.validator.config import get_runtime_config
 
 
 def extract_class_name(class_string: str) -> str:
@@ -19,7 +19,7 @@ class BotBaseCrew:
     tasks_config = "config/tasks.yaml"
 
     # Load the configuration once
-    config = load_config()
+    config = get_runtime_config(as_pydantic=True)
 
     def __init__(self):
         # Get the LLM model for this crew

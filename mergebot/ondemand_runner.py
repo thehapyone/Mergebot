@@ -6,14 +6,16 @@ from mergebot.flow import run_flow
 from mergebot.logging_config import logger
 from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
 from mergebot.utils import get_platform_type
+from mergebot.validator.config import runtime_config
 
 
 class OndemandRunner:
-    def __init__(self, project: str = None):
+    def __init__(self, project: str):
         # Select platform based on get_platform_type()
         self.platform_type = get_platform_type()
         if self.platform_type == "gitlab":
-            self.api = GitLabAPIWrapperExtra(gitlab_repository=project)
+            runtime_config.set("repository.gitlab.gitlab_repository", project)
+            self.api = GitLabAPIWrapperExtra()
             self.project_id = self.api.gitlab_repo_instance.id
             self.dashboard_manager = GitLabDashboardManager(self.api, self.project_id)
         else:

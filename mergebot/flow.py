@@ -15,7 +15,7 @@ from mergebot.crews import (
     TestAnalysis,
 )
 from mergebot.logging_config import logger
-from mergebot.validator.config import load_config
+from mergebot.validator.config import get_runtime_config
 
 
 def extract_url_from_text(text: str) -> str:
@@ -170,7 +170,7 @@ class MergeBotFlow(Flow[MergeBotState]):
     )
     async def impact_evaluator(self):
         """Runs the Impact Evaluator Analysis Assessment on the MR details"""
-        approval_policy = load_config().approval_policy
+        approval_policy = get_runtime_config(as_pydantic=True).approval_policy
         policy_str = approval_policy.to_markdown() if approval_policy else ""
         self.state.impact_assessment = extract_assessment(
             (

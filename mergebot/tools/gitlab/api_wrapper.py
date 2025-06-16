@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from langchain_community.utilities.gitlab import GitLabAPIWrapper
 
-from mergebot.validator.config import load_config
+from mergebot.validator.config import get_runtime_config
 
 
 class GitLabAPIWrapperExtra(GitLabAPIWrapper):
@@ -47,19 +47,21 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
 
     def __init__(self, **kwargs):
         # Load configuration from config.yaml
-        config = load_config()
-        gitlab_config = config.repository.gitlab
+        config_dict = get_runtime_config()
+        gitlab_config = config_dict["repository"]["gitlab"]
 
         # Require project to be provided
-        if not kwargs.get("gitlab_repository"):
-            raise ValueError("GitLab project/repository must be provided via the --project CLI flag.")
+        if not gitlab_config.get("gitlab_repository"):
+            raise ValueError(
+                "GitLab project/repository must be provided via the --project CLI flag."
+            )
 
         # Prepare parameters for the base GitLabAPIWrapper class
-        gitlab_url = gitlab_config.url
-        gitlab_repository = kwargs.get("gitlab_repository")
-        gitlab_personal_access_token = gitlab_config.private_token
-        gitlab_branch = gitlab_config.base_branch
-        gitlab_base_branch = gitlab_config.base_branch
+        gitlab_url = gitlab_config.get("url")
+        gitlab_repository = gitlab_config.get("gitlab_repository")
+        gitlab_personal_access_token = gitlab_config.get("private_token")
+        gitlab_branch = gitlab_config.get("base_branch")
+        gitlab_base_branch = gitlab_config.get("base_branch")
 
         # Pass parameters to the parent GitLabAPIWrapper class
         super().__init__(

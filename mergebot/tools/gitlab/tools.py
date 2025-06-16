@@ -15,13 +15,13 @@ from mergebot.tools.gitlab.prompts import (
 class BaseGitLabTool(BaseTool):
     """Base class for all GitLab tools with common functionality."""
 
-    def __init__(self, api_wrapper: GitLabAPIWrapperExtra, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._api_wrapper = api_wrapper
+    _api_wrapper: GitLabAPIWrapperExtra = None
 
     @property
     def api_wrapper(self) -> GitLabAPIWrapperExtra:
-        """Access the injected API wrapper instance."""
+        """Lazy initialization of API wrapper to ensure project is available."""
+        if self._api_wrapper is None:
+            self._api_wrapper = GitLabAPIWrapperExtra()
         return self._api_wrapper
 
 
