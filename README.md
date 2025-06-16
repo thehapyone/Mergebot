@@ -91,8 +91,6 @@ Mergebot supports an optional **approval policy** system that allows you to conf
 
 ## Usage
 
-<!-- CLI Mode removed: Mergebot no longer supports direct CLI mode for single MR processing. -->
-
 ### Ondemand Mode
 
 Run a one-shot or periodic dashboard scan for a project:
