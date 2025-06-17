@@ -17,10 +17,6 @@ def run_webhook_mode(port: int, project: str):
         port (int): The port number to run the webhook server on.
         project (str): The GitLab project/repository path.
     """
-    # Ensure repo config before running anything
-    ensure_repo_config(project)
-    platform_type = get_platform_type()
-    logger.info(f"[Webhook] Configured platform: {platform_type}")
     logger.info(
         f"[Webhook] Running in webhook mode on port {port} (project: {project})"
     )
@@ -82,11 +78,12 @@ async def main():
 
     args = parser.parse_args()
 
+    # Ensure repo config before running anything
+    ensure_repo_config(args.project)
+
     if args.mode == "webhook":
         run_webhook_mode(args.port, args.project)
     elif args.mode == "ondemand":
-        # Ensure repo config before running anything
-        ensure_repo_config(args.project)
         runner = OndemandRunner(project=args.project)
         if args.interval:
             await runner.run_periodic(args.interval)

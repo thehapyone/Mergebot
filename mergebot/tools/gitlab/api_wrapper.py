@@ -1,10 +1,16 @@
 import json
 import re
 from typing import Any, Dict, List
+import base64
+import yaml
 
 from langchain_community.utilities.gitlab import GitLabAPIWrapper
 
 from mergebot.validator.config import get_runtime_config
+
+
+class InvalidMergebotYAML(Exception):
+    """Raised when .mergebot.yml exists but is not valid YAML."""
 
 
 class GitLabAPIWrapperExtra(GitLabAPIWrapper):
@@ -14,23 +20,43 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
 
     def get_mergebot_yml(self):
         """
-        Checks for .mergebot.yml in the default branch and returns its contents as a string if found, else None.
+        Checks for .mergebot.yml in the default branch and returns its parsed YAML (dict) if found.
+        Returns None if the file is not found.
+        Raises InvalidMergebotYAML if the file exists but is not valid YAML.
         """
         project = self.gitlab_repo_instance
         default_branch = project.default_branch
         try:
             file = project.files.get(file_path=".mergebot.yml", ref=default_branch)
-            import base64
-            import yaml
-            content = base64.b64decode(file.content).decode("utf-8")
-            # Optionally parse YAML here:
-            # return yaml.safe_load(content)
-            return content
         except Exception:
             # File not found or other error
             return None
+        content = base64.b64decode(file.content).decode("utf-8")
+        try:
+            return yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            raise self.InvalidMergebotYAML(f"Invalid YAML in .mergebot.yml: {e}")
 
-    def create_onboarding_pr(self, default_content: str, branch_name: str = "mergebot/onboarding", pr_title: str = "Add .mergebot.yml", pr_body: str = "This PR adds a default .mergebot.yml to configure Mergebot. Please review and customize as needed."):
+    def onboarding_pr_exists(self, branch_name: str = "mergebot/onboarding"):
+        """
+        Checks if an onboarding PR from branch_name to the default branch already exists.
+        Returns the PR web_url if found, else None.
+        """
+        project = self.gitlab_repo_instance
+        default_branch = project.default_branch
+        mrs = project.mergerequests.list(
+            source_branch=branch_name,
+            target_branch=default_branch,
+            state="opened",
+            all=True
+        )
+        if mrs:
+            return mrs[0].web_url
+        return None
+
+    def create_onboarding_pr(
+        self, default_content: str, branch_name: str = "mergebot/onboarding"
+    ):
         """
         Creates an onboarding PR to add .mergebot.yml to the default branch.
         """
@@ -39,33 +65,35 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
 
         # Create a new branch from default
         try:
-            project.branches.create({'branch': branch_name, 'ref': default_branch})
+            project.branches.create({"branch": branch_name, "ref": default_branch})
         except Exception:
             # Branch may already exist, ignore
             pass
 
         # Create the file in the new branch
         try:
-            project.files.create({
-                'file_path': '.mergebot.yml',
-                'branch': branch_name,
-                'content': default_content,
-                'author_email': 'mergebot[bot]@noreply',
-                'author_name': 'Mergebot',
-                'commit_message': 'chore: add .mergebot.yml for onboarding'
-            })
+            project.files.create(
+                {
+                    "file_path": ".mergebot.yml",
+                    "branch": branch_name,
+                    "content": default_content,
+                    "commit_message": "chore: add .mergebot.yml for onboarding",
+                }
+            )
         except Exception:
             # File may already exist, ignore
             pass
 
         # Create the merge request
         try:
-            mr = project.mergerequests.create({
-                'source_branch': branch_name,
-                'target_branch': default_branch,
-                'title': pr_title,
-                'description': pr_body
-            })
+            mr = project.mergerequests.create(
+                {
+                    "source_branch": branch_name,
+                    "target_branch": default_branch,
+                    "title": "Add .mergebot.yml",
+                    "description": "This PR adds a default .mergebot.yml to configure Mergebot. Please review and customize as needed.",
+                }
+            )
             return mr.web_url
         except Exception as e:
             return f"Failed to create onboarding PR: {e}"
