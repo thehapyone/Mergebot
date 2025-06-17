@@ -49,13 +49,14 @@ def ensure_repo_config(project: str):
                     sys.exit(1)
                 else:
                     logger.info("No existing onboarding PR found. Creating onboarding PR...")
+                    base_branch = wrapper.gitlab_repo_instance.default_branch
                     default_mergebot_yml = (
                         "# Default Mergebot configuration\n"
                         "# See https://github.com/thehapyone/mergebot for documentation\n"
                         "repository:\n"
                         "  type: \"gitlab\"\n"
                         "  gitlab:\n"
-                        "    base_branch: \"main\"\n"
+                        f"    base_branch: \"{base_branch}\"\n"
                         "approval_policy:\n"
                         "  enabled: true\n"
                         "  threshold: 3.0\n"

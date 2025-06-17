@@ -147,9 +147,27 @@ class RuntimeConfig:
         d[keys[-1]] = value
 
     def set_many(self, updates: dict):
-        """Set multiple key paths at once. updates: {key_path: value, ...}"""
+        """
+        Set multiple key paths at once, or recursively merge nested dicts.
+        If a value is a dict and the key exists, perform a deep merge.
+        """
+        def deep_merge_dict(d, u):
+            for k, v in u.items():
+                if isinstance(v, dict) and isinstance(d.get(k), dict):
+                    d[k] = deep_merge_dict(d.get(k, {}), v)
+                else:
+                    d[k] = v
+            return d
+
         for key_path, value in updates.items():
-            self.set(key_path, value)
+            keys = key_path.split(".")
+            d = self._runtime
+            for k in keys[:-1]:
+                d = d.setdefault(k, {})
+            if isinstance(value, dict) and isinstance(d.get(keys[-1]), dict):
+                d[keys[-1]] = deep_merge_dict(d.get(keys[-1], {}), value)
+            else:
+                d[keys[-1]] = value
 
     def get(self, key_path: str, default=None):
         """Get a value from the runtime config, falling back to default config."""
