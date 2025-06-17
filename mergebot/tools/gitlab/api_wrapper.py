@@ -48,11 +48,60 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             source_branch=branch_name,
             target_branch=default_branch,
             state="opened",
-            all=True
+            all=True,
         )
         if mrs:
             return mrs[0].web_url
         return None
+
+    def create_file(
+        self, branch_name: str, file_path: str, file_contents: str, commit_message: str
+    ) -> bool:
+        """
+        Creates a new file on the gitlab repo
+        Returns:
+            str: A success or failure
+        """
+        try:
+            self.gitlab_repo_instance.files.head(file_path, branch_name)
+            return False
+        except Exception:
+            data = {
+                "branch": branch_name,
+                "commit_message": commit_message,
+                "file_path": file_path,
+                "content": file_contents,
+            }
+
+            self.gitlab_repo_instance.files.create(data)
+            self.gitlab_repo_instance.save()
+
+        return True
+
+    def update_file(
+        self, branch_name: str, file_path: str, file_contents: str, commit_message: str
+    ):
+        """Updates an existing file on the gitlab repo"""
+        created = self.create_file(
+            branch_name=branch_name,
+            file_path=file_path,
+            file_contents=file_contents,
+            commit_message=commit_message,
+        )
+        if created:
+            return
+
+        # If file creation failed, try updating the existing file
+        try:
+            file = self.gitlab_repo_instance.files.get(
+                file_path=file_path, ref=branch_name
+            )
+            file.content = file_contents
+            file.save(branch=branch_name, commit_message=commit_message)
+        except Exception as e:
+            raise Exception(
+                f"Failed to update file {file_path} in branch {branch_name}: {str(e)}"
+            )
 
     def create_onboarding_pr(
         self, default_content: str, branch_name: str = "mergebot/onboarding"
@@ -63,40 +112,43 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         project = self.gitlab_repo_instance
         default_branch = project.default_branch
 
-        # Create a new branch from default
+        # Check if branch exists, create if not
         try:
+            project.branches.get(branch_name)
+        except Exception as e:
+            # Branch does not exist, create it from the default branch
             project.branches.create({"branch": branch_name, "ref": default_branch})
-        except Exception:
-            # Branch may already exist, ignore
-            pass
 
-        # Create the file in the new branch
-        try:
-            project.files.create(
-                {
-                    "file_path": ".mergebot.yml",
-                    "branch": branch_name,
-                    "content": default_content,
-                    "commit_message": "chore: add .mergebot.yml for onboarding",
-                }
-            )
-        except Exception:
-            # File may already exist, ignore
-            pass
+        # Create or update the file in the new branch
+        self.update_file(
+            branch_name=branch_name,
+            file_path=".mergebot.yml",
+            file_contents=default_content,
+            commit_message="chore: add .mergebot.yml for onboarding",
+        )
 
         # Create the merge request
-        try:
-            mr = project.mergerequests.create(
-                {
-                    "source_branch": branch_name,
-                    "target_branch": default_branch,
-                    "title": "Add .mergebot.yml",
-                    "description": "This PR adds a default .mergebot.yml to configure Mergebot. Please review and customize as needed.",
-                }
-            )
-            return mr.web_url
-        except Exception as e:
-            return f"Failed to create onboarding PR: {e}"
+        mr = project.mergerequests.create(
+            {
+                "source_branch": branch_name,
+                "target_branch": default_branch,
+                "title": "Add .mergebot.yml",
+                "remove_source_branch": True,
+                "description": (
+                    "### Mergebot Onboarding PR\n\n"
+                    "This PR was generated automatically by **Mergebot** to help you get started with repository-based configuration.\n\n"
+                    "- A default `.mergebot.yml` file has been added to your repository.\n"
+                    "- Please review and customize this file to fit your team's workflow and requirements.\n"
+                    "- For details on configuration options and best practices, see the [Mergebot Onboarding Guide](https://github.com/thehapyone/mergebot/blob/main/README.md).\n\n"
+                    "**Why am I seeing this PR?**\n"
+                    "- Mergebot requires a `.mergebot.yml` file in your default branch to operate.\n"
+                    "- This PR ensures your repository is ready for automated code review and merge automation.\n\n"
+                    "If you have questions or need help, please refer to the documentation or open an issue.\n\n"
+                    "_Generated by [Mergebot](https://github.com/thehapyone/mergebot)_"
+                ),
+            }
+        )
+        return mr.web_url
 
     def search_issues(self, project_id: str, title: str):
         """

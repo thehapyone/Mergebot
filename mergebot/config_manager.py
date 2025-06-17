@@ -19,7 +19,7 @@ def ensure_repo_config(project: str):
 
     This function should be called once at application startup, before any flows or runners are executed.
     """
-    logger.info(f"Ensuring Mergebot configuration for project: {project}")
+    logger.info(f"Finding Mergebot configuration for project: {project}")
     platform_type = get_platform_type()
     if platform_type == "gitlab":
         runtime_config.set("repository.gitlab.gitlab_repository", project)
@@ -71,6 +71,9 @@ def ensure_repo_config(project: str):
                     sys.exit(1)
         except InvalidMergebotYAML as e:
             logger.error(f"Invalid .mergebot.yml detected: {e}")
+            sys.exit(1)
+        except Exception as e:
+            logger.error(f"Error while ensuring repo config: {e}")
             sys.exit(1)
     elif platform_type == "github":
         # Placeholder for future GitHub support
