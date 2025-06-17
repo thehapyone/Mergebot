@@ -13,6 +13,7 @@ class OndemandRunner:
     def __init__(self, project: str):
         # Select platform based on get_platform_type()
         self.platform_type = get_platform_type()
+        self.project = project
         if self.platform_type == "gitlab":
             self.api = GitLabAPIWrapperExtra()
             self.project_id = self.api.gitlab_repo_instance.id
@@ -50,9 +51,7 @@ class OndemandRunner:
             start = time.time()
             try:
                 analysis_result = await run_flow(
-                    mr.web_url,
-                    mr_iid=mr.iid,
-                    mr_title=mr.title,
+                    mr.web_url, mr_iid=mr.iid, mr_title=mr.title, project=self.project
                 )
                 analysis_results.append(
                     {
