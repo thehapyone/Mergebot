@@ -1,9 +1,9 @@
+import base64
 import json
 import re
 from typing import Any, Dict, List
-import base64
-import yaml
 
+import yaml
 from langchain_community.utilities.gitlab import GitLabAPIWrapper
 
 from mergebot.validator.config import get_runtime_config
@@ -35,7 +35,7 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         try:
             return yaml.safe_load(content)
         except yaml.YAMLError as e:
-            raise self.InvalidMergebotYAML(f"Invalid YAML in .mergebot.yml: {e}")
+            raise InvalidMergebotYAML(f"Invalid YAML in .mergebot.yml: {e}")
 
     def onboarding_pr_exists(self, branch_name: str = "mergebot/onboarding"):
         """
@@ -115,7 +115,7 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         # Check if branch exists, create if not
         try:
             project.branches.get(branch_name)
-        except Exception as e:
+        except Exception:
             # Branch does not exist, create it from the default branch
             project.branches.create({"branch": branch_name, "ref": default_branch})
 

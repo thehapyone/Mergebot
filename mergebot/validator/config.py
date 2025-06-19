@@ -151,6 +151,7 @@ class RuntimeConfig:
         Set multiple key paths at once, or recursively merge nested dicts.
         If a value is a dict and the key exists, perform a deep merge.
         """
+
         def deep_merge_dict(d, u):
             for k, v in u.items():
                 if isinstance(v, dict) and isinstance(d.get(k), dict):

@@ -76,14 +76,19 @@ When Mergebot starts (in any mode), it performs the following steps:
 ```yaml
 # Default Mergebot configuration
 # See https://github.com/your-org/mergebot for documentation
+repository:
+  type: "gitlab"
+  gitlab:
+    base_branch: "main"
+
 approval_policy:
-  enabled: false
+  enabled: true
   threshold: 3.0
   weights:
-    CodeAnalysis: 1.0
-    ComplexityAnalysis: 1.0
-    TestAnalysis: 1.0
-    RiskAnalysis: 1.0
+    CodeAnalysis: 0.4
+    ComplexityAnalysis: 0.2
+    TestAnalysis: 0.2
+    RiskAnalysis: 0.2
 ```
 
 ---

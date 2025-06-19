@@ -6,7 +6,6 @@ from mergebot.flow import run_flow
 from mergebot.logging_config import logger
 from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
 from mergebot.utils import get_platform_type
-from mergebot.validator.config import runtime_config
 
 
 class OndemandRunner:

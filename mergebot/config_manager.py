@@ -1,9 +1,9 @@
 import sys
-import yaml
+
 from mergebot.logging_config import logger
-from mergebot.validator.config import runtime_config, get_runtime_config, Config
 from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra, InvalidMergebotYAML
 from mergebot.utils import get_platform_type
+from mergebot.validator.config import get_runtime_config, runtime_config
 
 
 def ensure_repo_config(project: str):
@@ -45,18 +45,22 @@ def ensure_repo_config(project: str):
                 existing_pr_url = wrapper.onboarding_pr_exists()
                 if existing_pr_url:
                     logger.info(f"Onboarding PR already exists: {existing_pr_url}")
-                    logger.error("Onboarding required. Please merge the existing PR to enable Mergebot.")
+                    logger.error(
+                        "Onboarding required. Please merge the existing PR to enable Mergebot."
+                    )
                     sys.exit(1)
                 else:
-                    logger.info("No existing onboarding PR found. Creating onboarding PR...")
+                    logger.info(
+                        "No existing onboarding PR found. Creating onboarding PR..."
+                    )
                     base_branch = wrapper.gitlab_repo_instance.default_branch
                     default_mergebot_yml = (
                         "# Default Mergebot configuration\n"
                         "# See https://github.com/thehapyone/mergebot for documentation\n"
                         "repository:\n"
-                        "  type: \"gitlab\"\n"
+                        '  type: "gitlab"\n'
                         "  gitlab:\n"
-                        f"    base_branch: \"{base_branch}\"\n"
+                        f'    base_branch: "{base_branch}"\n'
                         "approval_policy:\n"
                         "  enabled: true\n"
                         "  threshold: 3.0\n"
@@ -68,7 +72,9 @@ def ensure_repo_config(project: str):
                     )
                     pr_url = wrapper.create_onboarding_pr(default_mergebot_yml)
                     logger.info(f"Onboarding PR created: {pr_url}")
-                    logger.error("Onboarding required. Please merge the PR to enable Mergebot.")
+                    logger.error(
+                        "Onboarding required. Please merge the PR to enable Mergebot."
+                    )
                     sys.exit(1)
         except InvalidMergebotYAML as e:
             logger.error(f"Invalid .mergebot.yml detected: {e}")

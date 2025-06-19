@@ -2,11 +2,10 @@ import argparse
 import asyncio
 import sys
 
+from mergebot.config_manager import ensure_repo_config
 from mergebot.logging_config import logger
 from mergebot.ondemand_runner import OndemandRunner
-from mergebot.utils import get_platform_type
 from mergebot.webhook_server import WebhookServer
-from mergebot.config_manager import ensure_repo_config
 
 
 def run_webhook_mode(port: int, project: str):

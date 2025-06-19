@@ -17,8 +17,6 @@ from mergebot.crews import (
 from mergebot.logging_config import logger
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
-from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
-import yaml
 
 
 def extract_url_from_text(text: str) -> str:
