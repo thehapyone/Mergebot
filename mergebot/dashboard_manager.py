@@ -6,6 +6,8 @@ from typing import Any, Dict, List
 
 from jinja2 import Template
 
+from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
+
 # Section markers for robust, sectioned updates
 DASHBOARD_MARKER = "<!-- marker:MERGEBOT_DASHBOARD -->"
 ACTIVE_MRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_MRS -->"
@@ -53,7 +55,7 @@ class GitLabDashboardManager(DashboardManager):
 
     def __init__(
         self,
-        api_wrapper,
+        api_wrapper: "GitLabAPIWrapperExtra",
         project_id: str,
         dashboard_title: str = "🛠️ Mergebot Project Dashboard",
     ):
@@ -67,15 +69,13 @@ class GitLabDashboardManager(DashboardManager):
         If not found, create it with the initial template.
         """
         # Search for existing issue
-        issues = self.api.search_issues(self.project_id, self.dashboard_title)
+        issues = self.api.search_issues(self.dashboard_title)
         for issue in issues:
             if DASHBOARD_MARKER in issue.get("description", ""):
                 return {"id": issue["iid"], "body": issue["description"]}
         # Not found, create new
         initial_body = self._initial_dashboard_body()
-        issue = self.api.create_issue(
-            self.project_id, self.dashboard_title, initial_body
-        )
+        issue = self.api.create_issue(self.dashboard_title, initial_body)
         return {"id": issue["iid"], "body": issue["description"]}
 
     def parse_dashboard(self, markdown: str) -> Dict[str, Any]:

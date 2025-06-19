@@ -1,58 +1,241 @@
-import base64
 import json
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Any, Dict, List, Optional
 
-import yaml
-from langchain_community.utilities.gitlab import GitLabAPIWrapper
-
+from pydantic import BaseModel, ConfigDict, model_validator
+import gitlab
+from mergebot.utils import get_from_dict_or_env
 from mergebot.validator.config import get_runtime_config
 
 
-class InvalidMergebotYAML(Exception):
-    """Raised when .mergebot.yml exists but is not valid YAML."""
-
-
-class GitLabAPIWrapperExtra(GitLabAPIWrapper):
+def strip_ansi_codes(text: str) -> str:
     """
-    Extended GitLab API Wrapper with additional merge request and issue functionalities.
+    Removes ANSI escape sequences from the text.
+
+    Parameters:
+        text (str): The text containing ANSI codes.
+
+    Returns:
+        str: The cleaned text without ANSI codes.
     """
+    ansi_escape = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+    return ansi_escape.sub("", text)
 
-    def get_mergebot_yml(self):
-        """
-        Checks for .mergebot.yml in the default branch and returns its parsed YAML (dict) if found.
-        Returns None if the file is not found.
-        Raises InvalidMergebotYAML if the file exists but is not valid YAML.
-        """
-        project = self.gitlab_repo_instance
-        default_branch = project.default_branch
-        try:
-            file = project.files.get(file_path=".mergebot.yml", ref=default_branch)
-        except Exception:
-            # File not found or other error
-            return None
-        content = base64.b64decode(file.content).decode("utf-8")
-        try:
-            return yaml.safe_load(content)
-        except yaml.YAMLError as e:
-            raise InvalidMergebotYAML(f"Invalid YAML in .mergebot.yml: {e}")
 
-    def onboarding_pr_exists(self, branch_name: str = "mergebot/onboarding"):
-        """
-        Checks if an onboarding PR from branch_name to the default branch already exists.
-        Returns the PR web_url if found, else None.
-        """
-        project = self.gitlab_repo_instance
-        default_branch = project.default_branch
-        mrs = project.mergerequests.list(
-            source_branch=branch_name,
-            target_branch=default_branch,
-            state="opened",
-            all=True,
+def parse_job_log(log: str, job_status: str) -> Dict[str, Any]:
+    """
+    Parses the job log to extract warnings and errors with context
+
+    Parameters:
+        log (str): The job log string.
+        job_status (str): Status of the job (e.g., 'success', 'failed').
+
+    Returns:
+        Dict[str, Any]: A dictionary containing lists of warnings and errors with context.
+    """
+    # First, extract the scripts in section
+    script_lines = log.split("\n")
+
+    warnings = []
+    errors = []
+
+    # Remove ANSI codes from lines
+    lines = [strip_ansi_codes(line) for line in script_lines]
+
+    context_size = 5
+    # If the job failed, capture the tail of the step_script
+    if job_status == "failed":
+        error_context = "\n".join(lines[-30:])
+        errors.append(error_context)
+    else:
+        # For successful jobs, look for warnings and errors with context
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if "WARNING" in line or "WARN" in line:
+                # Collect context lines before and after
+                start = max(i - context_size, 0)
+                end = min(i + context_size, len(lines))
+                context = "\n".join(lines[start:end])
+                warnings.append(context)
+                i = end  # Skip lines already processed
+            else:
+                i += 1
+
+    return {"warnings": warnings, "errors": errors}
+
+
+def parse_diff_content(diff: str):
+    """
+    Parses the diff content to calculate lines added and removed.
+
+    Parameters:
+        diff (str): The diff string.
+
+    Returns:
+        Tuple[int, int]: Number of lines added and removed.
+    """
+    additions = len(re.findall(r"^(\+[^+])", diff, re.MULTILINE))
+    deletions = len(re.findall(r"^-(?!-)", diff, re.MULTILINE))
+    return additions, deletions
+
+
+def pretty_print_merge_request(self, mr_details: dict):
+    # Prepare MR Metadata string
+    mr_metadata = [
+        "## Merge Request Details:",
+        f"MR IID: {mr_details['mr']['iid']}",
+        f"Title: {mr_details['mr']['title']}",
+        f"Author: {mr_details['mr']['author']['name']} ({mr_details['mr']['author']['username']})",
+        f"State: {mr_details['mr']['state']}",
+        f"Created At: {mr_details['mr']['created_at']}",
+        f"Updated At: {mr_details['mr']['updated_at']}",
+        f"Source Branch: {mr_details['mr']['source_branch']}",
+        f"Target Branch: {mr_details['mr']['target_branch']}",
+        f"Labels: {', '.join(mr_details['mr']['labels'])}",
+        f"Approvals Required: {mr_details['mr']['approvals_required']}",
+        f"Approvals Received: {mr_details['mr']['approvals_received']}",
+        f"Web URL: {mr_details['mr']['web_url']}",
+        f"Merge Status: {mr_details['mr']['merge_status']}",
+        f"First Contribution: {mr_details['mr']['first_contribution']}",
+    ]
+
+    # Append Assignee Details
+    assignee_info = [
+        f"- {assignee['name']} ({assignee['username']})"
+        for assignee in mr_details["mr"]["assignees"]
+    ]
+    mr_metadata.append(
+        f"Assignees:\n{chr(10).join(assignee_info) if assignee_info else 'None'}"
+    )
+
+    # Add Pipeline Summary block if available
+    pipeline_summary = mr_details.get("pipeline")
+
+    # Prepare Changes and Statistics strings
+    changes_info = ["\n## Changes:"]
+    for change in mr_details["changes"]:
+        changes_info.extend(
+            [
+                f"File: {change['new_path']}",
+                f"  - Lines Added: {change['lines_added']}",
+                f"  - Lines Removed: {change['lines_removed']}",
+                f"  - Change Type: {'New File' if change['new_file'] else 'Renamed File' if change['renamed_file'] else 'Deleted File' if change['deleted_file'] else 'Modified'}",
+                f"  - Generated File: {'Yes' if change['generated_file'] else 'No'}",
+                f"  - Diff:\n{change['diff']}\n",
+            ]
         )
-        if mrs:
-            return mrs[0].web_url
-        return None
+
+    stats_info = [
+        "## Statistics:",
+        f"Total Files Changed: {mr_details['stats']['total_files_changed']}",
+        f"Total Lines Added: {mr_details['stats']['total_lines_added']}",
+        f"Total Lines Removed: {mr_details['stats']['total_lines_removed']}",
+    ]
+
+    # Compile all information into a single string for output
+    full_output = "\n".join(
+        mr_metadata + changes_info + stats_info + [pipeline_summary]
+    )
+
+    # Return the formatted string
+    return full_output
+
+
+class GitLabAPIWrapperExtra(BaseModel):
+    """
+    GitLab API Wrapper.
+    """
+
+    gitlab: Any = None  #: :meta private:
+    gitlab_repo_instance: Any = None  #: :meta private:
+    gitlab_url: Optional[str] = None
+    """The url of the GitLab instance."""
+    gitlab_repository: Optional[str] = None
+    """The name of the GitLab repository, in the form {username}/{repo-name}."""
+    gitlab_personal_access_token: Optional[str] = None
+    """Personal access token for the GitLab service, used for authentication."""
+    gitlab_branch: Optional[str] = None
+    """The specific branch in the GitLab repository where the bot will make 
+        its commits. Defaults to 'main'.
+    """
+    gitlab_base_branch: Optional[str] = None
+    """The base branch in the GitLab repository, used for comparisons. 
+        Usually 'main' or 'master'. Defaults to 'main'.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+
+    def __init__(self, **kwargs):
+        # Load configuration from config.yaml
+        config_dict = get_runtime_config()
+        gitlab_config = config_dict["repository"]["gitlab"]
+
+        # Require project to be provided
+        if not gitlab_config.get("gitlab_repository"):
+            raise ValueError(
+                "GitLab project/repository must be provided via the --project CLI flag."
+            )
+
+        # Prepare parameters for the base GitLabAPIWrapper class
+        gitlab_url = gitlab_config.get("url")
+        gitlab_repository = gitlab_config.get("gitlab_repository")
+        gitlab_personal_access_token = gitlab_config.get("private_token")
+        gitlab_branch = gitlab_config.get("base_branch")
+        gitlab_base_branch = gitlab_config.get("base_branch")
+
+        # Pass parameters to the parent GitLabAPIWrapper class
+        super().__init__(
+            gitlab_url=gitlab_url,
+            gitlab_repository=gitlab_repository,
+            gitlab_personal_access_token=gitlab_personal_access_token,
+            gitlab_branch=gitlab_branch,
+            gitlab_base_branch=gitlab_base_branch,
+            **kwargs,
+        )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_environment(cls, values: Dict) -> Any:
+        """Validate that api key and python package exists in environment."""
+
+        gitlab_url = get_from_dict_or_env(
+            values, "gitlab_url", "GITLAB_URL", default="https://gitlab.com"
+        )
+        gitlab_repository = get_from_dict_or_env(
+            values, "gitlab_repository", "GITLAB_REPOSITORY"
+        )
+
+        gitlab_personal_access_token = get_from_dict_or_env(
+            values, "gitlab_personal_access_token", "GITLAB_PERSONAL_ACCESS_TOKEN"
+        )
+
+        gitlab_branch = get_from_dict_or_env(
+            values, "gitlab_branch", "GITLAB_BRANCH", default="main"
+        )
+        gitlab_base_branch = get_from_dict_or_env(
+            values, "gitlab_base_branch", "GITLAB_BASE_BRANCH", default="main"
+        )
+
+        g = gitlab.Gitlab(
+            url=gitlab_url,
+            private_token=gitlab_personal_access_token,
+            keep_base_url=True,
+        )
+
+        g.auth()
+
+        values["gitlab"] = g
+        values["gitlab_repo_instance"] = g.projects.get(gitlab_repository)
+        values["gitlab_url"] = gitlab_url
+        values["gitlab_repository"] = gitlab_repository
+        values["gitlab_personal_access_token"] = gitlab_personal_access_token
+        values["gitlab_branch"] = gitlab_branch
+        values["gitlab_base_branch"] = gitlab_base_branch
+
+        return values
 
     def create_file(
         self, branch_name: str, file_path: str, file_contents: str, commit_message: str
@@ -103,60 +286,12 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
                 f"Failed to update file {file_path} in branch {branch_name}: {str(e)}"
             )
 
-    def create_onboarding_pr(
-        self, default_content: str, branch_name: str = "mergebot/onboarding"
-    ):
-        """
-        Creates an onboarding PR to add .mergebot.yml to the default branch.
-        """
-        project = self.gitlab_repo_instance
-        default_branch = project.default_branch
-
-        # Check if branch exists, create if not
-        try:
-            project.branches.get(branch_name)
-        except Exception:
-            # Branch does not exist, create it from the default branch
-            project.branches.create({"branch": branch_name, "ref": default_branch})
-
-        # Create or update the file in the new branch
-        self.update_file(
-            branch_name=branch_name,
-            file_path=".mergebot.yml",
-            file_contents=default_content,
-            commit_message="chore: add .mergebot.yml for onboarding",
-        )
-
-        # Create the merge request
-        mr = project.mergerequests.create(
-            {
-                "source_branch": branch_name,
-                "target_branch": default_branch,
-                "title": "Add .mergebot.yml",
-                "remove_source_branch": True,
-                "description": (
-                    "### Mergebot Onboarding PR\n\n"
-                    "This PR was generated automatically by **Mergebot** to help you get started with repository-based configuration.\n\n"
-                    "- A default `.mergebot.yml` file has been added to your repository.\n"
-                    "- Please review and customize this file to fit your team's workflow and requirements.\n"
-                    "- For details on configuration options and best practices, see the [Mergebot Onboarding Guide](https://github.com/thehapyone/mergebot/blob/main/README.md).\n\n"
-                    "**Why am I seeing this PR?**\n"
-                    "- Mergebot requires a `.mergebot.yml` file in your default branch to operate.\n"
-                    "- This PR ensures your repository is ready for automated code review and merge automation.\n\n"
-                    "If you have questions or need help, please refer to the documentation or open an issue.\n\n"
-                    "_Generated by [Mergebot](https://github.com/thehapyone/mergebot)_"
-                ),
-            }
-        )
-        return mr.web_url
-
-    def search_issues(self, project_id: str, title: str):
+    def search_issues(self, title: str):
         """
         Search for issues in the project by title.
         Returns a list of issues whose title matches (case-insensitive).
         """
-        project = self.gitlab_repo_instance
-        issues = project.issues.list(search=title, all=True)
+        issues = self.gitlab_repo_instance.issues.list(search=title, all=True)
         # Optionally filter by exact title match
         return [
             issue.attributes
@@ -164,107 +299,24 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             if issue.title.strip().lower() == title.strip().lower()
         ]
 
-    def create_issue(self, project_id: str, title: str, description: str):
+    def create_issue(self, title: str, description: str):
         """
         Create a new issue in the project.
         Returns the created issue object (as dict).
         """
-        project = self.gitlab_repo_instance
-        issue = project.issues.create({"title": title, "description": description})
+        issue = self.gitlab_repo_instance.issues.create(
+            {"title": title, "description": description}
+        )
         return issue.attributes
 
-    def update_issue(self, project_id: str, issue_iid: int, description: str):
+    def update_issue(self, issue_iid: int, description: str):
         """
         Update the description/body of an issue.
         """
-        project = self.gitlab_repo_instance
-        issue = project.issues.get(issue_iid)
+        issue = self.gitlab_repo_instance.issues.get(issue_iid)
         issue.description = description
         issue.save()
         return issue.attributes
-
-    def __init__(self, **kwargs):
-        # Load configuration from config.yaml
-        config_dict = get_runtime_config()
-        gitlab_config = config_dict["repository"]["gitlab"]
-
-        # Require project to be provided
-        if not gitlab_config.get("gitlab_repository"):
-            raise ValueError(
-                "GitLab project/repository must be provided via the --project CLI flag."
-            )
-
-        # Prepare parameters for the base GitLabAPIWrapper class
-        gitlab_url = gitlab_config.get("url")
-        gitlab_repository = gitlab_config.get("gitlab_repository")
-        gitlab_personal_access_token = gitlab_config.get("private_token")
-        gitlab_branch = gitlab_config.get("base_branch")
-        gitlab_base_branch = gitlab_config.get("base_branch")
-
-        # Pass parameters to the parent GitLabAPIWrapper class
-        super().__init__(
-            gitlab_url=gitlab_url,
-            gitlab_repository=gitlab_repository,
-            gitlab_personal_access_token=gitlab_personal_access_token,
-            gitlab_branch=gitlab_branch,
-            gitlab_base_branch=gitlab_base_branch,
-            **kwargs,
-        )
-
-    def strip_ansi_codes(self, text: str) -> str:
-        """
-        Removes ANSI escape sequences from the text.
-
-        Parameters:
-            text (str): The text containing ANSI codes.
-
-        Returns:
-            str: The cleaned text without ANSI codes.
-        """
-        ansi_escape = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
-        return ansi_escape.sub("", text)
-
-    def parse_job_log(self, log: str, job_status: str) -> Dict[str, Any]:
-        """
-        Parses the job log to extract warnings and errors with context
-
-        Parameters:
-            log (str): The job log string.
-            job_status (str): Status of the job (e.g., 'success', 'failed').
-
-        Returns:
-            Dict[str, Any]: A dictionary containing lists of warnings and errors with context.
-        """
-        # First, extract the scripts in section
-        script_lines = log.split("\n")
-
-        warnings = []
-        errors = []
-
-        # Remove ANSI codes from lines
-        lines = [self.strip_ansi_codes(line) for line in script_lines]
-
-        context_size = 5
-        # If the job failed, capture the tail of the step_script
-        if job_status == "failed":
-            error_context = "\n".join(lines[-30:])
-            errors.append(error_context)
-        else:
-            # For successful jobs, look for warnings and errors with context
-            i = 0
-            while i < len(lines):
-                line = lines[i]
-                if "WARNING" in line or "WARN" in line:
-                    # Collect context lines before and after
-                    start = max(i - context_size, 0)
-                    end = min(i + context_size, len(lines))
-                    context = "\n".join(lines[start:end])
-                    warnings.append(context)
-                    i = end  # Skip lines already processed
-                else:
-                    i += 1
-
-        return {"warnings": warnings, "errors": errors}
 
     def get_pipeline_job(self, job_id: int) -> dict:
         """Gets the job information"""
@@ -274,7 +326,7 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         job_log = job.trace()
 
         # Parse the log to extract warnings and errors
-        parsed_log = self.parse_job_log(job_log.decode("utf-8"), job.status)
+        parsed_log = parse_job_log(job_log.decode("utf-8"), job.status)
         num_warnings = len(parsed_log["warnings"])
         num_errors = len(parsed_log["errors"])
 
@@ -350,81 +402,6 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
         except Exception as e:
             return f"Failed to retrieve pipeline details for Pipeline ID {pipeline_id}: {str(e)}"
 
-    def parse_diff_content(self, diff: str):
-        """
-        Parses the diff content to calculate lines added and removed.
-
-        Parameters:
-            diff (str): The diff string.
-
-        Returns:
-            Tuple[int, int]: Number of lines added and removed.
-        """
-        additions = len(re.findall(r"^(\+[^+])", diff, re.MULTILINE))
-        deletions = len(re.findall(r"^-(?!-)", diff, re.MULTILINE))
-        return additions, deletions
-
-    def pretty_print_merge_request(self, mr_details: dict):
-        # Prepare MR Metadata string
-        mr_metadata = [
-            "## Merge Request Details:",
-            f"MR IID: {mr_details['mr']['iid']}",
-            f"Title: {mr_details['mr']['title']}",
-            f"Author: {mr_details['mr']['author']['name']} ({mr_details['mr']['author']['username']})",
-            f"State: {mr_details['mr']['state']}",
-            f"Created At: {mr_details['mr']['created_at']}",
-            f"Updated At: {mr_details['mr']['updated_at']}",
-            f"Source Branch: {mr_details['mr']['source_branch']}",
-            f"Target Branch: {mr_details['mr']['target_branch']}",
-            f"Labels: {', '.join(mr_details['mr']['labels'])}",
-            f"Approvals Required: {mr_details['mr']['approvals_required']}",
-            f"Approvals Received: {mr_details['mr']['approvals_received']}",
-            f"Web URL: {mr_details['mr']['web_url']}",
-            f"Merge Status: {mr_details['mr']['merge_status']}",
-            f"First Contribution: {mr_details['mr']['first_contribution']}",
-        ]
-
-        # Append Assignee Details
-        assignee_info = [
-            f"- {assignee['name']} ({assignee['username']})"
-            for assignee in mr_details["mr"]["assignees"]
-        ]
-        mr_metadata.append(
-            f"Assignees:\n{chr(10).join(assignee_info) if assignee_info else 'None'}"
-        )
-
-        # Add Pipeline Summary block if available
-        pipeline_summary = mr_details.get("pipeline")
-
-        # Prepare Changes and Statistics strings
-        changes_info = ["\n## Changes:"]
-        for change in mr_details["changes"]:
-            changes_info.extend(
-                [
-                    f"File: {change['new_path']}",
-                    f"  - Lines Added: {change['lines_added']}",
-                    f"  - Lines Removed: {change['lines_removed']}",
-                    f"  - Change Type: {'New File' if change['new_file'] else 'Renamed File' if change['renamed_file'] else 'Deleted File' if change['deleted_file'] else 'Modified'}",
-                    f"  - Generated File: {'Yes' if change['generated_file'] else 'No'}",
-                    f"  - Diff:\n{change['diff']}\n",
-                ]
-            )
-
-        stats_info = [
-            "## Statistics:",
-            f"Total Files Changed: {mr_details['stats']['total_files_changed']}",
-            f"Total Lines Added: {mr_details['stats']['total_lines_added']}",
-            f"Total Lines Removed: {mr_details['stats']['total_lines_removed']}",
-        ]
-
-        # Compile all information into a single string for output
-        full_output = "\n".join(
-            mr_metadata + changes_info + stats_info + [pipeline_summary]
-        )
-
-        # Return the formatted string
-        return full_output
-
     def get_merge_request(self, mr_iid: int) -> str:
         """
         Retrieves comprehensive details of a merge request, including diffs and statistics.
@@ -466,9 +443,7 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
             mr_changes = mr.changes(unidiff=True, access_raw_diffs=True)
             for change in mr_changes["changes"]:
                 # Calculate lines added and removed from the diff content
-                lines_added, lines_removed = self.parse_diff_content(
-                    change.get("diff", "")
-                )
+                lines_added, lines_removed = parse_diff_content(change.get("diff", ""))
                 total_lines_added += lines_added
                 total_lines_removed += lines_removed
 
@@ -545,7 +520,7 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
                 "stats": stats,
             }
 
-            return self.pretty_print_merge_request(mr_details)
+            return pretty_print_merge_request(mr_details)
 
         except Exception as e:
             return {
@@ -646,21 +621,8 @@ class GitLabAPIWrapperExtra(GitLabAPIWrapper):
 
     def run(self, mode: str, query: str = "", body: dict = {}) -> str:
         # Parent class handling
-        original_modes = {
-            "get_issues",
-            "get_issue",
-            "comment_on_issue",
-            "create_file",
-            "create_pull_request",
-            "read_file",
-            "update_file",
-            "delete_file",
-        }
 
-        if mode in original_modes:
-            return super().run(mode, query)
-
-        elif mode == "get_merge_request":
+        if mode == "get_merge_request":
             try:
                 mr_iid = int(query.strip())
                 mr_details = self.get_merge_request(mr_iid)
