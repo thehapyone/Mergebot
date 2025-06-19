@@ -70,6 +70,33 @@ approval_policy:
 
 ---
 
+## Onboarding & Repo Configuration Workflow
+
+Mergebot uses a robust onboarding workflow to ensure every repository is properly configured before running. This process is automatic and user-friendly, and prevents duplicate onboarding PRs.
+
+**How it works:**
+- On startup, Mergebot checks for `.mergebot.yml` in the default branch.
+- If found and valid, it is merged and validated with the server config.
+- If missing, Mergebot checks for an existing onboarding PR. If none exists, it creates one with a default config.
+- If `.mergebot.yml` is present but invalid, Mergebot aborts and logs a clear error.
+
+**For full details, see [`docs/ONBOARDING.md`](./docs/ONBOARDING.md).**
+
+### Onboarding Workflow (Mermaid Diagram)
+
+```mermaid
+flowchart TD
+    A[Startup/Trigger] --> B{.mergebot.yml exists?}
+    B -- Yes --> C[Parse and validate YAML]
+    C -- Valid --> D[Merge with server config<br>Proceed with Mergebot]
+    C -- Invalid --> E[Log error<br>Abort startup]
+    B -- No --> F{Onboarding PR exists?}
+    F -- Yes --> G[Log PR URL<br>Abort startup]
+    F -- No --> H[Create onboarding PR<br>Abort startup]
+```
+
+---
+
 ## Usage
 
 > **Note:** The `--project` flag is required for all running modes (`ondemand`, `webhook`).  

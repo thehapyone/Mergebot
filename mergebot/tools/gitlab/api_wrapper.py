@@ -1,16 +1,154 @@
+import base64
 import json
 import re
 from typing import Any, Dict, List
 
+import yaml
 from langchain_community.utilities.gitlab import GitLabAPIWrapper
 
 from mergebot.validator.config import get_runtime_config
+
+
+class InvalidMergebotYAML(Exception):
+    """Raised when .mergebot.yml exists but is not valid YAML."""
 
 
 class GitLabAPIWrapperExtra(GitLabAPIWrapper):
     """
     Extended GitLab API Wrapper with additional merge request and issue functionalities.
     """
+
+    def get_mergebot_yml(self):
+        """
+        Checks for .mergebot.yml in the default branch and returns its parsed YAML (dict) if found.
+        Returns None if the file is not found.
+        Raises InvalidMergebotYAML if the file exists but is not valid YAML.
+        """
+        project = self.gitlab_repo_instance
+        default_branch = project.default_branch
+        try:
+            file = project.files.get(file_path=".mergebot.yml", ref=default_branch)
+        except Exception:
+            # File not found or other error
+            return None
+        content = base64.b64decode(file.content).decode("utf-8")
+        try:
+            return yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            raise InvalidMergebotYAML(f"Invalid YAML in .mergebot.yml: {e}")
+
+    def onboarding_pr_exists(self, branch_name: str = "mergebot/onboarding"):
+        """
+        Checks if an onboarding PR from branch_name to the default branch already exists.
+        Returns the PR web_url if found, else None.
+        """
+        project = self.gitlab_repo_instance
+        default_branch = project.default_branch
+        mrs = project.mergerequests.list(
+            source_branch=branch_name,
+            target_branch=default_branch,
+            state="opened",
+            all=True,
+        )
+        if mrs:
+            return mrs[0].web_url
+        return None
+
+    def create_file(
+        self, branch_name: str, file_path: str, file_contents: str, commit_message: str
+    ) -> bool:
+        """
+        Creates a new file on the gitlab repo
+        Returns:
+            str: A success or failure
+        """
+        try:
+            self.gitlab_repo_instance.files.head(file_path, branch_name)
+            return False
+        except Exception:
+            data = {
+                "branch": branch_name,
+                "commit_message": commit_message,
+                "file_path": file_path,
+                "content": file_contents,
+            }
+
+            self.gitlab_repo_instance.files.create(data)
+            self.gitlab_repo_instance.save()
+
+        return True
+
+    def update_file(
+        self, branch_name: str, file_path: str, file_contents: str, commit_message: str
+    ):
+        """Updates an existing file on the gitlab repo"""
+        created = self.create_file(
+            branch_name=branch_name,
+            file_path=file_path,
+            file_contents=file_contents,
+            commit_message=commit_message,
+        )
+        if created:
+            return
+
+        # If file creation failed, try updating the existing file
+        try:
+            file = self.gitlab_repo_instance.files.get(
+                file_path=file_path, ref=branch_name
+            )
+            file.content = file_contents
+            file.save(branch=branch_name, commit_message=commit_message)
+        except Exception as e:
+            raise Exception(
+                f"Failed to update file {file_path} in branch {branch_name}: {str(e)}"
+            )
+
+    def create_onboarding_pr(
+        self, default_content: str, branch_name: str = "mergebot/onboarding"
+    ):
+        """
+        Creates an onboarding PR to add .mergebot.yml to the default branch.
+        """
+        project = self.gitlab_repo_instance
+        default_branch = project.default_branch
+
+        # Check if branch exists, create if not
+        try:
+            project.branches.get(branch_name)
+        except Exception:
+            # Branch does not exist, create it from the default branch
+            project.branches.create({"branch": branch_name, "ref": default_branch})
+
+        # Create or update the file in the new branch
+        self.update_file(
+            branch_name=branch_name,
+            file_path=".mergebot.yml",
+            file_contents=default_content,
+            commit_message="chore: add .mergebot.yml for onboarding",
+        )
+
+        # Create the merge request
+        mr = project.mergerequests.create(
+            {
+                "source_branch": branch_name,
+                "target_branch": default_branch,
+                "title": "Add .mergebot.yml",
+                "remove_source_branch": True,
+                "description": (
+                    "### Mergebot Onboarding PR\n\n"
+                    "This PR was generated automatically by **Mergebot** to help you get started with repository-based configuration.\n\n"
+                    "- A default `.mergebot.yml` file has been added to your repository.\n"
+                    "- Please review and customize this file to fit your team's workflow and requirements.\n"
+                    "- For details on configuration options and best practices, see the [Mergebot Onboarding Guide](https://github.com/thehapyone/mergebot/blob/main/README.md).\n\n"
+                    "**Why am I seeing this PR?**\n"
+                    "- Mergebot requires a `.mergebot.yml` file in your default branch to operate.\n"
+                    "- This PR ensures your repository is ready for automated code review and merge automation.\n\n"
+                    "If you have questions or need help, please refer to the documentation or open an issue.\n\n"
+                    "_Generated by [Mergebot](https://github.com/thehapyone/mergebot)_"
+                ),
+            }
+        )
+        return mr.web_url
 
     def search_issues(self, project_id: str, title: str):
         """

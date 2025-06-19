@@ -2,9 +2,9 @@ import argparse
 import asyncio
 import sys
 
+from mergebot.config_manager import ensure_repo_config
 from mergebot.logging_config import logger
 from mergebot.ondemand_runner import OndemandRunner
-from mergebot.utils import get_platform_type
 from mergebot.webhook_server import WebhookServer
 
 
@@ -16,8 +16,6 @@ def run_webhook_mode(port: int, project: str):
         port (int): The port number to run the webhook server on.
         project (str): The GitLab project/repository path.
     """
-    platform_type = get_platform_type()
-    logger.info(f"[Webhook] Configured platform: {platform_type}")
     logger.info(
         f"[Webhook] Running in webhook mode on port {port} (project: {project})"
     )
@@ -78,6 +76,9 @@ async def main():
         sys.exit(1)
 
     args = parser.parse_args()
+
+    # Ensure repo config before running anything
+    ensure_repo_config(args.project)
 
     if args.mode == "webhook":
         run_webhook_mode(args.port, args.project)
