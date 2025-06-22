@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 from jinja2 import Template
 
-from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
+from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 
 # Section markers for robust, sectioned updates
 DASHBOARD_MARKER = "<!-- marker:MERGEBOT_DASHBOARD -->"
@@ -55,7 +55,7 @@ class GitLabDashboardManager(DashboardManager):
 
     def __init__(
         self,
-        api_wrapper: "GitLabAPIWrapperExtra",
+        api_wrapper: "GitlabAPIWrapper",
         project_id: str,
         dashboard_title: str = "🛠️ Mergebot Project Dashboard",
     ):
@@ -134,7 +134,7 @@ class GitLabDashboardManager(DashboardManager):
             mr_data, rerun_requests, action_log, analytics
         )
         dashboard = self.get_or_create_dashboard()
-        self.api.update_issue(self.project_id, dashboard["id"], dashboard_body)
+        self.api.update_issue(dashboard["id"], dashboard_body)
 
     @lru_cache(maxsize=None)
     def _initial_dashboard_body(self) -> str:

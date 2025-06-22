@@ -1,10 +1,10 @@
 import json
 import re
 from typing import Any, Dict, List, Any, Dict, List, Optional
+import os
 
 from pydantic import BaseModel, ConfigDict, model_validator
 import gitlab
-from mergebot.utils import get_from_dict_or_env
 from mergebot.validator.config import get_runtime_config
 
 
@@ -142,7 +142,7 @@ def pretty_print_merge_request(self, mr_details: dict):
     return full_output
 
 
-class GitLabAPIWrapperExtra(BaseModel):
+class GitlabAPIWrapper(BaseModel):
     """
     GitLab API Wrapper.
     """
@@ -150,91 +150,82 @@ class GitLabAPIWrapperExtra(BaseModel):
     gitlab: Any = None  #: :meta private:
     gitlab_repo_instance: Any = None  #: :meta private:
     gitlab_url: Optional[str] = None
-    """The url of the GitLab instance."""
     gitlab_repository: Optional[str] = None
-    """The name of the GitLab repository, in the form {username}/{repo-name}."""
     gitlab_personal_access_token: Optional[str] = None
-    """Personal access token for the GitLab service, used for authentication."""
     gitlab_branch: Optional[str] = None
-    """The specific branch in the GitLab repository where the bot will make 
-        its commits. Defaults to 'main'.
-    """
     gitlab_base_branch: Optional[str] = None
-    """The base branch in the GitLab repository, used for comparisons. 
-        Usually 'main' or 'master'. Defaults to 'main'.
-    """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-
-    def __init__(self, **kwargs):
-        # Load configuration from config.yaml
-        config_dict = get_runtime_config()
-        gitlab_config = config_dict["repository"]["gitlab"]
-
-        # Require project to be provided
-        if not gitlab_config.get("gitlab_repository"):
-            raise ValueError(
-                "GitLab project/repository must be provided via the --project CLI flag."
-            )
-
-        # Prepare parameters for the base GitLabAPIWrapper class
-        gitlab_url = gitlab_config.get("url")
-        gitlab_repository = gitlab_config.get("gitlab_repository")
-        gitlab_personal_access_token = gitlab_config.get("private_token")
-        gitlab_branch = gitlab_config.get("base_branch")
-        gitlab_base_branch = gitlab_config.get("base_branch")
-
-        # Pass parameters to the parent GitLabAPIWrapper class
-        super().__init__(
-            gitlab_url=gitlab_url,
-            gitlab_repository=gitlab_repository,
-            gitlab_personal_access_token=gitlab_personal_access_token,
-            gitlab_branch=gitlab_branch,
-            gitlab_base_branch=gitlab_base_branch,
-            **kwargs,
-        )
+    model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="before")
     @classmethod
     def validate_environment(cls, values: Dict) -> Any:
-        """Validate that api key and python package exists in environment."""
+        """
+        Load & validate config from:
+          1) kwargs passed into the constructor
+          2) repository.gitlab section in config.yaml
+          3) environment variables
+          4) sensible defaults
+        """
 
-        gitlab_url = get_from_dict_or_env(
-            values, "gitlab_url", "GITLAB_URL", default="https://gitlab.com"
-        )
-        gitlab_repository = get_from_dict_or_env(
-            values, "gitlab_repository", "GITLAB_REPOSITORY"
-        )
+        cfg = get_runtime_config()["repository"]["gitlab"]
 
-        gitlab_personal_access_token = get_from_dict_or_env(
-            values, "gitlab_personal_access_token", "GITLAB_PERSONAL_ACCESS_TOKEN"
-        )
-
-        gitlab_branch = get_from_dict_or_env(
-            values, "gitlab_branch", "GITLAB_BRANCH", default="main"
-        )
-        gitlab_base_branch = get_from_dict_or_env(
-            values, "gitlab_base_branch", "GITLAB_BASE_BRANCH", default="main"
+        # 1) URL
+        gitlab_url = (
+            values.get("gitlab_url")
+            or cfg.get("url")
+            or os.getenv("GITLAB_URL", "https://gitlab.com")
         )
 
-        g = gitlab.Gitlab(
-            url=gitlab_url,
-            private_token=gitlab_personal_access_token,
-            keep_base_url=True,
+        # 2) Repository (must exist in some source)
+        gitlab_repo = (
+            values.get("gitlab_repository")
+            or cfg.get("gitlab_repository")
+            or os.getenv("GITLAB_REPOSITORY")
+        )
+        if not gitlab_repo:
+            raise ValueError(
+                "GitLab repository must be provided via CLI, config.yaml or GITLAB_REPOSITORY."
+            )
+
+        # 3) Token (must exist in some source)
+        token = (
+            values.get("gitlab_personal_access_token")
+            or cfg.get("private_token")
+            or os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN")
+        )
+        if not token:
+            raise ValueError(
+                "GitLab Personal Access Token must be provided via CLI, config.yaml or GITLAB_PERSONAL_ACCESS_TOKEN."
+            )
+
+        # 4) Branches w/ defaults
+        branch = (
+            values.get("gitlab_branch")
+            or cfg.get("branch")
+            or cfg.get("base_branch")
+            or os.getenv("GITLAB_BRANCH", "main")
+        )
+        base_branch = (
+            values.get("gitlab_base_branch")
+            or cfg.get("base_branch")
+            or os.getenv("GITLAB_BASE_BRANCH", "main")
         )
 
-        g.auth()
+        # Instantiate & authenticate the GitLab client
+        gl = gitlab.Gitlab(url=gitlab_url, private_token=token, keep_base_url=True)
+        gl.auth()
 
-        values["gitlab"] = g
-        values["gitlab_repo_instance"] = g.projects.get(gitlab_repository)
-        values["gitlab_url"] = gitlab_url
-        values["gitlab_repository"] = gitlab_repository
-        values["gitlab_personal_access_token"] = gitlab_personal_access_token
-        values["gitlab_branch"] = gitlab_branch
-        values["gitlab_base_branch"] = gitlab_base_branch
-
+        # Populate the model’s values
+        values.update(
+            gitlab=gl,
+            gitlab_repo_instance=gl.projects.get(gitlab_repo),
+            gitlab_url=gitlab_url,
+            gitlab_repository=gitlab_repo,
+            gitlab_personal_access_token=token,
+            gitlab_branch=branch,
+            gitlab_base_branch=base_branch,
+        )
         return values
 
     def create_file(

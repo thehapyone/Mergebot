@@ -4,7 +4,7 @@ import time
 from mergebot.dashboard_manager import GitLabDashboardManager
 from mergebot.flow import run_flow
 from mergebot.logging_config import logger
-from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
+from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.utils import get_platform_type
 
 
@@ -14,7 +14,7 @@ class OndemandRunner:
         self.platform_type = get_platform_type()
         self.project = project
         if self.platform_type == "gitlab":
-            self.api = GitLabAPIWrapperExtra()
+            self.api = GitlabAPIWrapper()
             self.project_id = self.api.gitlab_repo_instance.id
             self.dashboard_manager = GitLabDashboardManager(self.api, self.project_id)
         else:

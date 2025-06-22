@@ -1,7 +1,10 @@
 import sys
 
 from mergebot.logging_config import logger
-from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra, InvalidMergebotYAML
+from mergebot.tools.gitlab.onboarding import (
+    GitlabOnboardingManager,
+    InvalidMergebotYAML,
+)
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 
@@ -23,10 +26,10 @@ def ensure_repo_config(project: str):
     platform_type = get_platform_type()
     if platform_type == "gitlab":
         runtime_config.set("repository.gitlab.gitlab_repository", project)
-        wrapper = GitLabAPIWrapperExtra()
+        onboarding = GitlabOnboardingManager()
         try:
             logger.info(f"Checking for .mergebot.yml in GitLab repo: {project}")
-            repo_config = wrapper.get_mergebot_yml()
+            repo_config = onboarding.get_mergebot_yml()
             if repo_config is not None:
                 logger.info(
                     ".mergebot.yml found in repo. Merging and validating config..."
@@ -42,7 +45,7 @@ def ensure_repo_config(project: str):
                 logger.warning(
                     ".mergebot.yml not found in repo. Checking for existing onboarding PR..."
                 )
-                existing_pr_url = wrapper.onboarding_pr_exists()
+                existing_pr_url = onboarding.onboarding_pr_exists()
                 if existing_pr_url:
                     logger.info(f"Onboarding PR already exists: {existing_pr_url}")
                     logger.error(
@@ -53,7 +56,7 @@ def ensure_repo_config(project: str):
                     logger.info(
                         "No existing onboarding PR found. Creating onboarding PR..."
                     )
-                    base_branch = wrapper.gitlab_repo_instance.default_branch
+                    base_branch = onboarding.gitlab_repo_instance.default_branch
                     default_mergebot_yml = (
                         "# Default Mergebot configuration\n"
                         "# See https://github.com/thehapyone/mergebot for documentation\n"
@@ -70,7 +73,7 @@ def ensure_repo_config(project: str):
                         "    TestAnalysis: 0.2\n"
                         "    RiskAnalysis: 0.2\n"
                     )
-                    pr_url = wrapper.create_onboarding_pr(default_mergebot_yml)
+                    pr_url = onboarding.create_onboarding_pr(default_mergebot_yml)
                     logger.info(f"Onboarding PR created: {pr_url}")
                     logger.error(
                         "Onboarding required. Please merge the PR to enable Mergebot."
