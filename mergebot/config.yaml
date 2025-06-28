@@ -22,7 +22,6 @@ crews:
       model: "azure/gpt-4.1-mini"
 
 approval_policy:
-  enabled: true
   threshold: 3.0
   weights:
     CodeAnalysis: 0.4

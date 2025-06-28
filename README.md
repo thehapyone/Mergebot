@@ -59,7 +59,6 @@ crews:
 
 # Optional approval policy for auto-approval logic
 approval_policy:
-  enabled: true
   threshold: 3.0
   weights:
     CodeAnalysis: 0.5

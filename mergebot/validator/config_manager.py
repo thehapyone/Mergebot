@@ -65,7 +65,6 @@ def ensure_repo_config(project: str):
                         "  gitlab:\n"
                         f'    base_branch: "{base_branch}"\n'
                         "approval_policy:\n"
-                        "  enabled: true\n"
                         "  threshold: 3.0\n"
                         "  weights:\n"
                         "    CodeAnalysis: 0.4\n"
