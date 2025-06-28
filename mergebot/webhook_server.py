@@ -5,8 +5,8 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 
 from mergebot.flow import run_flow
-from mergebot.validator.logging_config import logger
 from mergebot.utils import get_platform_type
+from mergebot.validator.logging_config import logger
 
 
 def parse_gitlab_mr_event(payload: dict) -> Optional[str]:

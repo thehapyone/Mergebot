@@ -1,5 +1,3 @@
-import os
-from typing import Any, Union, Optional
 from mergebot.validator.config import get_runtime_config
 
 

@@ -1,6 +1,7 @@
 import base64
 
 import yaml
+
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 
 

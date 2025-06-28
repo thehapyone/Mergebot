@@ -1,10 +1,11 @@
 import json
-import re
-from typing import Any, Dict, List, Any, Dict, List, Optional
 import os
+import re
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, model_validator
 import gitlab
+from pydantic import BaseModel, ConfigDict, model_validator
+
 from mergebot.validator.config import get_runtime_config
 
 

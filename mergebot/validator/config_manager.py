@@ -1,12 +1,12 @@
 import sys
 
-from mergebot.validator.logging_config import logger
 from mergebot.tools.gitlab.onboarding import (
     GitlabOnboardingManager,
     InvalidMergebotYAML,
 )
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
+from mergebot.validator.logging_config import logger
 
 
 def ensure_repo_config(project: str):
