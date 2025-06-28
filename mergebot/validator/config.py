@@ -7,7 +7,7 @@ from typing import Dict, Optional
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from mergebot.logging_config import logger
+from mergebot.validator.logging_config import logger
 
 
 class LLMConfig(BaseModel):

@@ -1,6 +1,6 @@
 import sys
 
-from mergebot.logging_config import logger
+from mergebot.validator.logging_config import logger
 from mergebot.tools.gitlab.onboarding import (
     GitlabOnboardingManager,
     InvalidMergebotYAML,

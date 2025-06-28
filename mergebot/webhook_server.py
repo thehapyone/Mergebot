@@ -5,7 +5,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 
 from mergebot.flow import run_flow
-from mergebot.logging_config import logger
+from mergebot.validator.logging_config import logger
 from mergebot.utils import get_platform_type
 
 

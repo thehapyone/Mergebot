@@ -1,9 +1,9 @@
 import asyncio
 import time
 
-from mergebot.dashboard_manager import GitLabDashboardManager
+from mergebot.dashboard.dashboard_manager import GitLabDashboardManager
 from mergebot.flow import run_flow
-from mergebot.logging_config import logger
+from mergebot.validator.logging_config import logger
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.utils import get_platform_type
 

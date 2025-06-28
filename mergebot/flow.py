@@ -14,7 +14,7 @@ from mergebot.crews import (
     RiskAnalysis,
     TestAnalysis,
 )
-from mergebot.logging_config import logger
+from mergebot.validator.logging_config import logger
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 

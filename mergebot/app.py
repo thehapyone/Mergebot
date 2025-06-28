@@ -2,8 +2,8 @@ import argparse
 import asyncio
 import sys
 
-from mergebot.config_manager import ensure_repo_config
-from mergebot.logging_config import logger
+from mergebot.validator.config_manager import ensure_repo_config
+from mergebot.validator.logging_config import logger
 from mergebot.ondemand_runner import OndemandRunner
 from mergebot.webhook_server import WebhookServer
 
