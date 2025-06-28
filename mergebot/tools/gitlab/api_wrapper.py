@@ -80,7 +80,7 @@ def parse_diff_content(diff: str):
     return additions, deletions
 
 
-def pretty_print_merge_request(self, mr_details: dict):
+def pretty_print_merge_request(mr_details: dict):
     # Prepare MR Metadata string
     mr_metadata = [
         "## Merge Request Details:",
