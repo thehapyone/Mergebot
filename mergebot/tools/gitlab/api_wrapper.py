@@ -111,7 +111,7 @@ def pretty_print_merge_request(mr_details: dict):
     )
 
     # Add Pipeline Summary block if available
-    pipeline_summary = mr_details.get("pipeline")
+    pipeline_summary = mr_details.get("pipeline", "")
 
     # Prepare Changes and Statistics strings
     changes_info = ["\n## Changes:"]
