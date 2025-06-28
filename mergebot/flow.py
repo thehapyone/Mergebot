@@ -14,9 +14,9 @@ from mergebot.crews import (
     RiskAnalysis,
     TestAnalysis,
 )
-from mergebot.logging_config import logger
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
+from mergebot.validator.logging_config import logger
 
 
 def extract_url_from_text(text: str) -> str:

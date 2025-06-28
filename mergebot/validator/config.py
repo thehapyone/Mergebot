@@ -7,7 +7,7 @@ from typing import Dict, Optional
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from mergebot.logging_config import logger
+from mergebot.validator.logging_config import logger
 
 
 class LLMConfig(BaseModel):
@@ -59,7 +59,6 @@ class ApprovalPolicy(BaseModel):
     Represents the policy for approving changes based on weighted scores of various agents.
 
     Attributes:
-        enabled (bool): Indicates whether the approval policy is active. Default is False.
         threshold (float): The threshold score below which changes are auto-approved. Default is 3.0.
         weights (Dict[str, float]): A dictionary of agent/crew names with their corresponding weight values.
 
@@ -72,7 +71,6 @@ class ApprovalPolicy(BaseModel):
             Returns a formatted string in Markdown describing the approval policy, including weights and threshold.
     """
 
-    enabled: bool = False
     threshold: float = 3.0
     weights: Dict[str, float] = {}
 
@@ -98,7 +96,7 @@ class ApprovalPolicy(BaseModel):
         return self
 
     def to_markdown(self) -> str:
-        if not self.enabled or not self.weights:
+        if not self.weights:
             return ""
         weights_str = "\n".join(f"  - {k}: {v:.2f}" for k, v in self.weights.items())
         return (

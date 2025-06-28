@@ -82,7 +82,6 @@ repository:
     base_branch: "main"
 
 approval_policy:
-  enabled: true
   threshold: 3.0
   weights:
     CodeAnalysis: 0.4

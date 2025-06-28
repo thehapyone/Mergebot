@@ -3,7 +3,7 @@ from typing import Any, Type
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
-from mergebot.tools.gitlab.api_wrapper import GitLabAPIWrapperExtra
+from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.tools.gitlab.prompts import (
     APPROVE_MERGE_REQUEST_PROMPT,
     FETCH_PIPELINE_DETAILS_PROMPT,
@@ -15,13 +15,13 @@ from mergebot.tools.gitlab.prompts import (
 class BaseGitLabTool(BaseTool):
     """Base class for all GitLab tools with common functionality."""
 
-    _api_wrapper: GitLabAPIWrapperExtra = None
+    _api_wrapper: GitlabAPIWrapper = None
 
     @property
-    def api_wrapper(self) -> GitLabAPIWrapperExtra:
+    def api_wrapper(self) -> GitlabAPIWrapper:
         """Lazy initialization of API wrapper to ensure project is available."""
         if self._api_wrapper is None:
-            self._api_wrapper = GitLabAPIWrapperExtra()
+            self._api_wrapper = GitlabAPIWrapper()
         return self._api_wrapper
 
 

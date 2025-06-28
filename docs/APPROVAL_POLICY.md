@@ -70,7 +70,6 @@ When defining weights, you must use the exact agent names as defined in the syst
 ### Balanced Policy
 ```yaml
 approval_policy:
-  enabled: true
   threshold: 3.0
   weights:
     CodeAnalysis: 0.4
@@ -83,7 +82,6 @@ approval_policy:
 ### Code Quality Focus
 ```yaml
 approval_policy:
-  enabled: true
   threshold: 3.0
   weights:
     CodeAnalysis: 0.5
@@ -96,7 +94,6 @@ approval_policy:
 ### Security/Risk-Averse
 ```yaml
 approval_policy:
-  enabled: true
   threshold: 2.5
   weights:
     CodeAnalysis: 0.3
@@ -109,7 +106,6 @@ approval_policy:
 ### Test-Driven
 ```yaml
 approval_policy:
-  enabled: true
   threshold: 4.0
   weights:
     CodeAnalysis: 0.3
@@ -122,7 +118,6 @@ approval_policy:
 ### Legacy Codebase (High Complexity Tolerance)
 ```yaml
 approval_policy:
-  enabled: true
   threshold: 4.0
   weights:
     CodeAnalysis: 0.3
