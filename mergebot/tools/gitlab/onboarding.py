@@ -48,7 +48,7 @@ class GitlabOnboardingManager:
             file = self.project.files.get(
                 file_path=".mergebot.yml", ref=self.project.default_branch
             )
-            content = base64.b64decode(file.content).decode()
+            content = base64.b64decode(file.content).decode("utf-8")
             return yaml.safe_load(content)
         except yaml.YAMLError as e:
             raise InvalidMergebotYAML(f"Invalid YAML in .mergebot.yml: {e}")
