@@ -77,17 +77,21 @@ async def main():
 
     args = parser.parse_args()
 
-    # Ensure repo config before running anything
-    ensure_repo_config(args.project)
+    # Ensure repo config before running anything, wrap entire execution for robust error handling
+    try:
+        ensure_repo_config(args.project)
 
-    if args.mode == "webhook":
-        run_webhook_mode(args.port, args.project)
-    elif args.mode == "ondemand":
-        runner = OndemandRunner(project=args.project)
-        if args.interval:
-            await runner.run_periodic(args.interval)
-        else:
-            await runner.run_once()
+        if args.mode == "webhook":
+            run_webhook_mode(args.port, args.project)
+        elif args.mode == "ondemand":
+            runner = OndemandRunner(project=args.project)
+            if args.interval:
+                await runner.run_periodic(args.interval)
+            else:
+                await runner.run_once()
+    except Exception as e:
+        logger.error(f"[Main] Unhandled error: {type(e).__name__}: {e}")
+        sys.exit(1)
 
 
 def cli_entry():
