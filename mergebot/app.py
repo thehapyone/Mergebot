@@ -90,7 +90,7 @@ async def main():
             else:
                 await runner.run_once()
     except Exception as e:
-        logger.error(f"[Main] Unhandled error: {type(e).__name__}: {e}")
+        logger.error(f"[Main] Unhandled error: {type(e).__name__}: {e}", exc_info=True)
         sys.exit(1)
 
 
