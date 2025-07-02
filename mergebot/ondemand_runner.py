@@ -66,7 +66,13 @@ class OndemandRunner:
                 )
                 analyzed_iids.add(mr.iid)
             except Exception as e:
-                errors.append((mr.iid, str(e)))
+                # Capture detailed error information and log stack trace
+                error_msg = f"{type(e).__name__}: {e}"
+                logger.error(
+                    f"[Ondemand] Error while analyzing MR !{mr.iid}: {error_msg}",
+                    exc_info=True,
+                )
+                errors.append((mr.iid, error_msg))
             duration = time.time() - start
             analysis_durations.append(duration)
 
