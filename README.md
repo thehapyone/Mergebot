@@ -30,7 +30,7 @@ It can automatically approve and merge low-risk MRs, or escalate complex changes
 - **Configurable Workflows**: Define merge criteria, code analysis, risk assessment, and more via a single YAML config.
 - **Modern, Centralized Logging**: All modules use a visually appealing, colorized logging system powered by [Rich](https://github.com/Textualize/rich).
 - **Unified Configuration Validation**: All configuration is loaded and validated through a single, robust system.
-- **Flexible Operation Modes**: Run as a webhook server or in ondemand mode, with clear subcommands for each.
+- **Flexible Operation Modes**: Run as a webhook server or in ondemand mode, with clear subcommands for each. Ondemand mode supports parallel analysis of multiple merge requests via the `--workers` flag.
 - **Extensible Architecture**: Easily add new analysis "crews" or extend platform support.
 
 ---
@@ -119,13 +119,16 @@ Mergebot supports an optional **approval policy** system that allows you to conf
 
 ### Ondemand Mode
 
-Run a one-shot or periodic dashboard scan for a project:
+Run a one-shot or periodic dashboard scan for a project, with optional parallel execution:
 
 ```bash
-mergebot ondemand --project mygroup/myrepo
+mergebot ondemand --project mygroup/myrepo --workers 4
 # Or
-python3 -m mergebot.app ondemand --project mygroup/myrepo
+python3 -m mergebot.app ondemand --project mygroup/myrepo --workers 4
 ```
+
+- The `--workers` flag controls the number of merge requests analyzed in parallel (default: 4).
+- For periodic scans, add `--interval <seconds>`.
 
 ### Webhook Mode
 

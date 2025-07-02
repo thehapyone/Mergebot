@@ -69,6 +69,12 @@ async def main():
         default=None,
         help="Interval in seconds to rerun the dashboard scan (if not set, runs once)",
     )
+    ondemand_parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of parallel workers for MR analysis (default: 4)",
+    )
 
     # Show help if no arguments are provided
     if len(sys.argv) == 1:
@@ -84,7 +90,7 @@ async def main():
         if args.mode == "webhook":
             run_webhook_mode(args.port, args.project)
         elif args.mode == "ondemand":
-            runner = OndemandRunner(project=args.project)
+            runner = OndemandRunner(project=args.project, workers=args.workers)
             if args.interval:
                 await runner.run_periodic(args.interval)
             else:

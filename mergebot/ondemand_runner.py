@@ -9,10 +9,18 @@ from mergebot.validator.logging_config import logger
 
 
 class OndemandRunner:
-    def __init__(self, project: str):
-        # Select platform based on get_platform_type()
+    def __init__(self, project: str, workers: int = 4):
+        """
+        OndemandRunner manages the dashboard update process for MergeBot,
+        supporting parallel analysis of multiple merge requests.
+
+        Args:
+            project (str): The GitLab project/repository path.
+            workers (int): Number of parallel workers for MR analysis.
+        """
         self.platform_type = get_platform_type()
         self.project = project
+        self.workers = workers
         if self.platform_type == "gitlab":
             self.api = GitlabAPIWrapper()
             self.project_id = self.api.gitlab_repo_instance.id
@@ -23,6 +31,9 @@ class OndemandRunner:
             )
 
     async def run_once(self):
+        """
+        Runs a single dashboard scan and update, analyzing all relevant merge requests in parallel.
+        """
         logger.info("[Ondemand] Running dashboard scan and update (one-shot)")
         dashboard = self.dashboard_manager.get_or_create_dashboard()
         open_mrs = self.api.gitlab_repo_instance.mergerequests.list(
@@ -35,25 +46,26 @@ class OndemandRunner:
         rerun_requests = set(dashboard_data["rerun_requests"])
         tracked_mrs = set(dashboard_data["tracked_mrs"])
 
-        mrs_to_analyze = []
-        for mr_iid, mr in open_mr_iids.items():
-            if mr_iid not in tracked_mrs or mr_iid in rerun_requests:
-                mrs_to_analyze.append(mr)
+        mrs_to_analyze = [
+            mr for mr_iid, mr in open_mr_iids.items()
+            if mr_iid not in tracked_mrs or mr_iid in rerun_requests
+        ]
 
         logger.info(f"[Ondemand] MRs to analyze: {[mr.iid for mr in mrs_to_analyze]}")
         analysis_results = []
         analysis_durations = []
         errors = []
         analyzed_iids = set()
-        for mr in mrs_to_analyze:
-            logger.info(f"[Ondemand] Analyzing MR !{mr.iid} ({mr.title})")
-            start = time.time()
-            try:
-                analysis_result = await run_flow(
-                    mr.web_url, mr_iid=mr.iid, mr_title=mr.title, project=self.project
-                )
-                analysis_results.append(
-                    {
+
+        async def analyze_mr(mr, semaphore):
+            async with semaphore:
+                logger.info(f"[Ondemand] Analyzing MR !{mr.iid} ({mr.title})")
+                start = time.time()
+                try:
+                    analysis_result = await run_flow(
+                        mr.web_url, mr_iid=mr.iid, mr_title=mr.title, project=self.project
+                    )
+                    result = {
                         "iid": analysis_result.iid,
                         "title": analysis_result.title,
                         "status": "Analyzed",
@@ -62,19 +74,43 @@ class OndemandRunner:
                         "last_reviewed": analysis_result.last_reviewed,
                         "analysis_link": analysis_result.analysis_link,
                         "web_url": mr.web_url,
+                        "duration": time.time() - start,
+                        "error": None,
                     }
-                )
-                analyzed_iids.add(mr.iid)
-            except Exception as e:
-                # Capture detailed error information and log stack trace
-                error_msg = f"{type(e).__name__}: {e}"
-                logger.error(
-                    f"[Ondemand] Error while analyzing MR !{mr.iid}: {error_msg}",
-                    exc_info=True,
-                )
-                errors.append((mr.iid, error_msg))
-            duration = time.time() - start
-            analysis_durations.append(duration)
+                    return (mr.iid, result)
+                except Exception as e:
+                    error_msg = f"{type(e).__name__}: {e}"
+                    logger.error(
+                        f"[Ondemand] Error while analyzing MR !{mr.iid}: {error_msg}",
+                        exc_info=True,
+                    )
+                    result = {
+                        "iid": mr.iid,
+                        "title": mr.title,
+                        "status": "Error",
+                        "impact_score": "N/A",
+                        "recommendation": "",
+                        "last_reviewed": "N/A",
+                        "analysis_link": "#",
+                        "web_url": mr.web_url,
+                        "duration": time.time() - start,
+                        "error": error_msg,
+                    }
+                    return (mr.iid, result)
+
+        semaphore = asyncio.Semaphore(self.workers)
+        tasks = [analyze_mr(mr, semaphore) for mr in mrs_to_analyze]
+        results = await asyncio.gather(*tasks)
+
+        for mr_iid, result in results:
+            if result["error"] is None:
+                analysis_results.append({k: result[k] for k in result if k != "duration" and k != "error"})
+                analyzed_iids.add(mr_iid)
+            else:
+                errors.append((mr_iid, result["error"]))
+                analysis_results.append({k: result[k] for k in result if k != "duration"})
+
+            analysis_durations.append(result["duration"])
 
         # For MRs not analyzed in this run, preserve previous dashboard data
         # TODO: Previous data should be fetched from the dashboard
@@ -143,6 +179,9 @@ class OndemandRunner:
         logger.info("[Ondemand] Dashboard update complete")
 
     async def run_periodic(self, interval: int):
+        """
+        Runs dashboard scans and updates periodically at the specified interval.
+        """
         logger.info(f"[Ondemand] Running dashboard scan every {interval} seconds")
         while True:
             await self.run_once()
