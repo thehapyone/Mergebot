@@ -27,7 +27,7 @@ package-mode = true
 
 [tool.poetry.group.dev.dependencies]
 codespell = "^2.4.1"
-ruff = "^0.12.0"
+ruff = "^0.12.2"
 
 [tool.codespell]
 ignore-words-list = "allEdges,astroid"
