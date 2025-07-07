@@ -97,6 +97,9 @@ class MergeBotState(BaseModel):
     }
     analysis_link: str = ""
     impact_evaluator: str = ""
+    usage_metrics: dict = Field(
+        default_factory=dict, description="Usage metrics for the crew's execution."
+    )
 
 
 class AnalysisResult(BaseModel):
@@ -200,13 +203,13 @@ class MergeBotFlow(Flow[MergeBotState]):
         self.state.analysis_link = extract_url_from_text(response.tasks_output[0].raw)
         self.state.impact_evaluator = response.raw
 
+        # Store the crew usage metrics
+        self.state.usage_metrics = {
+            crew_name: crew.usage_metrics.model_dump() for crew_name, crew in self.crews
+        }
+
         logger.info("\nFinal Response:")
         logger.info(self.state.impact_evaluator)
-
-        # Display the crew usage metrics
-        logger.info("\nCrew Usage Metrics:")
-        for crew_name, crew in self.crews:
-            logger.info(f"{crew_name}: {crew.usage_metrics}")
 
 
 async def run_flow(
@@ -258,4 +261,10 @@ async def run_flow(
         logger.error(f"AnalysisResult validation failed: {e}")
         raise
 
+    logger.info(f"Flow with id: {flow_id} completed successfully.")
+    logger.info("Flow Usage Metrics:-----------------------------------------\n")
+    for crew_name, usage_metrics in mergebot.state.usage_metrics.items():
+        logger.info(f"{crew_name}: {usage_metrics}")
+
+    logger.info("---------------------------------------------------------\n")
     return analysis_result
