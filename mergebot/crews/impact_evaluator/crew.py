@@ -13,7 +13,6 @@ class ImpactEvaluator(BotBaseCrew):
         return Agent(
             config=self.agents_config["impact_evaluator"],
             llm=self.llm_model,
-            verbose=True,
         )
 
     @task

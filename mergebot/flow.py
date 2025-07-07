@@ -203,6 +203,11 @@ class MergeBotFlow(Flow[MergeBotState]):
         logger.info("\nFinal Response:")
         logger.info(self.state.impact_evaluator)
 
+        # Display the crew usage metrics
+        logger.info("\nCrew Usage Metrics:")
+        for crew_name, crew in self.crews:
+            logger.info(f"{crew_name}: {crew.usage_metrics}")
+
 
 async def run_flow(
     mr_url: str, mr_iid: int = None, mr_title: str = "", project: str = None

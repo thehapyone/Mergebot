@@ -11,7 +11,7 @@ class CodeAnalysis(BotBaseCrew):
     @agent
     def code_analyzer(self) -> Agent:
         return Agent(
-            config=self.agents_config["code_analyzer"], llm=self.llm_model, verbose=True
+            config=self.agents_config["code_analyzer"], llm=self.llm_model
         )
 
     @task
@@ -30,5 +30,4 @@ class CodeAnalysis(BotBaseCrew):
             cache=False,
             planning=False,
             process=Process.sequential,
-            verbose=True,
         )

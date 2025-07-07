@@ -27,5 +27,4 @@ class RiskAnalysis(BotBaseCrew):
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=True,
         )

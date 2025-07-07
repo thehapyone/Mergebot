@@ -13,7 +13,6 @@ class ComplexityAnalysis(BotBaseCrew):
         return Agent(
             config=self.agents_config["complexity_analyzer"],
             llm=self.llm_model,
-            verbose=True,
         )
 
     @task
