@@ -13,7 +13,6 @@ class TestAnalysis(BotBaseCrew):
         return Agent(
             config=self.agents_config["test_coverage_analyzer"],
             llm=self.llm_model,
-            verbose=True,
         )
 
     @task
