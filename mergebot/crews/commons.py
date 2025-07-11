@@ -34,5 +34,5 @@ class BotBaseCrew:
             tasks=self.tasks,
             process=Process.sequential,
             verbose=False,
-            output_log_file=True
+            output_log_file=True,
         )

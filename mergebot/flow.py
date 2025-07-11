@@ -3,6 +3,7 @@ from datetime import datetime
 
 from crewai import Crew
 from crewai.flow.flow import Flow, and_, listen, start
+from crewai.utilities.events.event_listener import EventListener
 from pydantic import BaseModel, Field, ValidationError
 
 from mergebot.crews import (
@@ -17,6 +18,21 @@ from mergebot.crews import (
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
+
+
+# TODO: This is a temporary fix for this issue https://github.com/crewAIInc/crewAI/issues/3136
+def cleanup_crewai_live_console():
+    """
+    Cleans up the CrewAI live console formatter if it exists.
+    This is useful to stop the live console output after the flow execution.
+    """
+    el = getattr(EventListener, "_instance", None)
+    live = getattr(getattr(el, "formatter", None), "_live", None)
+    if live:
+        logger.info("Stopping live console formatter...")
+        el.formatter._live.stop()
+        el.formatter._live = None
+        logger.info("Live console formatter stopped.")
 
 
 def extract_url_from_text(text: str) -> str:
@@ -248,6 +264,8 @@ async def run_flow(
 
     await mergebot.kickoff_async()
 
+    cleanup_crewai_live_console()
+
     try:
         analysis_result = AnalysisResult(
             title=mergebot.state.mr_title,
@@ -262,9 +280,8 @@ async def run_flow(
         raise
 
     logger.info(f"Flow with id: {flow_id} completed successfully.")
-    logger.info("Flow Usage Metrics:-----------------------------------------\n")
+    logger.info("Flow Usage Metrics:-----------------------------------------")
     for crew_name, usage_metrics in mergebot.state.usage_metrics.items():
         logger.info(f"{crew_name}: {usage_metrics}")
-
-    logger.info("---------------------------------------------------------\n")
+    logger.info("----------------------Flow Usage Metrics:----------------------")
     return analysis_result
