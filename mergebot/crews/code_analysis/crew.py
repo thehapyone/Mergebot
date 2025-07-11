@@ -1,5 +1,5 @@
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
+from crewai import Agent, Task
+from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
 
