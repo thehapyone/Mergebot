@@ -1,23 +1,30 @@
 # Progress
 
 ## What Works
-- Memory Bank structure established with all core documentation files created
-- Foundational project context, architecture, and technical setup documented
+- Modular crew system implemented for code analysis, complexity, test, risk, impact evaluation, and publication
+- Dashboard system for real-time MR analytics and feedback
+- Full integration with GitLab for MR monitoring, onboarding, and feedback
+- Advanced configuration schema supporting global and per-crew LLMs via LiteLLM (OpenAI, Azure, Anthropic, Google, etc.)
+- Comprehensive, browsable documentation site (MkDocs Material) with onboarding, approval policy, and CI/CD guides
+- Environment variable best practices for all sensitive credentials
 
 ## What's Left to Build
-- Implement core Mergebot engine and modular crew system
-- Integrate with GitLab for MR monitoring and feedback
-- Develop and configure initial set of analysis crews (code analysis, risk analysis, test coverage, etc.)
-- Build dashboard for real-time monitoring and insights
-- Establish audit logging and traceability mechanisms
+- GitHub and other VCS platform support
+- SaaS dashboard and multi-project management
+- More granular crew and LLM configuration options
+- Additional CI/CD and deployment guides
+- Ongoing documentation and Memory Bank updates as features evolve
 
 ## Current Status
-- Project onboarding and documentation phase complete
-- Ready to begin core system implementation
+- Documentation and onboarding overhaul complete
+- Modular, extensible architecture in production use
+- CI/CD and ondemand mode are the recommended and supported workflows
 
 ## Known Issues
-- No technical issues at this stage; pending implementation
+- No critical technical issues; pending feature expansion for additional VCS and deployment scenarios
 
 ## Evolution of Project Decisions
-- Adopted documentation-first workflow using the Memory Bank
+- Adopted documentation-first workflow using the Memory Bank and MkDocs
 - Committed to modular, extensible architecture for all major components
+- Standardized on LiteLLM for LLM abstraction and provider flexibility
+- Prioritized CI/CD integration and ondemand mode for reliability and scalability

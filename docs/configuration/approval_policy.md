@@ -158,4 +158,4 @@ A: Set its weight to a very low value (but not zero, as all agents must be prese
 
 ---
 
-For more, see the main [README.md](./README.md).
+For more, see the main [Home](../index.md).

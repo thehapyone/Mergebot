@@ -8,6 +8,17 @@ Mergebot uses a repository-based configuration file, `.mergebot.yml`, to control
 
 ## How the Onboarding Workflow Works
 
+```mermaid
+flowchart TD
+    A[Startup/Trigger] --> B{.mergebot.yml exists?}
+    B -- Yes --> C[Parse and validate YAML]
+    C -- Valid --> D[Merge with server config<br>Proceed with Mergebot]
+    C -- Invalid --> E[Log error<br>Abort startup]
+    B -- No --> F{Onboarding PR exists?}
+    F -- Yes --> G[Log PR URL<br>Abort startup]
+    F -- No --> H[Create onboarding PR<br>Abort startup]
+```
+
 ### 1. **Startup Check**
 
 When Mergebot starts (in any mode), it performs the following steps:
@@ -98,4 +109,4 @@ approval_policy:
 - The onboarding PR workflow ensures every repo is properly configured, with no duplicates.
 - All config is validated and merged in a robust, platform-agnostic way.
 
-For more details, see the main [README.md](../README.md) or [APPROVAL_POLICY.md](APPROVAL_POLICY.md).
+For more details, see the main [Home](../index.md) or [Approval Policy](../configuration/approval_policy.md).
