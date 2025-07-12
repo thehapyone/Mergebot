@@ -1,5 +1,5 @@
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
+from crewai import Agent, Task
+from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
 
@@ -10,22 +10,10 @@ class RiskAnalysis(BotBaseCrew):
 
     @agent
     def risk_analysis(self) -> Agent:
-        return Agent(
-            config=self.agents_config["risk_analysis"], llm=self.llm_model, verbose=True
-        )
+        return Agent(config=self.agents_config["risk_analysis"], llm=self.llm_model)
 
     @task
     def risk_analysis_task(self) -> Task:
         return Task(
             config=self.tasks_config["risk_analysis_task"],
-        )
-
-    @crew
-    def crew(self) -> Crew:
-        """Creates the RiskAnalysis crew"""
-        return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
-            process=Process.sequential,
-            verbose=True,
         )

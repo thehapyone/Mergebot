@@ -47,7 +47,8 @@ class OndemandRunner:
         tracked_mrs = set(dashboard_data["tracked_mrs"])
 
         mrs_to_analyze = [
-            mr for mr_iid, mr in open_mr_iids.items()
+            mr
+            for mr_iid, mr in open_mr_iids.items()
             if mr_iid not in tracked_mrs or mr_iid in rerun_requests
         ]
 
@@ -63,7 +64,10 @@ class OndemandRunner:
                 start = time.time()
                 try:
                     analysis_result = await run_flow(
-                        mr.web_url, mr_iid=mr.iid, mr_title=mr.title, project=self.project
+                        mr.web_url,
+                        mr_iid=mr.iid,
+                        mr_title=mr.title,
+                        project=self.project,
                     )
                     result = {
                         "iid": analysis_result.iid,
@@ -100,15 +104,19 @@ class OndemandRunner:
 
         semaphore = asyncio.Semaphore(self.workers)
         tasks = [analyze_mr(mr, semaphore) for mr in mrs_to_analyze]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for mr_iid, result in results:
             if result["error"] is None:
-                analysis_results.append({k: result[k] for k in result if k != "duration" and k != "error"})
+                analysis_results.append(
+                    {k: result[k] for k in result if k != "duration" and k != "error"}
+                )
                 analyzed_iids.add(mr_iid)
             else:
                 errors.append((mr_iid, result["error"]))
-                analysis_results.append({k: result[k] for k in result if k != "duration"})
+                analysis_results.append(
+                    {k: result[k] for k in result if k != "duration"}
+                )
 
             analysis_durations.append(result["duration"])
 

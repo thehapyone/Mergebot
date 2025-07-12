@@ -15,7 +15,6 @@ class Publication(BotBaseCrew):
             config=self.agents_config["publicator"],
             llm=self.llm_model,
             tools=[GitlabMergeCommentTool()],
-            verbose=True,
         )
 
     @agent
@@ -24,7 +23,6 @@ class Publication(BotBaseCrew):
             config=self.agents_config["executor"],
             llm=self.llm_model,
             tools=[GitlabMergeApprovalTool(), GitlabMergeCommentTool()],
-            verbose=True,
         )
 
     @task

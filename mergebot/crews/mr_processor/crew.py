@@ -15,7 +15,6 @@ class MRProcessor(BotBaseCrew):
             config=self.agents_config["mr_retriever"],
             llm=self.llm_model,
             tools=[GitlabMergeRequestTool(result_as_answer=True)],
-            verbose=False,
         )
 
     @task

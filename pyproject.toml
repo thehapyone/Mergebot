@@ -9,8 +9,8 @@ license = {text = "Apache License 2.0"}
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "crewai (>=0.102.0,<0.103.0)",
-    "crewai-tools (>=0.36.0,<0.37.0)",
+    "crewai (==0.141)",
+    "crewai-tools (==0.49)",
     "python-gitlab (>=5.6.0,<6.0.0)"
 ]
 
