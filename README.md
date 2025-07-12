@@ -1,5 +1,7 @@
 # Mergebot
 
+[![View Docs](https://img.shields.io/badge/docs-online-blue?logo=githubpages&style=flat-square)](https://thehapyone.github.io/Mergebot/)
+
 **AI-powered code review and merge automation for GitLab.**
 
 - Automated, multi-agent code review
@@ -10,8 +12,8 @@
 ---
 
 > **Full documentation:**  
-> 👉 [https://github.com/thehapyone/Mergebot/tree/master/docs](https://github.com/thehapyone/Mergebot/tree/master/docs)  
-> (or run `poetry run mkdocs serve` to preview locally)
+> 👉 [https://thehapyone.github.io/Mergebot/](https://thehapyone.github.io/Mergebot/)  
+> (auto-published on every push to `main` via GitHub Actions)
 
 ---
 

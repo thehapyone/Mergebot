@@ -16,4 +16,16 @@ Welcome to the official documentation for **Mergebot** – the AI-powered code r
 
 Use the navigation to explore installation, configuration, usage, architecture, and more.
 
+---
+
+## Documentation Hosting
+
+This documentation is **automatically published** to [GitHub Pages](https://thehapyone.github.io/Mergebot/) on every push to the `main` branch.
+
+To preview changes locally before pushing:
+```bash
+poetry install
+poetry run mkdocs serve
+```
+
 > **Note:** This documentation is a work in progress. See the [GitHub repository](https://github.com/thehapyone/Mergebot) for the latest updates.

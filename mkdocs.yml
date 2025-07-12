@@ -2,6 +2,7 @@ site_name: Mergebot Documentation
 site_description: AI-powered code review and merge automation for GitLab
 site_author: The Mergebot Team
 repo_url: https://github.com/thehapyone/Mergebot
+site_url: https://thehapyone.github.io/Mergebot/
 theme:
   name: material
   features:
