@@ -8,6 +8,8 @@ Mergebot is designed to be run in **ondemand mode** as part of your GitLab CI/CD
 
 ## CI/CD Integration Patterns
 
+See the [GitLab CI guide](../operations/gitlab_ci.md) for ready-to-use templates and best practices.
+
 - **Per-MR Pipeline**: Run Mergebot as a job in your `.gitlab-ci.yml` for each merge request pipeline.
 - **Dedicated Scheduler Project**: Use a separate GitLab project to schedule Mergebot runs across multiple repositories, similar to Renovate's recommended setup.
 

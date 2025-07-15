@@ -23,6 +23,8 @@ See [Installation](installation.md) for details.
 
 The recommended way to use Mergebot is via **ondemand mode** in your CI/CD pipeline.
 
+See the [GitLab CI guide](operations/gitlab_ci.md) for ready-to-use `.gitlab-ci.yml` templates and best practices.
+
 ```bash
 # One-shot analysis for a merge request (in a GitLab CI job)
 mergebot ondemand --project mygroup/myrepo

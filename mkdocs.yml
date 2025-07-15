@@ -88,6 +88,7 @@ nav:
   - Operations:
       - Docker: operations/docker.md
       - Docker Compose: operations/docker_compose.md
+      - GitLab CI: operations/gitlab_ci.md
   - Capabilities: capabilities.md
   - Roadmap: roadmap.md
   - Contributing: contributing.md

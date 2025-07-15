@@ -2,10 +2,81 @@
 
 Welcome to the official documentation for **Mergebot** – the AI-powered code review and merge automation tool.
 
+---
+
+## Why Mergebot?
+
+Modern software teams face relentless pressure to deliver high-quality code at speed. Manual code review is time-consuming, inconsistent, and often a bottleneck for fast-moving teams. As codebases and teams scale, the challenge of maintaining code quality, compliance, and review velocity intensifies.
+
+**Mergebot** is built to solve these problems by automating the code review and merge process using advanced AI "crews"—modular agents that analyze every merge request for quality, risk, test coverage, and more. It acts as an always-on reviewer, ensuring every change is checked for compliance and quality, and freeing your team to focus on what matters most: building great software.
+
+---
+
+## Benefits
+
+- **Accelerate Delivery:** Ship code faster by automating routine review tasks and approvals for low-risk changes.
+- **Improve Code Quality:** Consistent, multi-dimensional analysis on every MR—no more missed issues or "rubber-stamp" reviews.
+- **Reduce Manual Effort:** Let Mergebot handle the heavy lifting, so your team can focus on high-value work.
+- **Increase Transparency:** Every decision is logged, auditable, and explainable—ideal for compliance and regulated environments.
+- **Scale with Confidence:** As your team and codebase grow, Mergebot ensures review standards never slip.
+- **Onboard Faster:** New team members get instant, actionable feedback on their code, accelerating ramp-up.
+
+---
+
+## Use Cases
+
+- **Scaling Code Review:** Large teams or organizations with many contributors can maintain high review standards without slowing down.
+- **Compliance & Audit:** Regulated industries (finance, healthcare, etc.) can ensure every change is reviewed and logged for compliance.
+- **Open Source Projects:** Automate triage and review for community contributions, reducing maintainer burnout.
+- **Onboarding New Developers:** Provide consistent, actionable feedback to new team members, speeding up onboarding and reducing errors.
+- **Legacy Code Modernization:** Systematically improve code quality and test coverage across large, aging codebases.
+
+---
+
 - **Automated, multi-agent code review**
 - **Impact assessment and approval policy**
 - **Dashboard and ondemand runners**
 - **Extensible, modular architecture**
+
+---
+
+## How Mergebot Works
+
+Mergebot automates the code review and merge process using a series of specialized AI "crews" that analyze every merge request (MR) for quality, risk, test coverage, and more. Here’s a high-level workflow:
+
+```mermaid
+flowchart TD
+    A[Developer opens Merge Request] --> B[Mergebot triggers pipeline]
+    B --> C[Code Analysis Crew: Lint, Style, Complexity]
+    C --> D[Test Analysis Crew: Coverage, Test Quality]
+    D --> E[Risk & Impact Crew: Change Impact, Risk Assessment]
+    E --> F[Approval Policy Crew: Enforce Rules]
+    F --> G[Publication Crew: Merge or Request Changes]
+    G --> H[Feedback posted to MR]
+    H --> I[MR merged or sent back for revision]
+```
+
+- **Crews** are modular and can be extended or customized.
+- Each crew focuses on a specific aspect of code review.
+- All decisions and feedback are posted directly to the MR for full transparency.
+
+---
+
+## Real-World Scenario: Mergebot in Action
+
+**Scenario:**  
+A fintech company with a rapidly growing engineering team struggles to keep up with code reviews. Manual reviews are inconsistent, and compliance requirements demand every change be logged and justified.
+
+**With Mergebot:**
+- Developers open MRs as usual. Mergebot automatically analyzes each MR using its AI crews.
+- The Code Analysis Crew flags a potential security issue and suggests a fix.
+- The Test Analysis Crew notes missing test coverage and recommends additional tests.
+- The Approval Policy Crew enforces the company’s compliance rules, requiring a second review for high-risk changes.
+- All feedback is posted directly to the MR, with clear explanations and links to documentation.
+- Once all checks pass, Mergebot merges the MR and logs the decision for audit purposes.
+
+**Result:**  
+The team ships code faster, maintains high quality, and meets compliance requirements—without burning out reviewers.
 
 ---
 
