@@ -12,9 +12,7 @@ Get up and running with Mergebot in minutes.
 
 ## 1. Install Mergebot
 
-```bash
-# TODO: Add pip install or Docker pull instructions
-```
+See [Installation](installation.md) for details.
 
 ## 2. Configure Your Repository
 

@@ -1,5 +1,5 @@
 site_name: Mergebot Documentation
-site_description: AI-powered code review and merge automation for GitLab
+site_description: AI-powered code review and merge automation
 site_author: The Mergebot Team
 repo_url: https://github.com/thehapyone/Mergebot
 site_url: https://thehapyone.github.io/Mergebot/
@@ -53,7 +53,6 @@ markdown_extensions:
   - pymdownx.escapeall
   - pymdownx.striphtml
   - pymdownx.extra
-  - pymdownx.tasklist
   - pymdownx.saneheaders
 plugins:
   - search

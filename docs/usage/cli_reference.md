@@ -16,8 +16,6 @@ mergebot --help
 
 ## Options
 
-<!-- TODO: Autogenerate this section from the CLI help output. -->
-
 | Option         | Description                        |
 | -------------- | ---------------------------------- |
 | --project      | GitLab project/repo path (required) |
