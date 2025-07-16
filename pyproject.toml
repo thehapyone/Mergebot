@@ -27,7 +27,7 @@ package-mode = true
 
 [tool.poetry.group.dev.dependencies]
 codespell = "^2.4.1"
-ruff = "^0.12.2"
+ruff = "^0.12.3"
 mkdocs-material = "^9.6.15"
 mkdocs-mermaid2-plugin = "^1.2.1"
 mkdocs-git-revision-date-localized-plugin = "^1.4.7"
