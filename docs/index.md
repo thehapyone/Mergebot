@@ -68,6 +68,7 @@ flowchart TD
 A fintech company with a rapidly growing engineering team struggles to keep up with code reviews. Manual reviews are inconsistent, and compliance requirements demand every change be logged and justified.
 
 **With Mergebot:**
+
 - Developers open MRs as usual. Mergebot automatically analyzes each MR using its AI crews.
 - The Code Analysis Crew flags a potential security issue and suggests a fix.
 - The Test Analysis Crew notes missing test coverage and recommends additional tests.
