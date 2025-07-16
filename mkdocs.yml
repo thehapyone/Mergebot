@@ -3,6 +3,8 @@ site_description: AI-powered code review and merge automation
 site_author: The Mergebot Team
 repo_url: https://github.com/thehapyone/Mergebot
 site_url: https://thehapyone.github.io/Mergebot/
+
+copyright: 'Ideas from <a href="https://thehapyone.com" target="_blank">Ayo Ayibiowu</a>'
 theme:
   name: material
   features:
