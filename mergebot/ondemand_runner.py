@@ -86,12 +86,12 @@ class OndemandRunner:
         ]
 
         # Apply max_mrs limit from config if set
-        max_mrs = None
-        if config.analysis and config.analysis.max_mrs:
-            max_mrs = config.analysis.max_mrs
-            logger.info("[Ondemand] Max MRs to analyze set to: %d", max_mrs)
+        max_mrs = config.analysis.max_mrs if config.analysis else None
 
         if max_mrs and len(mrs_to_analyze) > max_mrs:
+            logger.info(
+                f"[Ondemand] Limiting analysis to {max_mrs} MRs (out of {len(mrs_to_analyze)} total)."
+            )
             mrs_to_analyze = mrs_to_analyze[:max_mrs]
 
         logger.info(f"[Ondemand] MRs to analyze: {[mr.iid for mr in mrs_to_analyze]}")

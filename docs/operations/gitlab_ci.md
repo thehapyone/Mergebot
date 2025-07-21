@@ -1,8 +1,9 @@
 # Using Mergebot in GitLab CI
 
 Mergebot is designed to be run as part of your GitLab CI/CD pipelines, either:
-- As a job in merge request pipelines (recommended for per-MR analysis)
-- As a scheduled pipeline in a dedicated project (for batch or multi-project analysis)
+
+- As a job in merge request pipelines
+- As a scheduled pipeline in a dedicated project (for batch or multi-project analysis) (recommended)
 
 ## 1. Merge Request Pipeline Example
 
@@ -10,17 +11,24 @@ Add the following to your `.gitlab-ci.yml` in your project:
 
 ```yaml
 stages:
-  - mergebot
+  - deploy
 
 mergebot:
-  stage: mergebot
+  stage: deploy
   image: thehapyone/mergebot:latest
   script:
-    - mergebot ondemand --project $CI_PROJECT_PATH --workers 4
-  only:
-    - merge_requests
+    - mergebot ondemand --project $GITLAB_PROJECT_PATH --workers 10
   variables:
-    GITLAB_PERSONAL_ACCESS_TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN
+    GITLAB_PROJECT_PATH: $CI_PROJECT_PATH
+    REQUESTS_CA_BUNDLE: $CA_BUNDLE
+    GITLAB_PERSONAL_ACCESS_TOKEN: $MERGEBOT_TOKEN
+    CONFIG_PATH: "$CI_PROJECT_DIR/mergebot-config.yml"
+    # Azure API Configuration
+    AZURE_API_KEY: my_api_key
+    AZURE_API_BASE: "https://myinstance.openai.azure.com"
+    AZURE_API_VERSION: "2025-04-01-preview"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
 
 - This job runs Mergebot for the current project on every merge request pipeline.
@@ -32,18 +40,30 @@ You can also set up a dedicated GitLab project to run Mergebot on a schedule for
 
 ```yaml
 stages:
-  - mergebot
+  - deploy
 
 mergebot:
-  stage: mergebot
+  stage: deploy
   image: thehapyone/mergebot:latest
   script:
-    - mergebot ondemand --project group1/project1 --workers 4
-    - mergebot ondemand --project group2/project2 --workers 4
-  only:
-    - schedules
+    - mergebot ondemand --project $GITLAB_PROJECT_PATH --workers 10
+  parallel:
+    matrix:
+      # use mergebot for various projects
+      - GITLAB_PROJECT_PATH:
+          - group1/project1
+          - group3/project3
+          - group4/project
   variables:
-    GITLAB_PERSONAL_ACCESS_TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN
+    REQUESTS_CA_BUNDLE: $CA_BUNDLE
+    GITLAB_PERSONAL_ACCESS_TOKEN: $MERGEBOT_TOKEN
+    CONFIG_PATH: "$CI_PROJECT_DIR/mergebot-config.yml"
+    # Azure API Configuration
+    AZURE_API_KEY: my_api_key
+    AZURE_API_BASE: "https://myinstance.openai.azure.com"
+    AZURE_API_VERSION: "2025-04-01-preview"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
 ```
 
 - Schedule this pipeline in the CI/CD > Schedules section.
@@ -54,22 +74,5 @@ mergebot:
 - Always use environment variables for sensitive tokens.
 - Use the official Docker image for reproducibility.
 - For large organizations, consider a dedicated Mergebot runner project.
-
-## 4. Example .gitlab-ci.yml Template
-
-```yaml
-stages:
-  - mergebot
-
-mergebot:
-  stage: mergebot
-  image: thehapyone/mergebot:latest
-  script:
-    - mergebot ondemand --project $CI_PROJECT_PATH --workers 4
-  only:
-    - merge_requests
-  variables:
-    GITLAB_PERSONAL_ACCESS_TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN
-```
 
 > For more advanced usage, see the [Quickstart](../quickstart.md) and [Onboarding](../usage/onboarding.md) guides.
