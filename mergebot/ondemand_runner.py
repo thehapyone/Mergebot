@@ -5,7 +5,35 @@ from mergebot.dashboard.dashboard_manager import GitLabDashboardManager
 from mergebot.flow import run_flow
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.utils import get_platform_type
+from mergebot.validator.config import get_runtime_config
 from mergebot.validator.logging_config import logger
+
+
+def skip_draft_mr(mr, draft_mrs_enabled: bool) -> bool:
+    """
+    Determines whether a merge request (MR) should be skipped based on its draft or work-in-progress (WIP) status and configuration.
+
+    The function checks:
+    1. If the MR is considered a draft or WIP, determined by either:
+        - The MR having the attribute 'work_in_progress' or 'draft' set to True, OR
+        - The MR's title starting with "wip" or "draft" (case-insensitive).
+    2. The 'draft_mrs_enabled' flag, which, if True, means draft/WIP MRs should NOT be skipped (i.e., return False).
+    Args:
+        mr: Merge request object. Should have a 'title' attribute and optionally 'work_in_progress' or 'draft'.
+        draft_mrs_enabled (bool): If True, draft/WIP MRs will NOT be skipped.
+
+    Returns:
+        bool: True if the MR is to be skipped (i.e., it is a draft/WIP and draft MRs are NOT enabled); False otherwise.
+    """
+
+    def is_draft_mr(mr):
+        # Prefer explicit attributes: work_in_progress or draft
+        if getattr(mr, "work_in_progress", False) or getattr(mr, "draft", False):
+            return True
+        title = mr.title.strip().lower()
+        return title.startswith("wip") or title.startswith("draft")
+
+    return is_draft_mr(mr) and not draft_mrs_enabled
 
 
 class OndemandRunner:
@@ -46,11 +74,25 @@ class OndemandRunner:
         rerun_requests = set(dashboard_data["rerun_requests"])
         tracked_mrs = set(dashboard_data["tracked_mrs"])
 
+        # Get runtime config, which may include overrides for this run
+        config = get_runtime_config(as_pydantic=True)
+        draft_mrs_enabled = config.analysis.draft_mrs if config.analysis else False
+
         mrs_to_analyze = [
             mr
             for mr_iid, mr in open_mr_iids.items()
-            if mr_iid not in tracked_mrs or mr_iid in rerun_requests
+            if (mr_iid not in tracked_mrs or mr_iid in rerun_requests)
+            and not skip_draft_mr(mr, draft_mrs_enabled)
         ]
+
+        # Apply max_mrs limit from config if set
+        max_mrs = config.analysis.max_mrs if config.analysis else None
+
+        if max_mrs and len(mrs_to_analyze) > max_mrs:
+            logger.info(
+                f"[Ondemand] Limiting analysis to {max_mrs} MRs (out of {len(mrs_to_analyze)} total)."
+            )
+            mrs_to_analyze = mrs_to_analyze[:max_mrs]
 
         logger.info(f"[Ondemand] MRs to analyze: {[mr.iid for mr in mrs_to_analyze]}")
         analysis_results = []

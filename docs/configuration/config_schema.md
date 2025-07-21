@@ -1,15 +1,41 @@
 # Configuration Schema
 
+Mergebot requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior for Mergebot and is always required. When Mergebot runs, it loads this server config and, if a repository config (e.g., `.mergebot.yml`) is present, merges the two to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
+
+**Config file location:**  
+By default, Mergebot looks for the server config at `mergebot/config.yaml` (relative to the working directory).  
+You can override the location by setting the `CONFIG_PATH` environment variable before running Mergebot:
+
+```bash
+export CONFIG_PATH=/path/to/your/config.yaml
+mergebot ...
+```
+
 This page documents the fields and structure of the Mergebot configuration file (`.mergebot.yml` and `mergebot/config.yaml`).
 
 ## Top-Level Fields
 
-| Field           | Type     | Description                                      |
-|-----------------|----------|--------------------------------------------------|
-| llm             | object   | Global LLM configuration (provider, model)       |
-| repository      | object   | Repository configuration (type, gitlab, etc.)    |
-| crews           | object   | Per-crew configuration (optional)                |
-| approval_policy | object   | Approval policy configuration (optional)         |
+| Field           | Type   | Description                                   |
+| --------------- | ------ | --------------------------------------------- |
+| llm             | object | Global LLM configuration (provider, model)    |
+| repository      | object | Repository configuration (type, gitlab, etc.) |
+| crews           | object | Per-crew configuration (optional)             |
+| approval_policy | object | Approval policy configuration (optional)      |
+| analysis        | object | Analysis options (optional, e.g. MR limits)   |
+
+---
+
+## Analysis Options
+
+You can control how many merge requests (MRs) Mergebot will analyze at a time by setting the `analysis.max_mrs` field. If omitted or set to 0, there is no limit.
+
+By default, Mergebot will **skip Draft or WIP MRs**. To analyze them, set `draft_mrs: true`.
+
+```yaml
+analysis:
+  max_mrs: 10 # Maximum number of MRs to analyze at once (0 or missing = unlimited)
+  draft_mrs: false # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
+```
 
 ---
 
@@ -20,6 +46,7 @@ Mergebot uses [LiteLLM](https://docs.litellm.ai/docs/) to support a wide range o
 You can set a global LLM provider/model, and override it per crew.
 
 **Global LLM:**
+
 ```yaml
 llm:
   model: gpt-4
@@ -27,6 +54,7 @@ llm:
 ```
 
 **Per-crew LLM override:**
+
 ```yaml
 crews:
   CodeAnalysis:
@@ -72,7 +100,7 @@ repository:
   type: gitlab
   gitlab:
     url: https://gitlab.example.com/api/v4
-    private_token: YOUR_TOKEN  # (not recommended, use env var)
+    private_token: YOUR_TOKEN # (not recommended, use env var)
     base_branch: main
 ```
 

@@ -56,7 +56,7 @@ def ensure_repo_config(project: str):
                     logger.info(
                         "No existing onboarding PR found. Creating onboarding PR..."
                     )
-                    base_branch = onboarding.gitlab_repo_instance.default_branch
+                    base_branch = onboarding.project.default_branch
                     default_mergebot_yml = (
                         "# Default Mergebot configuration\n"
                         "# See https://github.com/thehapyone/mergebot for documentation\n"
@@ -71,6 +71,8 @@ def ensure_repo_config(project: str):
                         "    ComplexityAnalysis: 0.2\n"
                         "    TestAnalysis: 0.2\n"
                         "    RiskAnalysis: 0.2\n"
+                        "analysis:\n"
+                        "  max_mrs: 10\n"
                     )
                     pr_url = onboarding.create_onboarding_pr(default_mergebot_yml)
                     logger.info(f"Onboarding PR created: {pr_url}")

@@ -31,8 +31,8 @@ _Check a box below to ask Mergebot to reanalyze any MR._
 {{ analytics_table }}
 ```
 
-> **Current behavior:** Mergebot analyzes every open MR/PR on each run.  
-> **Future:** It will be possible to limit the number of MRs analyzed per run.
+> **Current behavior:** Mergebot analyzes every open MR/PR on each run.
+> **New:** You can now limit the number of MRs analyzed per run using the `analysis.max_mrs` config option. See [Configuration Schema](../configuration/config_schema.md#analysis-options).
 
 See [dashboard_layout.md](https://thehapyone.github.io/Mergebot/blob/main/mergebot/dashboard/dashboard_layout.md) for the full template.
 

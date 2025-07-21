@@ -63,6 +63,15 @@ When Mergebot starts (in any mode), it performs the following steps:
 - The onboarding PR is created from the `mergebot/onboarding` branch to the default branch.
 - Only one onboarding PR is ever open at a time (Mergebot checks for duplicates before creating).
 - The PR contains a default `.mergebot.yml` and instructions for customization.
+- The onboarding PR now documents the `analysis.max_mrs` option, allowing you to limit the number of MRs analyzed per run.
+- By default, Draft/WIP MRs are skipped. To analyze them, set `draft_mrs: true` in your config.
+- **Note:** Mergebot always requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior and is merged with any repository config (`.mergebot.yml`) to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
+- **GitLab API access:**  
+  - It is strongly recommended to create a dedicated GitLab user (e.g., `mergebot`) to act as a bot/service account.
+  - Generate a personal access token for this service account and use it as the `GITLAB_PERSONAL_ACCESS_TOKEN` (e.g., store as the `MERGEBOT_TOKEN` CI/CD variable).
+  - Add this service account as a member to the relevant project(s) or group(s) with the minimum required permissions.
+  - _Do not use a personal user’s API token_, as this will make it appear that user is performing all Mergebot actions.
+  - **Alternative:** You may use a [Project Bot](https://docs.gitlab.com/ee/user/project/bot_users.html), but note that project bots cannot be reused across multiple projects. For most organizations, a dedicated service account at the instance or group level is preferred.
 - Once merged, Mergebot will use the repo config for all future operations.
 
 ---
@@ -87,6 +96,12 @@ When Mergebot starts (in any mode), it performs the following steps:
 ```yaml
 # Default Mergebot configuration
 # See https://github.com/your-org/mergebot for documentation
+# You can now control how many merge requests (MRs) Mergebot will analyze at a time.
+# Add the following to your config to set a limit (optional):
+#
+# analysis:
+#   max_mrs: 10  # Maximum number of MRs to analyze at once (0 or missing = unlimited)
+#   draft_mrs: false  # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
 repository:
   type: "gitlab"
   gitlab:

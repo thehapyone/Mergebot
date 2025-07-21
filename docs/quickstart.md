@@ -17,6 +17,12 @@ See [Installation](installation.md) for details.
 ## 2. Configure Your Repository
 
 - Ensure your GitLab project has a valid `.mergebot.yml` configuration file.
+- **Create a dedicated GitLab service account for Mergebot:**  
+  - It is strongly recommended to create a dedicated GitLab user (e.g., `mergebot`) to act as a bot/service account.
+  - Generate a personal access token for this service account and use it as the `GITLAB_PERSONAL_ACCESS_TOKEN` (e.g., store as the `MERGEBOT_TOKEN` CI/CD variable).
+  - Add this service account as a member to the relevant project(s) or group(s) with the minimum required permissions.
+  - _Do not use a personal user’s API token_, as this will make it appear that user is performing all Mergebot actions.
+  - **Alternative:** You may use a [Project Bot](https://docs.gitlab.com/ee/user/project/bot_users.html), but note that project bots cannot be reused across multiple projects. For most organizations, a dedicated service account at the instance or group level is preferred.
 - See [Onboarding](usage/onboarding.md) for details.
 
 ## 3. Run Mergebot (Ondemand Mode)
