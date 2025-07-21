@@ -9,6 +9,27 @@ from mergebot.validator.logging_config import logger
 from mergebot.validator.config import get_runtime_config
 
 
+def is_draft_mr(mr):
+    """
+    Determines if a merge request is a draft or work-in-progress (WIP) based on its attributes or title.
+
+    Checks the following conditions (in order):
+    1. If the MR object has a 'work_in_progress' or 'draft' attribute set to True.
+    2. If the MR title starts with 'wip' or 'draft' (case-insensitive, ignoring leading/trailing spaces).
+
+    Args:
+        mr: The merge request object to check. Should have 'title', and optionally 'work_in_progress' or 'draft' attributes.
+
+    Returns:
+        bool: True if the MR is a draft or WIP, False otherwise.
+    """
+    # Prefer explicit attributes: work_in_progress or draft
+    if getattr(mr, "work_in_progress", False) or getattr(mr, "draft", False):
+        return True
+    title = mr.title.strip().lower()
+    return title.startswith("wip") or title.startswith("draft")
+
+
 class OndemandRunner:
     def __init__(self, project: str, workers: int = 4):
         """
@@ -47,15 +68,18 @@ class OndemandRunner:
         rerun_requests = set(dashboard_data["rerun_requests"])
         tracked_mrs = set(dashboard_data["tracked_mrs"])
 
+        config = get_runtime_config(as_pydantic=True)
+        skip_draft = not getattr(config.analysis, "draft_mrs", False)
+
         mrs_to_analyze = [
             mr
             for mr_iid, mr in open_mr_iids.items()
-            if mr_iid not in tracked_mrs or mr_iid in rerun_requests
+            if (mr_iid not in tracked_mrs or mr_iid in rerun_requests)
+            and (not skip_draft or not is_draft_mr(mr))
         ]
 
         # Apply max_mrs limit from config if set
         max_mrs = None
-        config = get_runtime_config(as_pydantic=True)
         if config.analysis and config.analysis.max_mrs:
             max_mrs = config.analysis.max_mrs
             logger.info("[Ondemand] Max MRs to analyze set to: %d", max_mrs)

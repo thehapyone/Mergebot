@@ -29,3 +29,4 @@ approval_policy:
 
 analysis:
   max_mrs: 10  # 0 or missing means unlimited
+  draft_mrs: false  # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.

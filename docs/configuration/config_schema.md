@@ -18,9 +18,12 @@ This page documents the fields and structure of the Mergebot configuration file 
 
 You can control how many merge requests (MRs) Mergebot will analyze at a time by setting the `analysis.max_mrs` field. If omitted or set to 0, there is no limit.
 
+By default, Mergebot will **skip Draft or WIP MRs**. To analyze them, set `draft_mrs: true`.
+
 ```yaml
 analysis:
   max_mrs: 10  # Maximum number of MRs to analyze at once (0 or missing = unlimited)
+  draft_mrs: false  # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
 ```
 
 --- 

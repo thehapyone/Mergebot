@@ -114,6 +114,10 @@ class AnalysisConfig(BaseModel):
         description="Maximum number of merge requests to analyze at a time. 0 or None means unlimited.",
         ge=1,
     )
+    draft_mrs: Optional[bool] = Field(
+        default=False,
+        description="If true, analyze Draft/WIP merge requests. If false (default), skip Draft/WIP MRs."
+    )
 
 class Config(BaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")

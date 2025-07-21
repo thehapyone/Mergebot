@@ -64,6 +64,7 @@ When Mergebot starts (in any mode), it performs the following steps:
 - Only one onboarding PR is ever open at a time (Mergebot checks for duplicates before creating).
 - The PR contains a default `.mergebot.yml` and instructions for customization.
 - The onboarding PR now documents the `analysis.max_mrs` option, allowing you to limit the number of MRs analyzed per run.
+- By default, Draft/WIP MRs are skipped. To analyze them, set `draft_mrs: true` in your config.
 - Once merged, Mergebot will use the repo config for all future operations.
 
 ---
@@ -93,6 +94,7 @@ When Mergebot starts (in any mode), it performs the following steps:
 #
 # analysis:
 #   max_mrs: 10  # Maximum number of MRs to analyze at once (0 or missing = unlimited)
+#   draft_mrs: false  # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
 repository:
   type: "gitlab"
   gitlab:
