@@ -1,5 +1,16 @@
 # Configuration Schema
 
+Mergebot requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior for Mergebot and is always required. When Mergebot runs, it loads this server config and, if a repository config (e.g., `.mergebot.yml`) is present, merges the two to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
+
+**Config file location:**  
+By default, Mergebot looks for the server config at `mergebot/config.yaml` (relative to the working directory).  
+You can override the location by setting the `CONFIG_PATH` environment variable before running Mergebot:
+
+```bash
+export CONFIG_PATH=/path/to/your/config.yaml
+mergebot ...
+```
+
 This page documents the fields and structure of the Mergebot configuration file (`.mergebot.yml` and `mergebot/config.yaml`).
 
 ## Top-Level Fields

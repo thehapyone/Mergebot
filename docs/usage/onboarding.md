@@ -65,6 +65,7 @@ When Mergebot starts (in any mode), it performs the following steps:
 - The PR contains a default `.mergebot.yml` and instructions for customization.
 - The onboarding PR now documents the `analysis.max_mrs` option, allowing you to limit the number of MRs analyzed per run.
 - By default, Draft/WIP MRs are skipped. To analyze them, set `draft_mrs: true` in your config.
+- **Note:** Mergebot always requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior and is merged with any repository config (`.mergebot.yml`) to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
 - Once merged, Mergebot will use the repo config for all future operations.
 
 ---
