@@ -9,25 +9,34 @@ from mergebot.validator.logging_config import logger
 from mergebot.validator.config import get_runtime_config
 
 
-def is_draft_mr(mr):
+def skip_draft_mr(mr, draft_mrs_enabled: bool) -> bool:
     """
-    Determines if a merge request is a draft or work-in-progress (WIP) based on its attributes or title.
+    Determines whether a merge request (MR) should be skipped based on its draft or work-in-progress (WIP) status and configuration.
 
-    Checks the following conditions (in order):
-    1. If the MR object has a 'work_in_progress' or 'draft' attribute set to True.
-    2. If the MR title starts with 'wip' or 'draft' (case-insensitive, ignoring leading/trailing spaces).
-
+    The function checks:
+    1. If the MR is considered a draft or WIP, determined by either:
+        - The MR having the attribute 'work_in_progress' or 'draft' set to True, OR
+        - The MR's title starting with "wip" or "draft" (case-insensitive).
+    2. The 'draft_mrs_enabled' flag, which, if True, means draft/WIP MRs should NOT be skipped (i.e., return False).
     Args:
-        mr: The merge request object to check. Should have 'title', and optionally 'work_in_progress' or 'draft' attributes.
+        mr: Merge request object. Should have a 'title' attribute and optionally 'work_in_progress' or 'draft'.
+        draft_mrs_enabled (bool): If True, draft/WIP MRs will NOT be skipped.
 
     Returns:
-        bool: True if the MR is a draft or WIP, False otherwise.
+        bool: True if the MR is to be skipped (i.e., it is a draft/WIP and draft MRs are NOT enabled); False otherwise.
     """
-    # Prefer explicit attributes: work_in_progress or draft
-    if getattr(mr, "work_in_progress", False) or getattr(mr, "draft", False):
-        return True
-    title = mr.title.strip().lower()
-    return title.startswith("wip") or title.startswith("draft")
+
+    def is_draft_mr(mr):
+        # Prefer explicit attributes: work_in_progress or draft
+        if getattr(mr, "work_in_progress", False) or getattr(mr, "draft", False):
+            return True
+        title = mr.title.strip().lower()
+        return title.startswith("wip") or title.startswith("draft")
+
+    if is_draft_mr(mr) and draft_mrs_enabled:
+        # If draft MRs are enabled, we do not skip them
+        return False
+    return True
 
 
 class OndemandRunner:
@@ -68,14 +77,15 @@ class OndemandRunner:
         rerun_requests = set(dashboard_data["rerun_requests"])
         tracked_mrs = set(dashboard_data["tracked_mrs"])
 
+        # Get runtime config, which may include overrides for this run
         config = get_runtime_config(as_pydantic=True)
-        skip_draft = not getattr(config.analysis, "draft_mrs", False)
+        draft_mrs_enabled = config.analysis.draft_mrs if config.analysis else False
 
         mrs_to_analyze = [
             mr
             for mr_iid, mr in open_mr_iids.items()
             if (mr_iid not in tracked_mrs or mr_iid in rerun_requests)
-            and (not skip_draft or not is_draft_mr(mr))
+            and not skip_draft_mr(mr, draft_mrs_enabled)
         ]
 
         # Apply max_mrs limit from config if set
