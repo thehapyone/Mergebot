@@ -1,37 +1,38 @@
 # Active Context
 
 ## Current Work Focus
-- Comprehensive overhaul and migration of Mergebot documentation to a structured, browsable MkDocs site
-- Integration of advanced configuration schema documentation, including multi-provider LLM support via LiteLLM
-- Improved onboarding, approval policy, and CI/CD usage documentation
-- Memory Bank update to reflect new architecture, workflows, technical context, and CI/CD pipeline
+- Implementation of advanced MR analysis controls: max MRs per run and draft/WIP MR skipping, both configurable via `analysis` section in config.
+- Refactoring of MR draft/WIP detection logic to use a dedicated helper function for maintainability and clarity.
+- Comprehensive update of onboarding and configuration documentation to reflect new analysis options and behaviors.
+- Ongoing maintenance of documentation-first workflow and Memory Bank as the authoritative source of project context and decisions.
 
 ## Recent Changes
-- All documentation migrated to a modular MkDocs site with navigation, search, and Mermaid diagrams
-- Legacy docs (ONBOARDING.md, APPROVAL_POLICY.md) removed in favor of new, integrated pages
-- Configuration schema documentation now covers global and per-crew LLM, provider selection, and environment variable best practices
-- Onboarding and approval policy pages enhanced with diagrams and improved clarity
-- CI/CD pipeline now includes linting, style checks, Docker build, and Docker Hub publishing via GitHub Actions
+- Added `analysis.max_mrs` and `analysis.draft_mrs` config options to control MR analysis concurrency and draft/WIP MR handling.
+- Refactored MR draft/WIP detection to use a single helper function (`is_draft_mr`) for consistent, testable logic.
+- Updated onboarding and configuration docs to clearly document new analysis options, including default behaviors and override instructions.
+- All code, schema, and onboarding now reference `draft_mrs` for clarity and consistency.
+- Memory Bank and progress documentation updated to reflect new architecture, workflows, and technical context.
 
 ## Next Steps
-- Continue to iterate on documentation as new features (e.g., GitHub support) are added
-- Expand CI/CD and deployment guides as user needs evolve
-- Maintain Memory Bank as the authoritative source of project context and decisions
+- Monitor user feedback on new analysis controls and draft/WIP MR handling.
+- Expand documentation and Memory Bank as new features (e.g., GitHub support) are added.
+- Continue to enforce documentation-first workflow and CI/CD integration as primary usage patterns.
 
 ## Active Decisions & Considerations
-- Documentation-first workflow: all context and decisions are captured in the Memory Bank and docs site
-- Focus on ondemand mode and CI/CD integration as the primary usage pattern
-- LiteLLM as the abstraction layer for all LLM providers, with environment variable-based API key management
-- Enforce code quality and reproducible builds via CI/CD
+- Default behavior is to skip draft/WIP MRs unless `analysis.draft_mrs: true` is set.
+- All MR analysis concurrency and filtering is now configuration-driven for maximum flexibility.
+- Helper functions are preferred for encapsulating MR property logic (e.g., draft/WIP detection).
+- Documentation and onboarding must always reflect the latest system behavior and configuration options.
 
 ## Important Patterns & Preferences
-- Modular "crew" system for analysis tasks, with configuration-driven extensibility
-- MkDocs Material for documentation, with Mermaid diagrams for workflows and architecture
-- Environment variable best practices for all sensitive credentials
-- Automated CI/CD for code quality, Docker builds, and documentation deployment
+- Modular "crew" system for analysis tasks, with configuration-driven extensibility.
+- Helper functions for MR property checks to ensure maintainability and testability.
+- MkDocs Material for documentation, with Mermaid diagrams for workflows and architecture.
+- Environment variable best practices for all sensitive credentials.
+- Automated CI/CD for code quality, Docker builds, and documentation deployment.
 
 ## Learnings & Project Insights
-- Early investment in documentation and onboarding accelerates adoption and reduces support burden
-- Abstraction over LLM providers (via LiteLLM) enables rapid support for new models and vendors
-- CI/CD integration is the most reliable and scalable way to run Mergebot in production
-- Automated linting and Docker publishing improve reliability and developer experience
+- Encapsulating MR property logic in helper functions reduces duplication and improves maintainability.
+- Exposing analysis concurrency and draft/WIP handling as config options increases user control and adoption.
+- Documentation-first workflow and Memory Bank updates are critical for onboarding and long-term maintainability.
+- CI/CD integration and automated documentation deployment improve reliability and developer experience.
