@@ -15,13 +15,13 @@ This page documents the fields and structure of the Mergebot configuration file 
 
 ## Top-Level Fields
 
-| Field           | Type     | Description                                      |
-|-----------------|----------|--------------------------------------------------|
-| llm             | object   | Global LLM configuration (provider, model)       |
-| repository      | object   | Repository configuration (type, gitlab, etc.)    |
-| crews           | object   | Per-crew configuration (optional)                |
-| approval_policy | object   | Approval policy configuration (optional)         |
-| analysis        | object   | Analysis options (optional, e.g. MR limits)      |
+| Field           | Type   | Description                                   |
+| --------------- | ------ | --------------------------------------------- |
+| llm             | object | Global LLM configuration (provider, model)    |
+| repository      | object | Repository configuration (type, gitlab, etc.) |
+| crews           | object | Per-crew configuration (optional)             |
+| approval_policy | object | Approval policy configuration (optional)      |
+| analysis        | object | Analysis options (optional, e.g. MR limits)   |
 
 ---
 
@@ -33,11 +33,11 @@ By default, Mergebot will **skip Draft or WIP MRs**. To analyze them, set `draft
 
 ```yaml
 analysis:
-  max_mrs: 10  # Maximum number of MRs to analyze at once (0 or missing = unlimited)
-  draft_mrs: false  # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
+  max_mrs: 10 # Maximum number of MRs to analyze at once (0 or missing = unlimited)
+  draft_mrs: false # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
 ```
 
---- 
+---
 
 ## LLM Configuration
 
@@ -46,6 +46,7 @@ Mergebot uses [LiteLLM](https://docs.litellm.ai/docs/) to support a wide range o
 You can set a global LLM provider/model, and override it per crew.
 
 **Global LLM:**
+
 ```yaml
 llm:
   model: gpt-4
@@ -53,6 +54,7 @@ llm:
 ```
 
 **Per-crew LLM override:**
+
 ```yaml
 crews:
   CodeAnalysis:
@@ -98,7 +100,7 @@ repository:
   type: gitlab
   gitlab:
     url: https://gitlab.example.com/api/v4
-    private_token: YOUR_TOKEN  # (not recommended, use env var)
+    private_token: YOUR_TOKEN # (not recommended, use env var)
     base_branch: main
 ```
 

@@ -5,8 +5,8 @@ from mergebot.dashboard.dashboard_manager import GitLabDashboardManager
 from mergebot.flow import run_flow
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.utils import get_platform_type
-from mergebot.validator.logging_config import logger
 from mergebot.validator.config import get_runtime_config
+from mergebot.validator.logging_config import logger
 
 
 def skip_draft_mr(mr, draft_mrs_enabled: bool) -> bool:
