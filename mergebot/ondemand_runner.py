@@ -33,10 +33,7 @@ def skip_draft_mr(mr, draft_mrs_enabled: bool) -> bool:
         title = mr.title.strip().lower()
         return title.startswith("wip") or title.startswith("draft")
 
-    if is_draft_mr(mr) and draft_mrs_enabled:
-        # If draft MRs are enabled, we do not skip them
-        return False
-    return True
+    return is_draft_mr(mr) and not draft_mrs_enabled
 
 
 class OndemandRunner:
