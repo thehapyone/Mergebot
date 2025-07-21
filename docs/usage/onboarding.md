@@ -63,6 +63,7 @@ When Mergebot starts (in any mode), it performs the following steps:
 - The onboarding PR is created from the `mergebot/onboarding` branch to the default branch.
 - Only one onboarding PR is ever open at a time (Mergebot checks for duplicates before creating).
 - The PR contains a default `.mergebot.yml` and instructions for customization.
+- The onboarding PR now documents the `analysis.max_mrs` option, allowing you to limit the number of MRs analyzed per run.
 - Once merged, Mergebot will use the repo config for all future operations.
 
 ---
@@ -87,6 +88,11 @@ When Mergebot starts (in any mode), it performs the following steps:
 ```yaml
 # Default Mergebot configuration
 # See https://github.com/your-org/mergebot for documentation
+# You can now control how many merge requests (MRs) Mergebot will analyze at a time.
+# Add the following to your config to set a limit (optional):
+#
+# analysis:
+#   max_mrs: 10  # Maximum number of MRs to analyze at once (0 or missing = unlimited)
 repository:
   type: "gitlab"
   gitlab:

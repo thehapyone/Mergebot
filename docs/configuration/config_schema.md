@@ -10,8 +10,20 @@ This page documents the fields and structure of the Mergebot configuration file 
 | repository      | object   | Repository configuration (type, gitlab, etc.)    |
 | crews           | object   | Per-crew configuration (optional)                |
 | approval_policy | object   | Approval policy configuration (optional)         |
+| analysis        | object   | Analysis options (optional, e.g. MR limits)      |
 
 ---
+
+## Analysis Options
+
+You can control how many merge requests (MRs) Mergebot will analyze at a time by setting the `analysis.max_mrs` field. If omitted or set to 0, there is no limit.
+
+```yaml
+analysis:
+  max_mrs: 10  # Maximum number of MRs to analyze at once (0 or missing = unlimited)
+```
+
+--- 
 
 ## LLM Configuration
 

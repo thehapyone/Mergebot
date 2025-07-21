@@ -108,6 +108,13 @@ class ApprovalPolicy(BaseModel):
         )
 
 
+class AnalysisConfig(BaseModel):
+    max_mrs: Optional[int] = Field(
+        default=None,
+        description="Maximum number of merge requests to analyze at a time. 0 or None means unlimited.",
+        ge=1,
+    )
+
 class Config(BaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")
     repository: RepositoryConfig = Field(..., description="Repository configuration")
@@ -115,6 +122,7 @@ class Config(BaseModel):
         None, description="Crew configurations"
     )
     approval_policy: Optional[ApprovalPolicy] = None
+    analysis: Optional[AnalysisConfig] = None
 
     def get_llm_model_for_crew(self, crew_name: str) -> str:
         """Get LLM model for the crew"""

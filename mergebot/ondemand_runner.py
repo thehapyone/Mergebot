@@ -6,6 +6,7 @@ from mergebot.flow import run_flow
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.utils import get_platform_type
 from mergebot.validator.logging_config import logger
+from mergebot.validator.config import get_runtime_config
 
 
 class OndemandRunner:
@@ -51,6 +52,16 @@ class OndemandRunner:
             for mr_iid, mr in open_mr_iids.items()
             if mr_iid not in tracked_mrs or mr_iid in rerun_requests
         ]
+
+        # Apply max_mrs limit from config if set
+        max_mrs = None
+        config = get_runtime_config(as_pydantic=True)
+        if config.analysis and config.analysis.max_mrs:
+            max_mrs = config.analysis.max_mrs
+            logger.info("[Ondemand] Max MRs to analyze set to: %d", max_mrs)
+
+        if max_mrs and len(mrs_to_analyze) > max_mrs:
+            mrs_to_analyze = mrs_to_analyze[:max_mrs]
 
         logger.info(f"[Ondemand] MRs to analyze: {[mr.iid for mr in mrs_to_analyze]}")
         analysis_results = []
