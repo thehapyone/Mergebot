@@ -8,6 +8,9 @@ repository:
     url: "https://gitlab.its.getingecloud.net"
     base_branch: "main"
 
+  github:
+    base_branch: "main"
+
 crews:
   # CodeAnalysis:
   #   llm:

@@ -34,7 +34,6 @@ class GitlabPipelineToolSchema(BaseModel):
 class GitlabPipelineTool(BaseGitLabTool):
     """Tool for fetching and summarizing pipeline details from GitLab."""
 
-    mode: str = "get_pipeline_details"
     name: str = "Get Pipeline Details"
     description: str = FETCH_PIPELINE_DETAILS_PROMPT
     args_schema: Type[BaseModel] = GitlabPipelineToolSchema
@@ -48,8 +47,11 @@ class GitlabPipelineTool(BaseGitLabTool):
 
         if not pipeline_id:
             return "The Pipeline ID is required."
-
-        return self.api_wrapper.run(self.mode, str(pipeline_id))
+        try:
+            pipeline_details = self.api_wrapper.get_pipeline_details(int(pipeline_id))
+            return pipeline_details
+        except ValueError:
+            return "Invalid input. Please provide the Pipeline ID as an integer."
 
 
 class GitlabMRToolSchema(BaseModel):
@@ -78,7 +80,13 @@ class GitlabMergeRequestTool(BaseGitLabTool):
         if not mr_iid:
             return "The Merge Request IID is required."
 
-        return self.api_wrapper.run(self.mode, str(mr_iid))
+        try:
+            mr_details = self.api_wrapper.get_merge_request(int(mr_iid))
+            return mr_details
+        except ValueError:
+            return (
+                "Invalid input. Please provide the Merge Request number as an integer."
+            )
 
 
 class GitlabCommentToolSchema(BaseModel):
@@ -95,7 +103,6 @@ class GitlabCommentToolSchema(BaseModel):
 class GitlabMergeCommentTool(BaseGitLabTool):
     """Tool for posting merge comments using the Gitlab API."""
 
-    mode: str = "post_merge_request_comment"
     name: str = "Post Merge Requests Comment"
     description: str = POST_MERGE_REQUEST_COMMENT_PROMPT
     args_schema: Type[BaseModel] = GitlabCommentToolSchema
@@ -111,15 +118,14 @@ class GitlabMergeCommentTool(BaseGitLabTool):
         if not (mr_iid or mr_comment):
             return "The Merge Request IID and message are required."
 
-        return self.api_wrapper.run(
-            self.mode, body={"mr_iid": mr_iid, "comment": mr_comment}
+        return self.api_wrapper.comment_pull_request(
+            pr_number=int(mr_iid), body=mr_comment
         )
 
 
 class GitlabMergeApprovalTool(BaseGitLabTool):
     """Tool for approving Gitlab merge requests."""
 
-    mode: str = "approve_merge_request"
     name: str = "Approve Merge Requests Comment"
     description: str = APPROVE_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = GitlabMRToolSchema
@@ -134,4 +140,7 @@ class GitlabMergeApprovalTool(BaseGitLabTool):
         if not mr_iid:
             return "The Merge Request IID are required."
 
-        return self.api_wrapper.run(self.mode, body={"mr_iid": int(mr_iid)})
+        try:
+            return self.api_wrapper.approve_pull_request(int(mr_iid))
+        except ValueError:
+            return "Invalid input parameters provided. Please ensure the Merge Request IID is an integer."
