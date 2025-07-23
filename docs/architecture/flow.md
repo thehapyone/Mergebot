@@ -10,7 +10,7 @@ The Flow Engine orchestrates the Mergebot review pipeline using CrewAI.
 
 ## Execution Sequence
 
-1. **MR Details Extraction**: Gather context and metadata.
+1. **PR/MR Details Extraction**: Gather context and metadata.
 2. **Code Analysis, Complexity, Test, Risk**: Run in parallel.
 3. **Impact Evaluation**: Aggregate scores and recommendations.
 4. **Publication**: Approve/merge or escalate for human review.

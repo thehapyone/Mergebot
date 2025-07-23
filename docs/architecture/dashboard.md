@@ -1,12 +1,12 @@
 # Dashboard
 
-The Mergebot Dashboard provides a centralized view of merge request analysis and analytics, rendered as a GitLab issue.
+The Mergebot Dashboard provides a centralized view of pull or merge request (PR/MR) analysis and analytics, rendered as a repository issue (supports both GitHub and GitLab).
 
 ## Features
 
-- Tracks all open and recently analyzed merge requests.
+- Tracks all open and recently analyzed pull or merge requests (PR/MR).
 - Displays impact scores, recommendations, and review status.
-- Shows analytics: MRs processed, auto-approvals, manual reviews, average time to merge.
+- Shows analytics: PRs/MRs processed, auto-approvals, manual reviews, average time to merge.
 - Supports rerun requests and action logs.
 
 ## Implementation
