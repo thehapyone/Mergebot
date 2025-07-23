@@ -223,7 +223,7 @@ class OndemandRunner:
             pr_id
             for pr_id in rerun_requests
             if pr_id
-            not in [str({getattr(pr, self.pr_id_attr)}) for pr in prs_to_analyze]
+            not in [str(getattr(pr, self.pr_id_attr)) for pr in prs_to_analyze]
         ]
 
         self.dashboard_manager.update_dashboard(
