@@ -17,6 +17,7 @@ class BotBaseCrew:
 
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
+    verbose: bool = False
 
     # Load the configuration once
     config = get_runtime_config(as_pydantic=True)
@@ -33,6 +34,6 @@ class BotBaseCrew:
             agents=self.agents,
             tasks=self.tasks,
             process=Process.sequential,
-            verbose=False,
+            verbose=self.verbose,
             output_log_file=True,
         )

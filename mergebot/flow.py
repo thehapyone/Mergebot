@@ -89,8 +89,8 @@ def extract_pr_id(output_string):
       - GitLab: .../merge_requests/123
     """
     patterns = [
-        r"https?://.+/pull/(\d+)",           # GitHub PR
-        r"https?://.+/merge_requests/(\d+)", # GitLab MR
+        r"https?://.+/pull/(\d+)",  # GitHub PR
+        r"https?://.+/merge_requests/(\d+)",  # GitLab MR
     ]
     for pattern in patterns:
         match = re.search(pattern, output_string)

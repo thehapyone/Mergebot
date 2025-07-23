@@ -8,6 +8,8 @@ from mergebot.tools import PullRequestTool
 @CrewBase
 class PRProcessor(BotBaseCrew):
     """PR Processor crew"""
+    
+    verbose = True
 
     @agent
     def pr_retriever(self) -> Agent:

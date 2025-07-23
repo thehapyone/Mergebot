@@ -24,12 +24,12 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         )
 
         # 2) Repository (must exist in some source)
-        self.github_repo = (
-            self.github_repo
+        self.github_repository = (
+            self.github_repository
             or cfg.get("github_repository")
             or os.getenv("GITHUB_REPOSITORY")
         )
-        if not self.github_repo:
+        if not self.github_repository:
             raise ValueError(
                 "GitHub repository must be provided via CLI, config.yaml or GITHUB_REPOSITORY."
             )
@@ -62,7 +62,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         self.github = Github(
             self.github_personal_access_token, base_url=self.github_api_url
         )
-        self.github_repo_instance = self.github.get_repo(self.gitlab_repository)
+        self.github_repo_instance = self.github.get_repo(self.github_repository)
 
     def get_pull_request(self, pr_number: int) -> str:
         try:
