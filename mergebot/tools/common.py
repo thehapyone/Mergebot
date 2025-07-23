@@ -28,7 +28,6 @@ from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.tools.prompts import (
     APPROVE_MERGE_REQUEST_PROMPT,
-    FETCH_PIPELINE_DETAILS_PROMPT,
     GET_PULL_REQUEST_PROMPT,
     POST_PULL_REQUEST_COMMENT_PROMPT,
 )

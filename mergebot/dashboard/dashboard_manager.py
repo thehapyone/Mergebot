@@ -32,7 +32,7 @@ class DashboardManager:
         elif platform_type == "github":
             self.api = GitHubAPIWrapper()
         else:
-            raise ValueError(f"Unsupported VCS: {vcs}")
+            raise ValueError(f"Unsupported VCS: {platform_type}")
 
         self.platform_type = platform_type
         self.dashboard_title: str = "🛠️ Mergebot Project Dashboard"
@@ -49,10 +49,10 @@ class DashboardManager:
                     state="opened", all=True
                 )
             )
-            get_id = lambda pr: str(pr.iid)
+            get_id = lambda pr: str(pr.iid)  # noqa: E731
         elif self.platform_type == "github":
             open_prs = list(self.api.github_repo_instance.get_pulls(state="open"))
-            get_id = lambda pr: str(pr.number)
+            get_id = lambda pr: str(pr.number)  # noqa: E731
         else:
             raise NotImplementedError(
                 f"Platform '{self.platform_type}' is not supported."
