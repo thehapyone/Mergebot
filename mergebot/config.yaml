@@ -2,7 +2,7 @@ llm:
   model: "azure/gpt-4.1"
 
 repository:
-  type: "github"
+  type: "gitlab"
 
   gitlab:
     url: "https://gitlab.its.getingecloud.net"

@@ -88,7 +88,7 @@ def ensure_repo_config(project: str):
         logger.error(f"Invalid .mergebot.yml detected: {e}")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Error while ensuring repo config: {e}", exec_info=True)
+        logger.error(f"Error while ensuring repo config: {e}", exc_info=True)
         sys.exit(1)
 
     logger.info("Mergebot configuration successfully ensured.")

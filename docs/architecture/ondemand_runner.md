@@ -17,6 +17,8 @@ mergebot ondemand --project mygroup/myrepo --workers 4
 
 ## Implementation
 
+- Managed by a single, VCS-agnostic Ondemand Runner that works seamlessly with both GitHub and GitLab.
+- All PR/MR data is normalized to a common schema for robust, platform-independent dashboard and analytics flows.
 - Uses asyncio for concurrency.
 - Integrates with the Dashboard Manager and Flow Engine.
 - Handles errors and preserves previous dashboard data.

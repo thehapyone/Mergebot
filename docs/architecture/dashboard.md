@@ -11,7 +11,8 @@ The Mergebot Dashboard provides a centralized view of pull or merge request (PR/
 
 ## Implementation
 
-- Managed by the Dashboard Manager.
+- Managed by a single, VCS-agnostic Dashboard Manager that works seamlessly with both GitHub and GitLab.
+- All PR/MR data is normalized to a common schema for robust, platform-independent analytics and reporting.
 - Uses Markdown tables and special comment tags for metadata.
 - Updates automatically after each ondemand or webhook run.
 
