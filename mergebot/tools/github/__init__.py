@@ -1,10 +1,5 @@
-from mergebot.tools.github.tools import (
-    GitHubPullRequestCommentTool,
-    GitHubPullRequestTool,
-)
+from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 
 __all__ = [
-    "GitHubPullRequestTool",
-    "GitHubPullRequestCommentTool",
-    "GitHubPullRequestTool",
+    "GitHubAPIWrapper",
 ]
