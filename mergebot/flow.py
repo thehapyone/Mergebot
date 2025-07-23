@@ -132,7 +132,7 @@ class MergeBotState(BaseModel):
 
 class AnalysisResult(BaseModel):
     title: str
-    iid: int
+    id: int
     impact_score: str = Field(default="")
     recommendation: str = Field(default="")
     last_reviewed: str
@@ -281,7 +281,7 @@ async def run_flow(
     try:
         analysis_result = AnalysisResult(
             title=mergebot.state.pr_title,
-            iid=mergebot.state.pr_id,
+            id=mergebot.state.pr_id,
             impact_score=mergebot.state.impact_assessment.get("score"),
             recommendation=mergebot.state.impact_assessment.get("recommendation"),
             last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),

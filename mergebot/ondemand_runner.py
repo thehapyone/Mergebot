@@ -34,7 +34,7 @@ def skip_draft_pr(pr, draft_prs_enabled: bool) -> bool:
 
     should_skip = is_draft_pr(pr) and not draft_prs_enabled
     if should_skip:
-        pr_id = getattr(pr, "iid", "<unknown>")
+        pr_id = getattr(pr, "iid", getattr(pr, "number", "<unknown>"))
         pr_title = getattr(pr, "title", "<no title>")
         logger.info(
             f"[Ondemand] Skipping draft PR/MR !{pr_id} ({pr_title}) because draft PRs/MRs are not enabled"
@@ -115,7 +115,7 @@ class OndemandRunner:
                         project=self.project,
                     )
                     result = {
-                        "iid": analysis_result.iid,
+                        "id": analysis_result.id,
                         "title": analysis_result.title,
                         "status": "Analyzed",
                         "impact_score": analysis_result.impact_score,
@@ -134,7 +134,7 @@ class OndemandRunner:
                         exc_info=True,
                     )
                     result = {
-                        "iid": pr_id,
+                        "id": pr_id,
                         "title": pr_title,
                         "status": "Error",
                         "impact_score": "N/A",
@@ -177,7 +177,7 @@ class OndemandRunner:
             if pr_id not in analyzed_iids:
                 analysis_results.append(
                     {
-                        "iid": pr_id,
+                        "id": pr_id,
                         "title": pr_title,
                         "status": "Tracked",
                         "impact_score": "N/A",

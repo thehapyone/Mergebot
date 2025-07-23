@@ -200,39 +200,40 @@ class DashboardManager:
         recommendation_map = {}
         impact_score_map = {}
         if previous_table:
-            # Parse each row for MR iid, Impact Score, Recommendation, and Last Reviewed
+            # Parse each row for PR id, Impact Score, Recommendation, and Last Reviewed
             for line in previous_table.splitlines():
                 match = re.match(
                     r"\|\s*\[!(\d+)\][^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|([^\|]*)\|([^\|]*)\|",
                     line,
                 )
                 if match:
-                    iid = match.group(1)
+                    pr_id = match.group(1)
                     impact_score = match.group(2).strip()
                     recommendation = match.group(3).strip()
                     last_reviewed = match.group(4).strip()
-                    impact_score_map[iid] = impact_score
-                    recommendation_map[iid] = recommendation
-                    last_reviewed_map[iid] = last_reviewed
+                    impact_score_map[pr_id] = impact_score
+                    recommendation_map[pr_id] = recommendation
+                    last_reviewed_map[pr_id] = last_reviewed
 
         if not mr_data:
             return "_No active pull or merge requests._"
         header = "| PR/MR | Title | Status | Impact Score | Recommendation | Last Reviewed | Analysis |\n|-------|-------|--------|-------------|----------------|---------------|----------|"
         rows = []
         for pr in mr_data:
-            iid_str = str(pr["iid"])
+            pr_id_str = str(pr["id"])
             # If this PR/MR was just analyzed, use the new value; else, preserve previous
             last_reviewed = pr.get("last_reviewed", "").strip()
             recommendation = pr.get("recommendation", "").strip()
             impact_score = pr.get("impact_score", "").strip()
             if not last_reviewed or last_reviewed == "N/A":
-                last_reviewed = last_reviewed_map.get(iid_str, "N/A")
+                last_reviewed = last_reviewed_map.get(pr_id_str, "N/A")
             if not recommendation:
-                recommendation = recommendation_map.get(iid_str, "")
+                recommendation = recommendation_map.get(pr_id_str, "")
             if not impact_score or impact_score == "N/A":
-                impact_score = impact_score_map.get(iid_str, "N/A")
+                impact_score = impact_score_map.get(pr_id_str, "N/A")
+                
             rows.append(
-                f"| [!{pr['iid']}]({pr.get('web_url', '#')}) | {pr.get('title', '')} | {pr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({pr.get('analysis_link', '#')}) |"
+                f"| [!{pr['id']}]({pr.get('web_url', '#')}) | {pr.get('title', '')} | {pr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({pr.get('analysis_link', '#')}) |"
             )
         return header + "\n" + "\n".join(rows)
 
@@ -243,9 +244,9 @@ class DashboardManager:
             return "_No pull or merge requests available for rerun._"
         lines = []
         for pr in mr_data:
-            checked = "x" if str(pr["iid"]) in rerun_requests else " "
+            checked = "x" if str(pr["id"]) in rerun_requests else " "
             lines.append(
-                f"- [{checked}] Rerun agent analysis for [!{pr['iid']}]({pr.get('web_url', '#')})"
+                f"- [{checked}] Rerun agent analysis for [!{pr['id']}]({pr.get('web_url', '#')})"
             )
         return "\n".join(lines)
 
