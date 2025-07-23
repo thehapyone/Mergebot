@@ -2,7 +2,7 @@ from crewai import Agent, Task
 from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
-from mergebot.tools.gitlab import GitlabMergeRequestTool
+from mergebot.tools.common import PullRequestTool
 
 
 @CrewBase
@@ -14,7 +14,7 @@ class MRProcessor(BotBaseCrew):
         return Agent(
             config=self.agents_config["mr_retriever"],
             llm=self.llm_model,
-            tools=[GitlabMergeRequestTool(result_as_answer=True)],
+            tools=[PullRequestTool()],
         )
 
     @task

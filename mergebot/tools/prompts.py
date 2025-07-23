@@ -22,13 +22,13 @@ Example input: {\"pr_number\": \"10\"}
 """
 
 
-FETCH_PIPELINE_DETAILS_PROMPT = """  s
+FETCH_PIPELINE_DETAILS_PROMPT = """
 This tool will fetch detailed information of a specific pipeline, including job logs and summarized relevant information.  
 Example input: {"pipeline_id": "12345"}  
 """
 
 
-POST_MERGE_REQUEST_THREAD_COMMENT_PROMPT = """
+POST_PULL_REQUEST_THREAD_COMMENT_PROMPT = """
 This tool is useful when you need to post a reply to an existing comment thread in a merge request. 
 
 For example, to reply "I agree with your assessment." to comment ID 5 in merge request number 10, you would pass in the following string:

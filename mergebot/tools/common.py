@@ -140,28 +140,3 @@ class PipelineToolSchema(BaseModel):
 
     pipeline_id: str = Field(..., description="The ID of the pipeline")
 
-
-class GitlabPipelineTool(BaseVCSTool):
-    """Tool for fetching and summarizing pipeline details from GitLab."""
-
-    name: str = "Get Pipeline Details"
-    description: str = FETCH_PIPELINE_DETAILS_PROMPT
-    args_schema: Type[BaseModel] = PipelineToolSchema
-
-    def _run(
-        self,
-        **kwargs: Any,
-    ) -> str:
-        """Use the GitLab API to fetch pipeline details."""
-        pipeline_id = kwargs.get("pipeline_id")
-
-        if get_platform_type() != "gitlab":
-            return "This tool is only available for GitLab."
-
-        if not pipeline_id:
-            return "The Pipeline ID is required."
-        try:
-            pipeline_details = self.api_wrapper.get_pipeline_details(int(pipeline_id))
-            return pipeline_details
-        except ValueError:
-            return "Invalid input. Please provide the Pipeline ID as an integer."
