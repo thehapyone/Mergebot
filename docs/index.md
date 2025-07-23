@@ -6,9 +6,14 @@ Welcome to the official documentation for **Mergebot** – the AI-powered code r
 
 ## Why Mergebot?
 
-Modern software teams face relentless pressure to deliver high-quality code at speed. Manual code review is time-consuming, inconsistent, and often a bottleneck for fast-moving teams. As codebases and teams scale, the challenge of maintaining code quality, compliance, and review velocity intensifies.
+The core idea behind Mergebot is **impact assessment for change requests**. For every pull or merge request (PR/MR), Mergebot automatically calculates an impact score—classifying the change as low, medium, or high impact. Based on this impact evaluation, Mergebot can take intelligent actions:
 
-**Mergebot** is built to solve these problems by automating the code review and merge process using advanced AI "crews"—modular agents that analyze every pull or merge request (PR/MR) for quality, risk, test coverage, and more. It acts as an always-on reviewer, ensuring every change is checked for compliance and quality, and freeing your team to focus on what matters most: building great software.
+- **Low-impact changes** (below a configurable threshold) can be auto-approved and merged, accelerating delivery without breaking compliance or review standards.
+- **High-impact changes** trigger a requirement for human review, ensuring that risky or complex changes always get the attention they deserve.
+
+This approach allows teams to automate the "low-hanging fruit"—routine, low-risk changes—while maintaining rigorous standards and compliance for everything else. Mergebot is designed to help teams ship code faster, reduce manual review workload, and raise the bar for code quality and traceability.
+
+**Mergebot** is not just a code review bot—it's an automated impact assessor and compliance enforcer for your codebase.
 
 ---
 

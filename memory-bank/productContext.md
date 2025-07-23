@@ -1,6 +1,13 @@
 # Product Context
 
 ## Why Mergebot Exists
+The core idea behind Mergebot is to provide **automated impact assessment for every change request** (pull or merge request, PR/MR). By calculating an impact score for each PR/MR, Mergebot enables teams to:
+- Classify changes as low, medium, or high impact
+- Automate approvals and merges for low-impact changes, accelerating delivery without breaking compliance
+- Require human review for high-impact changes, ensuring that risky or complex changes always get the attention they deserve
+
+This approach allows teams to automate routine approvals, maintain high standards, and meet compliance requirements—without burning out reviewers or slowing down delivery.
+
 Modern software teams face increasing pressure to deliver high-quality code rapidly. Manual code review processes are time-consuming, inconsistent, and often fail to catch subtle issues or risks. As teams grow and codebases scale, the challenge of maintaining code quality and review velocity intensifies.
 
 ## Problems Solved

@@ -4,7 +4,12 @@
 Mergebot
 
 ## Purpose
-Mergebot is an automated system designed to streamline, analyze, and manage code pull or merge requests (PR/MR) in software development projects. It aims to improve code quality, reduce manual review effort, and accelerate the integration process.
+Mergebot is an automated system designed to streamline, analyze, and manage code pull or merge requests (PR/MR) in software development projects. Its core workflow is to:
+- Calculate an impact score for every change request (PR/MR)
+- Classify changes as low, medium, or high impact
+- Automate approvals and merges for low-impact changes, while requiring human review for high-impact changes
+
+This enables teams to automate routine approvals, maintain high standards, and meet compliance requirements—without burning out reviewers or slowing down delivery. Mergebot aims to improve code quality, reduce manual review effort, and accelerate the integration process.
 
 ## Core Requirements
 - Automate the analysis of pull or merge requests (PR/MR) for code quality, risk, and impact.

@@ -1,6 +1,7 @@
 # Progress
 
 ## What Works
+- Mergebot now provides automated **impact assessment for every change request** (PR/MR), classifying changes as low, medium, or high impact and taking action based on policy.
 - Modular crew system implemented for code analysis, complexity, test, risk, impact evaluation, and publication
 - Dashboard system for real-time PR/MR analytics and feedback
 - Full integration with both GitHub and GitLab for PR/MR monitoring, onboarding, and feedback
