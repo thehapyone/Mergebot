@@ -225,14 +225,16 @@ class OndemandRunner:
             if pr_id not in [str(getattr(pr, self.pr_id_attr)) for pr in prs_to_analyze]
         ]
 
+
+        pr_ref_prefix = "!" if self.platform_type == "gitlab" else "#"
         self.dashboard_manager.update_dashboard(
             mr_data=analysis_results,
             rerun_requests=remaining_rerun_requests,
             action_log=[
-                f"Analyzed PR/MR !{getattr(pr, self.pr_id_attr)}"
+                f"Analyzed PR/MR {pr_ref_prefix}{getattr(pr, self.pr_id_attr)}"
                 for pr in prs_to_analyze
             ]
-            + [f"Error in PR/MR !{pr_id}: {err}" for pr_id, err in errors],
+            + [f"Error in PR/MR {pr_ref_prefix}{pr_id}: {err}" for pr_id, err in errors],
             analytics=analytics_summary,
         )
         logger.info("[Ondemand] Dashboard update complete")
