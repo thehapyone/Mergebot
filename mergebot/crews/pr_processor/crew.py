@@ -9,7 +9,7 @@ from mergebot.tools import PullRequestTool
 class PRProcessor(BotBaseCrew):
     """PR Processor crew"""
 
-    verbose = True
+    verbose = False
 
     @agent
     def pr_retriever(self) -> Agent:
