@@ -9,11 +9,12 @@ class GitHubOnboardingManager(OnboardingManagerBase):
     creating onboarding pull requests, and validating YAML configuration files.
     """
 
+    vcs: str = "github"
+
     @property
     def api_wrapper(self):
         if self._api_wrapper is None:
             self._api_wrapper = GitHubAPIWrapper()
-            self.vcs = "github"
         return self._api_wrapper
 
     def onboarding_pr_exists(self):

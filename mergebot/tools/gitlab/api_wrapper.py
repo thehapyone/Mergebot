@@ -86,7 +86,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
     GitLab API Wrapper.
     """
 
-    config_section = "gitlab"
+    config_section: str = "gitlab"
 
     def validate_gitlab(self):
         cfg = get_runtime_config()["repository"]["gitlab"]
@@ -104,7 +104,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             or cfg.get("gitlab_repository")
             or os.getenv("GITLAB_REPOSITORY")
         )
-        if not self.gitlab_repo:
+        if not self.gitlab_repository:
             raise ValueError(
                 "GitLab repository must be provided via CLI, config.yaml or GITLAB_REPOSITORY."
             )

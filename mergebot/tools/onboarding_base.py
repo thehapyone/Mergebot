@@ -1,24 +1,25 @@
 import base64
-from abc import ABC, abstractmethod
 
 import yaml
+from pydantic import BaseModel
+
+from mergebot.tools.api_base import PullRequestAPIBase
 
 
 class InvalidMergebotYAML(Exception):
     """Raised when .mergebot.yml exists but is not valid YAML."""
 
 
-class OnboardingManagerBase(ABC):
+class OnboardingManagerBase(BaseModel):
     """
     Abstract base class for unified onboarding managers.
     """
 
-    def __init__(self):
-        self._api_wrapper = None
-        self.vcs = None
-        self.config_file = ".mergebot.yml"
-        self.pr_title = "chore: configure .mergebot.yml"
-        self.onboarding_branch = "mergebot/onboarding"
+    _api_wrapper: PullRequestAPIBase | None = None
+    vcs: str = ""
+    config_file: str = ".mergebot.yml"
+    pr_title: str = "chore: configure .mergebot.yml"
+    onboarding_branch: str = "mergebot/onboarding"
 
     @staticmethod
     def pr_description() -> str:
@@ -39,13 +40,19 @@ class OnboardingManagerBase(ABC):
         )
 
     @property
+    def api_wrapper(self) -> PullRequestAPIBase:
+        raise NotImplementedError(
+            "Project api_wrapper must be implemented in subclasses for specific VCS."
+        )
+
+    @property
     def project(self):
         if self.vcs == "github":
             return self.api_wrapper.github_repo_instance
         elif self.vcs == "gitlab":
             return self.api_wrapper.gitlab_repo_instance
-        raise NotImplementedError(
-            "Project property must be implemented in subclasses for specific VCS."
+        raise ValueError(
+            f"VCS system {self.vcs} is not supported for project retrieval."
         )
 
     def get_file_contents(self):
@@ -104,7 +111,6 @@ class OnboardingManagerBase(ABC):
         except Exception:
             return None
 
-    @abstractmethod
     def onboarding_pr_exists(self):
         """
         Checks if an onboarding PR from branch_name to the default branch already exists.
@@ -112,7 +118,6 @@ class OnboardingManagerBase(ABC):
         """
         raise NotImplementedError("This method should be implemented by subclasses.")
 
-    @abstractmethod
     def create_onboarding_pr(self, default_content: str):
         """
         Creates an onboarding PR to add .mergebot.yml to the default branch.

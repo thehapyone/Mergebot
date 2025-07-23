@@ -9,11 +9,12 @@ class GitlabOnboardingManager(OnboardingManagerBase):
     creating onboarding merge requests, and validating YAML configuration files.
     """
 
+    vcs: str = "gitlab"
+
     @property
     def api_wrapper(self):
         if self._api_wrapper is None:
             self._api_wrapper = GitlabAPIWrapper()
-            self.vcs = "gitlab"
         return self._api_wrapper
 
     def onboarding_pr_exists(self):

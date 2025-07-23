@@ -2,8 +2,8 @@ import sys
 
 from mergebot.tools.gitlab.onboarding import (
     GitlabOnboardingManager,
-    InvalidMergebotYAML,
 )
+from mergebot.tools.onboarding_base import InvalidMergebotYAML
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
@@ -84,7 +84,7 @@ def ensure_repo_config(project: str):
             logger.error(f"Invalid .mergebot.yml detected: {e}")
             sys.exit(1)
         except Exception as e:
-            logger.error(f"Error while ensuring repo config: {e}")
+            logger.error(f"Error while ensuring repo config: {e}", exec_info=True)
             sys.exit(1)
     elif platform_type == "github":
         # Placeholder for future GitHub support

@@ -11,7 +11,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
     GitHub API Wrapper.
     """
 
-    config_section = "github"
+    config_section: str = "github"
 
     def validate_github(self):
         cfg = get_runtime_config()["repository"]["github"]

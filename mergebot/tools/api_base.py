@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -29,7 +28,6 @@ class PullRequestAPIBase(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    @abstractmethod
     def validate_gitlab(self):
         """
         Loads and validates GitLab configuration and environment variables.
@@ -47,7 +45,6 @@ class PullRequestAPIBase(BaseModel):
             "This method should be implemented in subclasses to handle GitLab-specific validation."
         )
 
-    @abstractmethod
     def validate_github(self):
         """
         Loads and validates Github configuration and environment variables.
@@ -86,7 +83,6 @@ class PullRequestAPIBase(BaseModel):
 
         return self
 
-    @abstractmethod
     def get_pull_request(self, pr_number: int) -> str:
         """
         Fetch pull/merge request details (pretty-printed).
@@ -95,7 +91,6 @@ class PullRequestAPIBase(BaseModel):
             "This method should be implemented in subclasses to fetch pull/merge request details."
         )
 
-    @abstractmethod
     def comment_pull_request(self, pr_number: int, body: str) -> str:
         """
         Post a comment to a pull/merge request and return the comment link.
@@ -104,7 +99,6 @@ class PullRequestAPIBase(BaseModel):
             "This method should be implemented in subclasses to fetch pull/merge request details."
         )
 
-    @abstractmethod
     def approve_pull_request(self, pr_number: int) -> str:
         """
         Approve a pull/merge request and return the review/approval link.

@@ -2,7 +2,7 @@ from crewai import Agent, Task
 from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
-from mergebot.tools.common import PullRequestTool
+from mergebot.tools import PullRequestTool
 
 
 @CrewBase

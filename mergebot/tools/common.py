@@ -139,4 +139,3 @@ class PipelineToolSchema(BaseModel):
     """Input for the Pipeline tool."""
 
     pipeline_id: str = Field(..., description="The ID of the pipeline")
-
