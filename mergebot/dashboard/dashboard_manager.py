@@ -170,7 +170,7 @@ class DashboardManager:
             dashboard = self.get_or_create_dashboard()
             body = dashboard.get("body", "")
             table_match = re.search(
-                r"## 🧩 \*\*Active Merge Requests\*\*.*?\n((?:\|.*\n)+)",
+                r"## 🧩 \*\*Active Pull/Merge Requests \(PR/MR\)\*\*.*?\n((?:\|.*\n)+)",
                 body,
                 re.DOTALL,
             )
