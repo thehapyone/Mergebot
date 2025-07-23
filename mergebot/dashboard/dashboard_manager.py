@@ -35,7 +35,7 @@ class DashboardManager:
             raise ValueError(f"Unsupported VCS: {vcs}")
 
         self.platform_type = platform_type
-        self.dashboard_title: str = ("🛠️ Mergebot Project Dashboard",)
+        self.dashboard_title: str = "🛠️ Mergebot Project Dashboard"
 
     def get_open_prs(self):
         """
