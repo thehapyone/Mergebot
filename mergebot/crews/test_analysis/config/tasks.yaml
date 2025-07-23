@@ -1,14 +1,14 @@
 test_analysis_task:
   description: >
-    Analyze the MR to assess its impact on test coverage. Specifically:
+    Analyze the pull request (PR) to assess its impact on test coverage. Specifically:
 
     - Determine if code changes lack corresponding tests or if existing tests are removed or insufficient.
     - Evaluate whether the changes affect critical functionalities that require additional testing.
     - Identify any reduction in test coverage due to code deletions, modifications, or lack of new tests.
     - Provide recommendations to improve test coverage where it is inadequate.
 
-    **Merge Request Details**:
-    {mr_details}
+    **Pull Request Details**:
+    {pr_details}
   agent: test_coverage_analyzer
   expected_output: >
     - A **test coverage impact score** between 0 and 10, where:

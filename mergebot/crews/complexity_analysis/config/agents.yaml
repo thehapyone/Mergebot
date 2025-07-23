@@ -1,7 +1,7 @@
 complexity_analyzer:
   role: Complexity Assessment Agent
   goal: >
-      Evaluate the complexity of the merge request (MR) changes using language-agnostic methods.
+      Evaluate the complexity of the pull or merge request (PR) changes using language-agnostic methods.
       Assess the difficulty, potential risks, and impact associated with the changes on a scale from 0 to 10.
       Consider factors such as the extent of code modifications, structural changes, dependencies affected, and introduction of complex algorithms or patterns.
   backstory: >

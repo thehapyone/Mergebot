@@ -1,12 +1,12 @@
 analysis_task:
   description: >
-    Analyze the code changes in the MR. 
+    Analyze the code changes in the pull or merge request (PR).
     Evaluate the significance, potential risks, and impact on the codebase.
     Consider all programming languages and project types.
     Provide insights into how the changes might affect the project's stability and maintainability.
     ```
-    **Merge Request Details**:
-    {mr_details}
+    **Pull Request Details**:
+    {pr_details}
     ```
   agent: code_analyzer
   expected_output: >

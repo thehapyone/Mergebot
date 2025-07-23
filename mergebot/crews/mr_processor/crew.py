@@ -10,13 +10,13 @@ class MRProcessor(BotBaseCrew):
     """MRProcessor crew"""
 
     @agent
-    def mr_retriever(self) -> Agent:
+    def pr_retriever(self) -> Agent:
         return Agent(
-            config=self.agents_config["mr_retriever"],
+            config=self.agents_config["pr_retriever"],
             llm=self.llm_model,
             tools=[PullRequestTool()],
         )
 
     @task
-    def mr_retriever_task(self) -> Task:
-        return Task(config=self.tasks_config["mr_retriever_task"])
+    def pr_retriever_task(self) -> Task:
+        return Task(config=self.tasks_config["pr_retriever_task"])

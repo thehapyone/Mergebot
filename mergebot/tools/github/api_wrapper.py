@@ -179,3 +179,31 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             raise Exception(
                 f"Failed to update file {file_path} in branch {branch_name}: {str(e)}"
             )
+
+    def search_issues(self, title: str):
+        """
+        Search for issues in the repository by title.
+        Returns a list of issues whose title matches (case-insensitive).
+        """
+        issues = self.github_repo_instance.get_issues(state="all")
+        return [
+            issue.raw_data
+            for issue in issues
+            if issue.title.strip().lower() == title.strip().lower()
+        ]
+
+    def create_issue(self, title: str, description: str):
+        """
+        Create a new issue in the repository.
+        Returns the created issue object (as dict).
+        """
+        issue = self.github_repo_instance.create_issue(title=title, body=description)
+        return issue.raw_data
+
+    def update_issue(self, issue_number: int, description: str):
+        """
+        Update the description/body of an issue.
+        """
+        issue = self.github_repo_instance.get_issue(number=issue_number)
+        issue.edit(body=description)
+        return issue.raw_data

@@ -10,7 +10,7 @@ from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 
 # Section markers for robust, sectioned updates
 DASHBOARD_MARKER = "<!-- marker:MERGEBOT_DASHBOARD -->"
-ACTIVE_MRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_MRS -->"
+ACTIVE_PRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_PRS -->"
 RERUNS_MARKER = "<!-- marker:MERGEBOT_RERUNS -->"
 ACTIONS_MARKER = "<!-- marker:MERGEBOT_ACTIONS -->"
 ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
@@ -50,7 +50,7 @@ class DashboardManager:
 
 class GitLabDashboardManager(DashboardManager):
     """
-    GitLab-specific dashboard manager.
+    GitLab-specific dashboard manager (supports PR/MR).
     """
 
     def __init__(
@@ -91,29 +91,29 @@ class GitLabDashboardManager(DashboardManager):
 
         dashboard_section = extract_section(DASHBOARD_MARKER)
         rerun_requests = self.extract_rerun_requests(dashboard_section)
-        tracked_mrs = self.extract_tracked_mrs(dashboard_section)
+        tracked_prs = self.extract_tracked_prs(dashboard_section)
         analytics_section = self.parse_analytics_summary(markdown)
 
         return {
             "dashboard": dashboard_section,
             "rerun_requests": rerun_requests,
-            "tracked_mrs": tracked_mrs,
+            "tracked_prs": tracked_prs,
             "analytics": analytics_section,
         }
 
     def extract_rerun_requests(self, dashboard_section: str) -> list:
         """
-        Extracts MR numbers from checked rerun checkboxes in the dashboard section.
-        Returns a list of MR numbers as strings.
+        Extracts PR/MR numbers from checked rerun checkboxes in the dashboard section.
+        Returns a list of PR/MR numbers as strings.
         """
         # Matches: - [x] Rerun agent analysis for [!123](...)
         pattern = r"- \[x\] Rerun agent analysis for \[!(\d+)\]"
         return re.findall(pattern, dashboard_section, re.IGNORECASE)
 
-    def extract_tracked_mrs(self, dashboard_section: str) -> list:
+    def extract_tracked_prs(self, dashboard_section: str) -> list:
         """
-        Extracts MR numbers from the Active Merge Requests table in the dashboard section.
-        Returns a list of MR numbers as strings.
+        Extracts PR/MR numbers from the Active PRs/MRs table in the dashboard section.
+        Returns a list of PR/MR numbers as strings.
         """
         # Matches: | [!123](...) | ...
         pattern = r"\|\s*\[!(\d+)\]\("
@@ -211,15 +211,15 @@ class GitLabDashboardManager(DashboardManager):
                     last_reviewed_map[iid] = last_reviewed
 
         if not mr_data:
-            return "_No active merge requests._"
-        header = "| MR | Title | Status | Impact Score | Recommendation | Last Reviewed | Analysis |\n|-----|-------|--------|-------------|----------------|---------------|----------|"
+            return "_No active pull or merge requests._"
+        header = "| PR/MR | Title | Status | Impact Score | Recommendation | Last Reviewed | Analysis |\n|-------|-------|--------|-------------|----------------|---------------|----------|"
         rows = []
-        for mr in mr_data:
-            iid_str = str(mr["iid"])
-            # If this MR was just analyzed, use the new value; else, preserve previous
-            last_reviewed = mr.get("last_reviewed", "").strip()
-            recommendation = mr.get("recommendation", "").strip()
-            impact_score = mr.get("impact_score", "").strip()
+        for pr in mr_data:
+            iid_str = str(pr["iid"])
+            # If this PR/MR was just analyzed, use the new value; else, preserve previous
+            last_reviewed = pr.get("last_reviewed", "").strip()
+            recommendation = pr.get("recommendation", "").strip()
+            impact_score = pr.get("impact_score", "").strip()
             if not last_reviewed or last_reviewed == "N/A":
                 last_reviewed = last_reviewed_map.get(iid_str, "N/A")
             if not recommendation:
@@ -227,7 +227,7 @@ class GitLabDashboardManager(DashboardManager):
             if not impact_score or impact_score == "N/A":
                 impact_score = impact_score_map.get(iid_str, "N/A")
             rows.append(
-                f"| [!{mr['iid']}]({mr.get('web_url', '#')}) | {mr.get('title', '')} | {mr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({mr.get('analysis_link', '#')}) |"
+                f"| [!{pr['iid']}]({pr.get('web_url', '#')}) | {pr.get('title', '')} | {pr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({pr.get('analysis_link', '#')}) |"
             )
         return header + "\n" + "\n".join(rows)
 
@@ -235,12 +235,12 @@ class GitLabDashboardManager(DashboardManager):
         self, mr_data: List[Dict[str, Any]], rerun_requests: List[str]
     ) -> str:
         if not mr_data:
-            return "_No merge requests available for rerun._"
+            return "_No pull or merge requests available for rerun._"
         lines = []
-        for mr in mr_data:
-            checked = "x" if str(mr["iid"]) in rerun_requests else " "
+        for pr in mr_data:
+            checked = "x" if str(pr["iid"]) in rerun_requests else " "
             lines.append(
-                f"- [{checked}] Rerun agent analysis for [!{mr['iid']}]({mr.get('web_url', '#')})"
+                f"- [{checked}] Rerun agent analysis for [!{pr['iid']}]({pr.get('web_url', '#')})"
             )
         return "\n".join(lines)
 
