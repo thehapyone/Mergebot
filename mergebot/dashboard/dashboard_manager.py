@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from jinja2 import Template
+from typing_extensions import Literal
 
+from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 
 # Section markers for robust, sectioned updates
@@ -18,65 +20,68 @@ ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
 
 class DashboardManager:
     """
-    Abstract interface for dashboard management.
-    """
-
-    def get_or_create_dashboard(self) -> Dict[str, Any]:
-        """
-        Fetch the dashboard issue, or create it if not present.
-        Returns a dict with at least 'id' and 'body' (markdown).
-        """
-        raise NotImplementedError
-
-    def parse_dashboard(self, markdown: str) -> Dict[str, Any]:
-        """
-        Parse the dashboard markdown into structured data.
-        Returns a dict with keys for each section.
-        """
-        raise NotImplementedError
-
-    def update_dashboard(
-        self,
-        mr_data: List[Dict[str, Any]],
-        rerun_requests: List[str],
-        action_log: List[str],
-        analytics: Dict[str, Any],
-    ) -> None:
-        """
-        Update the dashboard issue with new data.
-        """
-        raise NotImplementedError
-
-
-class GitLabDashboardManager(DashboardManager):
-    """
-    GitLab-specific dashboard manager (supports PR/MR).
+    VCS Agnostic Dashboard manager (supports PR/MR).
     """
 
     def __init__(
         self,
-        api_wrapper: "GitlabAPIWrapper",
-        project_id: str,
-        dashboard_title: str = "🛠️ Mergebot Project Dashboard",
+        platform_type: Literal["gitlab", "github"],
     ):
-        self.api = api_wrapper
-        self.project_id = project_id
-        self.dashboard_title = dashboard_title
+        if platform_type == "gitlab":
+            self.api = GitlabAPIWrapper()
+        elif platform_type == "github":
+            self.api = GitHubAPIWrapper()
+        else:
+            raise ValueError(f"Unsupported VCS: {vcs}")
+
+        self.platform_type = platform_type
+        self.dashboard_title: str = ("🛠️ Mergebot Project Dashboard",)
+
+    def get_open_prs(self):
+        """
+        A utility function to fetch all open PRs/MRs and returns a tuple:
+            (list_of_prs, {pr_id_string: pr_object, ...})
+        """
+        if self.platform_type == "gitlab":
+            # Use all=True and iterator to reduce memory if large
+            open_prs = list(
+                self.api.gitlab_repo_instance.mergerequests.list(
+                    state="opened", all=True
+                )
+            )
+            get_id = lambda pr: str(pr.iid)
+        elif self.platform_type == "github":
+            open_prs = list(self.api.github_repo_instance.get_pulls(state="open"))
+            get_id = lambda pr: str(pr.number)
+        else:
+            raise NotImplementedError(
+                f"Platform '{self.platform_type}' is not supported."
+            )
+        open_pr_iids = {get_id(pr): pr for pr in open_prs}
+        return open_prs, open_pr_iids
 
     def get_or_create_dashboard(self) -> Dict[str, Any]:
         """
-        Search for the dashboard issue by title or marker.
-        If not found, create it with the initial template.
+        Retrieves the existing Mergebot dashboard issue for the current repository/project,
+        identified by a unique title and marker in its body/description. If no such issue
+        exists, a new one is created using the dashboard template.
+
+        Returns:
+            dict: A dictionary containing the dashboard issue's unique identifier (either
+                  'number' for GitHub or 'iid' for GitLab) as 'id' and its text content
+                  (either 'body' for GitHub or 'description' for GitLab) as 'body'.
         """
         # Search for existing issue
         issues = self.api.search_issues(self.dashboard_title)
+        id_key = "number" if self.platform_type == "github" else "iid"
+        body_key = "body" if self.platform_type == "github" else "description"
         for issue in issues:
-            if DASHBOARD_MARKER in issue.get("description", ""):
-                return {"id": issue["iid"], "body": issue["description"]}
+            if DASHBOARD_MARKER in issue.get(body_key, ""):
+                return {"id": issue[id_key], "body": issue[body_key]}
         # Not found, create new
         initial_body = self._initial_dashboard_body()
         issue = self.api.create_issue(self.dashboard_title, initial_body)
-        return {"id": issue["iid"], "body": issue["description"]}
+        return {"id": issue[id_key], "body": issue[body_key]}
 
     def parse_dashboard(self, markdown: str) -> Dict[str, Any]:
         """

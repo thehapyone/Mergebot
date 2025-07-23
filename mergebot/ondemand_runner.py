@@ -1,9 +1,8 @@
 import asyncio
 import time
 
-from mergebot.dashboard.dashboard_manager import GitLabDashboardManager
+from mergebot.dashboard.dashboard_manager import DashboardManager
 from mergebot.flow import run_flow
-from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config
 from mergebot.validator.logging_config import logger
@@ -56,14 +55,8 @@ class OndemandRunner:
         self.platform_type = get_platform_type()
         self.project = project
         self.workers = workers
-        if self.platform_type == "gitlab":
-            self.api = GitlabAPIWrapper()
-            self.project_id = self.api.gitlab_repo_instance.id
-            self.dashboard_manager = GitLabDashboardManager(self.api, self.project_id)
-        else:
-            raise NotImplementedError(
-                f"Platform '{self.platform_type}' is not yet supported in ondemand mode."
-            )
+        self.dashboard_manager = DashboardManager(self.platform_type)
+        self.pr_id_attr = "iid" if self.platform_type == "gitlab" else "number"
 
     async def run_once(self):
         """
@@ -71,10 +64,7 @@ class OndemandRunner:
         """
         logger.info("[Ondemand] Running dashboard scan and update (one-shot)")
         dashboard = self.dashboard_manager.get_or_create_dashboard()
-        open_prs = self.api.gitlab_repo_instance.mergerequests.list(
-            state="opened", all=True
-        )
-        open_pr_iids = {str(pr.iid): pr for pr in open_prs}
+        open_prs, open_pr_iids = self.dashboard_manager.get_open_prs()
 
         # Parse Dashboard
         dashboard_data = self.dashboard_manager.parse_dashboard(dashboard["body"])
@@ -101,7 +91,8 @@ class OndemandRunner:
             )
             prs_to_analyze = prs_to_analyze[:max_prs]
 
-        logger.info(f"[Ondemand] PRs/MRs to analyze: {[pr.iid for pr in prs_to_analyze]}")
+        pr_ids = [getattr(pr, self.pr_id_attr) for pr in prs_to_analyze]
+        logger.info(f"[Ondemand] PRs/MRs to analyze: {pr_ids}")
         analysis_results = []
         analysis_durations = []
         errors = []
@@ -109,13 +100,18 @@ class OndemandRunner:
 
         async def analyze_pr(pr, semaphore):
             async with semaphore:
-                logger.info(f"[Ondemand] Analyzing PR/MR !{pr.iid} ({pr.title})")
+                # Consolidate attribute extraction for both platforms
+                pr_id = getattr(pr, "iid", getattr(pr, "number", "<unknown>"))
+                pr_title = getattr(pr, "title", "<unknown>")
+                pr_url = getattr(pr, "web_url", getattr(pr, "html_url", "#"))
+
+                logger.info(f"[Ondemand] Analyzing PR/MR !{pr_id} ({pr_title})")
                 start = time.time()
                 try:
                     analysis_result = await run_flow(
-                        pr.web_url,
-                        pr_id=pr.iid,
-                        pr_title=pr.title,
+                        pr_url,
+                        pr_id=pr_id,
+                        pr_title=pr_title,
                         project=self.project,
                     )
                     result = {
@@ -126,30 +122,30 @@ class OndemandRunner:
                         "recommendation": analysis_result.recommendation,
                         "last_reviewed": analysis_result.last_reviewed,
                         "analysis_link": analysis_result.analysis_link,
-                        "web_url": pr.web_url,
+                        "web_url": pr_url,
                         "duration": time.time() - start,
                         "error": None,
                     }
-                    return (pr.iid, result)
+                    return (pr_id, result)
                 except Exception as e:
                     error_msg = f"{type(e).__name__}: {e}"
                     logger.error(
-                        f"[Ondemand] Error while analyzing PR/MR !{pr.iid}: {error_msg}",
+                        f"[Ondemand] Error while analyzing PR/MR !{pr_id}: {error_msg}",
                         exc_info=True,
                     )
                     result = {
-                        "iid": pr.iid,
-                        "title": pr.title,
+                        "iid": pr_id,
+                        "title": pr_title,
                         "status": "Error",
                         "impact_score": "N/A",
                         "recommendation": "",
                         "last_reviewed": "N/A",
                         "analysis_link": "#",
-                        "web_url": pr.web_url,
+                        "web_url": pr_url,
                         "duration": time.time() - start,
                         "error": error_msg,
                     }
-                    return (pr.iid, result)
+                    return (pr_id, result)
 
         semaphore = asyncio.Semaphore(self.workers)
         tasks = [analyze_pr(pr, semaphore) for pr in prs_to_analyze]
@@ -174,20 +170,23 @@ class OndemandRunner:
         #       instead of assuming it is in the dashboard_data.
         #       Analysis link is not shown for example
         for pr in open_prs:
-            if pr.iid not in analyzed_iids:
+            # Consolidate attribute extraction for both platforms
+            pr_id = getattr(pr, "iid", getattr(pr, "number", "<unknown>"))
+            pr_title = getattr(pr, "title", "<unknown>")
+            pr_url = getattr(pr, "web_url", getattr(pr, "html_url", "#"))
+            if pr_id not in analyzed_iids:
                 analysis_results.append(
                     {
-                        "iid": pr.iid,
-                        "title": pr.title,
+                        "iid": pr_id,
+                        "title": pr_title,
                         "status": "Tracked",
                         "impact_score": "N/A",
                         "recommendation": "",
                         "last_reviewed": "N/A",
                         "analysis_link": "#",
-                        "web_url": pr.web_url,
+                        "web_url": pr_url,
                     }
                 )
-
         # Compute analytics summary metrics, accumulating with previous values
         prev_analytics = dashboard_data["analytics"]
         prs_processed = prev_analytics.get("PRs/MRs Processed", 0) + len(prs_to_analyze)
@@ -221,16 +220,20 @@ class OndemandRunner:
 
         # Only reset rerun_requests for processed PRs/MRs
         remaining_rerun_requests = [
-            iid
-            for iid in rerun_requests
-            if iid not in [str(pr.iid) for pr in prs_to_analyze]
+            pr_id
+            for pr_id in rerun_requests
+            if pr_id
+            not in [str({getattr(pr, self.pr_id_attr)}) for pr in prs_to_analyze]
         ]
 
         self.dashboard_manager.update_dashboard(
             mr_data=analysis_results,
             rerun_requests=remaining_rerun_requests,
-            action_log=[f"Analyzed PR/MR !{pr.iid}" for pr in prs_to_analyze]
-            + [f"Error in PR/MR !{iid}: {err}" for iid, err in errors],
+            action_log=[
+                f"Analyzed PR/MR !{getattr(pr, self.pr_id_attr)}"
+                for pr in prs_to_analyze
+            ]
+            + [f"Error in PR/MR !{pr_id}: {err}" for pr_id, err in errors],
             analytics=analytics_summary,
         )
         logger.info("[Ondemand] Dashboard update complete")
