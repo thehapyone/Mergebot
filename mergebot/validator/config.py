@@ -33,19 +33,48 @@ class GitLabConfig(BaseModel):
         return v
 
 
+# GitHub configuration mirrors GitLab but for GitHub REST API
+class GitHubConfig(BaseModel):
+    api_url: str = Field(
+        default="https://api.github.com", description="GitHub API endpoint URL"
+    )
+    private_token: Optional[str] = Field(
+        default=os.getenv("GITHUB_TOKEN"),
+        description="Personal access token for GitHub API authentication",
+    )
+    base_branch: str = Field(default="main", description="Base branch for the project")
+
+    @field_validator("private_token")
+    @classmethod
+    def validate_private_token(cls, v: str):
+        if not v:
+            raise ValueError(
+                "Missing GitHub personal access token. "
+                "Set the GITHUB_TOKEN environment variable or provide the token "
+                "in the 'private_token' config field."
+            )
+        return v
+
+
 class RepositoryConfig(BaseModel):
     type: str = Field(..., description="Repository type, either 'gitlab' or 'github'")
     gitlab: Optional[GitLabConfig] = None
+    github: Optional[GitHubConfig] = None
 
     @model_validator(mode="before")
     @classmethod
     def validate_repository_settings(cls, values: dict) -> dict:
         repo_type = values.get("type")
         gitlab_config = values.get("gitlab")
+        github_config = values.get("github")
 
         if repo_type == "gitlab" and not gitlab_config:
             raise ValueError(
                 "GitLab configuration must be provided when repository type is 'gitlab'"
+            )
+        if repo_type == "github" and not github_config:
+            raise ValueError(
+                "GitHub configuration must be provided when repository type is 'github'"
             )
         return values
 

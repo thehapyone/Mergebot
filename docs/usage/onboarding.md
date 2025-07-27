@@ -23,7 +23,7 @@ flowchart TD
 
 When Mergebot starts (in any mode), it performs the following steps:
 
-- **Detects the platform** (e.g., GitLab, GitHub; currently GitLab is supported).
+- **Detects the platform** (GitHub, GitLab, or other VCS).
 - **Checks for `.mergebot.yml`** in the default branch of the repository.
 
 ### 2. **If `.mergebot.yml` Exists and is Valid**
@@ -36,11 +36,11 @@ When Mergebot starts (in any mode), it performs the following steps:
 
 - Mergebot checks for an existing onboarding PR (from the `mergebot/onboarding` branch).
 - **If an onboarding PR already exists:**  
-  - Mergebot logs the PR URL and aborts startup.
-  - The user must merge the PR to enable Mergebot.
+  - Mergebot logs the PR/MR URL and aborts startup.
+  - The user must merge the PR/MR to enable Mergebot.
 - **If no onboarding PR exists:**  
-  - Mergebot creates a new onboarding PR with a default `.mergebot.yml`.
-  - The user must review, customize, and merge the PR to enable Mergebot.
+  - Mergebot creates a new onboarding PR/MR with a default `.mergebot.yml`.
+  - The user must review, customize, and merge the PR/MR to enable Mergebot.
 
 ### 4. **If `.mergebot.yml` is Present but Invalid**
 
@@ -60,19 +60,21 @@ When Mergebot starts (in any mode), it performs the following steps:
 
 ## Onboarding PR Details
 
-- The onboarding PR is created from the `mergebot/onboarding` branch to the default branch.
-- Only one onboarding PR is ever open at a time (Mergebot checks for duplicates before creating).
-- The PR contains a default `.mergebot.yml` and instructions for customization.
-- The onboarding PR now documents the `analysis.max_mrs` option, allowing you to limit the number of MRs analyzed per run.
-- By default, Draft/WIP MRs are skipped. To analyze them, set `draft_mrs: true` in your config.
+- The onboarding PR/MR is created from the `mergebot/onboarding` branch to the default branch.
+- Only one onboarding PR/MR is ever open at a time (Mergebot checks for duplicates before creating).
+- The PR/MR contains a default `.mergebot.yml` and instructions for customization.
+- The onboarding PR/MR now documents the `analysis.max_mrs` option, allowing you to limit the number of PRs/MRs analyzed per run.
+- By default, Draft/WIP PRs/MRs are skipped. To analyze them, set `draft_mrs: true` in your config.
 - **Note:** Mergebot always requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior and is merged with any repository config (`.mergebot.yml`) to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
-- **GitLab API access:**  
-  - It is strongly recommended to create a dedicated GitLab user (e.g., `mergebot`) to act as a bot/service account.
-  - Generate a personal access token for this service account and use it as the `GITLAB_PERSONAL_ACCESS_TOKEN` (e.g., store as the `MERGEBOT_TOKEN` CI/CD variable).
-  - Add this service account as a member to the relevant project(s) or group(s) with the minimum required permissions.
+- **VCS API access:**  
+  - For GitHub: Create a dedicated GitHub user or App for bot/service account actions, and generate a personal access token (`GITHUB_TOKEN`).
+  - For GitLab: Create a dedicated GitLab user or Project Bot, and generate a personal access token (`GITLAB_PERSONAL_ACCESS_TOKEN`).
+  - Add this service account as a member to the relevant project(s) or organization(s) with the minimum required permissions.
   - _Do not use a personal user’s API token_, as this will make it appear that user is performing all Mergebot actions.
-  - **Alternative:** You may use a [Project Bot](https://docs.gitlab.com/ee/user/project/bot_users.html), but note that project bots cannot be reused across multiple projects. For most organizations, a dedicated service account at the instance or group level is preferred.
 - Once merged, Mergebot will use the repo config for all future operations.
+- The onboarding PR/MR now documents the `analysis.max_mrs` option, allowing you to limit the number of PRs/MRs analyzed per run.
+- By default, Draft/WIP PRs/MRs are skipped. To analyze them, set `draft_mrs: true` in your config.
+- **Note:** Mergebot always requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior and is merged with any repository config (`.mergebot.yml`) to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
 
 ---
 
@@ -87,7 +89,7 @@ When Mergebot starts (in any mode), it performs the following steps:
 ## Platform Agnostic Design
 
 - The onboarding workflow is designed to support multiple platforms.
-- Currently, only GitLab is implemented; GitHub and others can be added with minimal changes.
+- Mergebot fully supports both GitHub and GitLab onboarding workflows.
 
 ---
 
@@ -96,16 +98,21 @@ When Mergebot starts (in any mode), it performs the following steps:
 ```yaml
 # Default Mergebot configuration
 # See https://github.com/your-org/mergebot for documentation
-# You can now control how many merge requests (MRs) Mergebot will analyze at a time.
+# You can now control how many pull or merge requests (PRs/MRs) Mergebot will analyze at a time.
 # Add the following to your config to set a limit (optional):
 #
 # analysis:
-#   max_mrs: 10  # Maximum number of MRs to analyze at once (0 or missing = unlimited)
-#   draft_mrs: false  # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
+#   max_mrs: 10  # Maximum number of PRs/MRs to analyze at once (0 or missing = unlimited)
+#   draft_mrs: false  # If true, analyze Draft/WIP PRs/MRs. If false (default), skip Draft/WIP PRs/MRs.
 repository:
   type: "gitlab"
   gitlab:
     base_branch: "main"
+# For GitHub, use:
+# repository:
+#   type: "github"
+#   github:
+#     base_branch: "main"
 
 approval_policy:
   threshold: 3.0
@@ -121,7 +128,7 @@ approval_policy:
 ## Summary
 
 - Mergebot will not run unless a valid `.mergebot.yml` is present in the repo.
-- The onboarding PR workflow ensures every repo is properly configured, with no duplicates.
+- The onboarding PR/MR workflow ensures every repo is properly configured, with no duplicates.
 - All config is validated and merged in a robust, platform-agnostic way.
 
 For more details, see the main [Home](../index.md) or [Approval Policy](../configuration/approval_policy.md).

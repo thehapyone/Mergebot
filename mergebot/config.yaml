@@ -2,10 +2,13 @@ llm:
   model: "azure/gpt-4.1"
 
 repository:
-  type: "gitlab"
+  type: "github"
 
   gitlab:
     url: "https://gitlab.its.getingecloud.net"
+    base_branch: "main"
+
+  github:
     base_branch: "main"
 
 crews:

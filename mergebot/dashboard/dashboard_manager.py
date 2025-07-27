@@ -5,12 +5,14 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from jinja2 import Template
+from typing_extensions import Literal
 
+from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 
 # Section markers for robust, sectioned updates
 DASHBOARD_MARKER = "<!-- marker:MERGEBOT_DASHBOARD -->"
-ACTIVE_MRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_MRS -->"
+ACTIVE_PRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_PRS -->"
 RERUNS_MARKER = "<!-- marker:MERGEBOT_RERUNS -->"
 ACTIONS_MARKER = "<!-- marker:MERGEBOT_ACTIONS -->"
 ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
@@ -18,65 +20,68 @@ ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
 
 class DashboardManager:
     """
-    Abstract interface for dashboard management.
-    """
-
-    def get_or_create_dashboard(self) -> Dict[str, Any]:
-        """
-        Fetch the dashboard issue, or create it if not present.
-        Returns a dict with at least 'id' and 'body' (markdown).
-        """
-        raise NotImplementedError
-
-    def parse_dashboard(self, markdown: str) -> Dict[str, Any]:
-        """
-        Parse the dashboard markdown into structured data.
-        Returns a dict with keys for each section.
-        """
-        raise NotImplementedError
-
-    def update_dashboard(
-        self,
-        mr_data: List[Dict[str, Any]],
-        rerun_requests: List[str],
-        action_log: List[str],
-        analytics: Dict[str, Any],
-    ) -> None:
-        """
-        Update the dashboard issue with new data.
-        """
-        raise NotImplementedError
-
-
-class GitLabDashboardManager(DashboardManager):
-    """
-    GitLab-specific dashboard manager.
+    VCS Agnostic Dashboard manager (supports PR/MR).
     """
 
     def __init__(
         self,
-        api_wrapper: "GitlabAPIWrapper",
-        project_id: str,
-        dashboard_title: str = "🛠️ Mergebot Project Dashboard",
+        platform_type: Literal["gitlab", "github"],
     ):
-        self.api = api_wrapper
-        self.project_id = project_id
-        self.dashboard_title = dashboard_title
+        if platform_type == "gitlab":
+            self.api = GitlabAPIWrapper()
+        elif platform_type == "github":
+            self.api = GitHubAPIWrapper()
+        else:
+            raise ValueError(f"Unsupported VCS: {platform_type}")
+
+        self.platform_type = platform_type
+        self.dashboard_title: str = "🛠️ Mergebot Project Dashboard"
+
+    def get_open_prs(self):
+        """
+        A utility function to fetch all open PRs/MRs and returns a tuple:
+            (list_of_prs, {pr_id_string: pr_object, ...})
+        """
+        if self.platform_type == "gitlab":
+            # Use all=True and iterator to reduce memory if large
+            open_prs = list(
+                self.api.gitlab_repo_instance.mergerequests.list(
+                    state="opened", all=True
+                )
+            )
+            get_id = lambda pr: str(pr.iid)  # noqa: E731
+        elif self.platform_type == "github":
+            open_prs = list(self.api.github_repo_instance.get_pulls(state="open"))
+            get_id = lambda pr: str(pr.number)  # noqa: E731
+        else:
+            raise NotImplementedError(
+                f"Platform '{self.platform_type}' is not supported."
+            )
+        open_pr_iids = {get_id(pr): pr for pr in open_prs}
+        return open_prs, open_pr_iids
 
     def get_or_create_dashboard(self) -> Dict[str, Any]:
         """
-        Search for the dashboard issue by title or marker.
-        If not found, create it with the initial template.
+        Retrieves the existing Mergebot dashboard issue for the current repository/project,
+        identified by a unique title and marker in its body/description. If no such issue
+        exists, a new one is created using the dashboard template.
+
+        Returns:
+            dict: A dictionary containing the dashboard issue's unique identifier (either
+                  'number' for GitHub or 'iid' for GitLab) as 'id' and its text content
+                  (either 'body' for GitHub or 'description' for GitLab) as 'body'.
         """
         # Search for existing issue
         issues = self.api.search_issues(self.dashboard_title)
+        id_key = "number" if self.platform_type == "github" else "iid"
+        body_key = "body" if self.platform_type == "github" else "description"
         for issue in issues:
-            if DASHBOARD_MARKER in issue.get("description", ""):
-                return {"id": issue["iid"], "body": issue["description"]}
+            if DASHBOARD_MARKER in issue.get(body_key, ""):
+                return {"id": issue[id_key], "body": issue[body_key]}
         # Not found, create new
         initial_body = self._initial_dashboard_body()
         issue = self.api.create_issue(self.dashboard_title, initial_body)
-        return {"id": issue["iid"], "body": issue["description"]}
+        return {"id": issue[id_key], "body": issue[body_key]}
 
     def parse_dashboard(self, markdown: str) -> Dict[str, Any]:
         """
@@ -91,29 +96,29 @@ class GitLabDashboardManager(DashboardManager):
 
         dashboard_section = extract_section(DASHBOARD_MARKER)
         rerun_requests = self.extract_rerun_requests(dashboard_section)
-        tracked_mrs = self.extract_tracked_mrs(dashboard_section)
+        tracked_prs = self.extract_tracked_prs(dashboard_section)
         analytics_section = self.parse_analytics_summary(markdown)
 
         return {
             "dashboard": dashboard_section,
             "rerun_requests": rerun_requests,
-            "tracked_mrs": tracked_mrs,
+            "tracked_prs": tracked_prs,
             "analytics": analytics_section,
         }
 
     def extract_rerun_requests(self, dashboard_section: str) -> list:
         """
-        Extracts MR numbers from checked rerun checkboxes in the dashboard section.
-        Returns a list of MR numbers as strings.
+        Extracts PR/MR numbers from checked rerun checkboxes in the dashboard section.
+        Returns a list of PR/MR numbers as strings.
         """
         # Matches: - [x] Rerun agent analysis for [!123](...)
         pattern = r"- \[x\] Rerun agent analysis for \[!(\d+)\]"
         return re.findall(pattern, dashboard_section, re.IGNORECASE)
 
-    def extract_tracked_mrs(self, dashboard_section: str) -> list:
+    def extract_tracked_prs(self, dashboard_section: str) -> list:
         """
-        Extracts MR numbers from the Active Merge Requests table in the dashboard section.
-        Returns a list of MR numbers as strings.
+        Extracts PR/MR numbers from the Active PRs/MRs table in the dashboard section.
+        Returns a list of PR/MR numbers as strings.
         """
         # Matches: | [!123](...) | ...
         pattern = r"\|\s*\[!(\d+)\]\("
@@ -165,7 +170,7 @@ class GitLabDashboardManager(DashboardManager):
             dashboard = self.get_or_create_dashboard()
             body = dashboard.get("body", "")
             table_match = re.search(
-                r"## 🧩 \*\*Active Merge Requests\*\*.*?\n((?:\|.*\n)+)",
+                r"## 🧩 \*\*Active Pull/Merge Requests \(PR/MR\)\*\*.*?\n((?:\|.*\n)+)",
                 body,
                 re.DOTALL,
             )
@@ -195,39 +200,40 @@ class GitLabDashboardManager(DashboardManager):
         recommendation_map = {}
         impact_score_map = {}
         if previous_table:
-            # Parse each row for MR iid, Impact Score, Recommendation, and Last Reviewed
+            # Parse each row for PR id, Impact Score, Recommendation, and Last Reviewed
             for line in previous_table.splitlines():
                 match = re.match(
                     r"\|\s*\[!(\d+)\][^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|([^\|]*)\|([^\|]*)\|",
                     line,
                 )
                 if match:
-                    iid = match.group(1)
+                    pr_id = match.group(1)
                     impact_score = match.group(2).strip()
                     recommendation = match.group(3).strip()
                     last_reviewed = match.group(4).strip()
-                    impact_score_map[iid] = impact_score
-                    recommendation_map[iid] = recommendation
-                    last_reviewed_map[iid] = last_reviewed
+                    impact_score_map[pr_id] = impact_score
+                    recommendation_map[pr_id] = recommendation
+                    last_reviewed_map[pr_id] = last_reviewed
 
         if not mr_data:
-            return "_No active merge requests._"
-        header = "| MR | Title | Status | Impact Score | Recommendation | Last Reviewed | Analysis |\n|-----|-------|--------|-------------|----------------|---------------|----------|"
+            return "_No active pull or merge requests._"
+        header = "| PR/MR | Title | Status | Impact Score | Recommendation | Last Reviewed | Analysis |\n|-------|-------|--------|-------------|----------------|---------------|----------|"
         rows = []
-        for mr in mr_data:
-            iid_str = str(mr["iid"])
-            # If this MR was just analyzed, use the new value; else, preserve previous
-            last_reviewed = mr.get("last_reviewed", "").strip()
-            recommendation = mr.get("recommendation", "").strip()
-            impact_score = mr.get("impact_score", "").strip()
+        for pr in mr_data:
+            pr_id_str = str(pr["id"])
+            # If this PR/MR was just analyzed, use the new value; else, preserve previous
+            last_reviewed = pr.get("last_reviewed", "").strip()
+            recommendation = pr.get("recommendation", "").strip()
+            impact_score = pr.get("impact_score", "").strip()
             if not last_reviewed or last_reviewed == "N/A":
-                last_reviewed = last_reviewed_map.get(iid_str, "N/A")
+                last_reviewed = last_reviewed_map.get(pr_id_str, "N/A")
             if not recommendation:
-                recommendation = recommendation_map.get(iid_str, "")
+                recommendation = recommendation_map.get(pr_id_str, "")
             if not impact_score or impact_score == "N/A":
-                impact_score = impact_score_map.get(iid_str, "N/A")
+                impact_score = impact_score_map.get(pr_id_str, "N/A")
+                
             rows.append(
-                f"| [!{mr['iid']}]({mr.get('web_url', '#')}) | {mr.get('title', '')} | {mr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({mr.get('analysis_link', '#')}) |"
+                f"| [!{pr['id']}]({pr.get('web_url', '#')}) | {pr.get('title', '')} | {pr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({pr.get('analysis_link', '#')}) |"
             )
         return header + "\n" + "\n".join(rows)
 
@@ -235,12 +241,12 @@ class GitLabDashboardManager(DashboardManager):
         self, mr_data: List[Dict[str, Any]], rerun_requests: List[str]
     ) -> str:
         if not mr_data:
-            return "_No merge requests available for rerun._"
+            return "_No pull or merge requests available for rerun._"
         lines = []
-        for mr in mr_data:
-            checked = "x" if str(mr["iid"]) in rerun_requests else " "
+        for pr in mr_data:
+            checked = "x" if str(pr["id"]) in rerun_requests else " "
             lines.append(
-                f"- [{checked}] Rerun agent analysis for [!{mr['iid']}]({mr.get('web_url', '#')})"
+                f"- [{checked}] Rerun agent analysis for [!{pr['id']}]({pr.get('web_url', '#')})"
             )
         return "\n".join(lines)
 

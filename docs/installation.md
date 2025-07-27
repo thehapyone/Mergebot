@@ -6,7 +6,7 @@ How to install and set up Mergebot.
 
 - Python 3.12+ (if running from source)
 - Docker (containerized usage)
-- Git account and project access
+- GitHub or GitLab account and project access
 
 
 ## Install via Docker
@@ -24,9 +24,11 @@ cd Mergebot
 poetry install
 
 ## Run the app
-mergebot ondemand  --project=path_to_your_git_project
+mergebot ondemand  --project=path_to_your_github_or_gitlab_project
 ```
 
 ---
 
-> **Note:** For quick setup, see [Quickstart](quickstart.md).
+> **Note:** Mergebot fully supports both GitHub and GitLab projects.
+>
+> For quick setup, see [Quickstart](quickstart.md).

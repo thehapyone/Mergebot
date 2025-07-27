@@ -2,7 +2,7 @@ from crewai import Agent, Task
 from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
-from mergebot.tools.gitlab import GitlabMergeApprovalTool, GitlabMergeCommentTool
+from mergebot.tools import PullRequestApprovalTool, PullRequestCommentTool
 
 
 @CrewBase
@@ -14,7 +14,7 @@ class Publication(BotBaseCrew):
         return Agent(
             config=self.agents_config["publicator"],
             llm=self.llm_model,
-            tools=[GitlabMergeCommentTool()],
+            tools=[PullRequestCommentTool()],
         )
 
     @agent
@@ -22,7 +22,7 @@ class Publication(BotBaseCrew):
         return Agent(
             config=self.agents_config["executor"],
             llm=self.llm_model,
-            tools=[GitlabMergeApprovalTool(), GitlabMergeCommentTool()],
+            tools=[PullRequestApprovalTool(), PullRequestCommentTool()],
         )
 
     @task

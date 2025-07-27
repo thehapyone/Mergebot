@@ -1,7 +1,0 @@
-mr_retriever_task:
-  description: >
-    Retrieve MR details using the GitLab API. User Input: {input}
-  agent: mr_retriever
-  expected_output: >
-    Obtain complete MR details, including metadata (e.g., title, author, status) pipeline, and diffs.
-    Ensure the full MR pipeline/changes/diffs are included. Ensure the MR information is complete and accurate. No hallucination or examples are allowed.

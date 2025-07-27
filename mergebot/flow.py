@@ -10,7 +10,7 @@ from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
     ImpactEvaluator,
-    MRProcessor,
+    PRProcessor,
     Publication,
     RiskAnalysis,
     TestAnalysis,
@@ -81,27 +81,41 @@ def extract_assessment(impact_assessment: str) -> dict:
     }
 
 
-def extract_merge_request_id(output_string):
-    pattern = r"https://.+/merge_requests/(\d+)"
-    match = re.search(pattern, output_string)
-    return int(match.group(1)) if match else None
+def extract_pr_id(output_string):
+    """
+    Extracts the PR/MR ID from a GitHub or GitLab URL.
+    Supports:
+      - GitHub: .../pull/123
+      - GitLab: .../merge_requests/123
+    """
+    patterns = [
+        r"https?://.+/pull/(\d+)",  # GitHub PR
+        r"https?://.+/merge_requests/(\d+)",  # GitLab MR
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, output_string)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 class MergeBotCrews(BaseModel):
-    code_analysis: Crew = CodeAnalysis().crew()
-    complexity_assessment: Crew = ComplexityAnalysis().crew()
-    test_analysis: Crew = TestAnalysis().crew()
-    risk_analysis: Crew = RiskAnalysis().crew()
-    impact_evaluator: Crew = ImpactEvaluator().crew()
-    mr_processor: Crew = MRProcessor().crew()
-    publicator: Crew = Publication().crew()
+    code_analysis: Crew = Field(default_factory=lambda: CodeAnalysis().crew())
+    complexity_assessment: Crew = Field(
+        default_factory=lambda: ComplexityAnalysis().crew()
+    )
+    test_analysis: Crew = Field(default_factory=lambda: TestAnalysis().crew())
+    risk_analysis: Crew = Field(default_factory=lambda: RiskAnalysis().crew())
+    impact_evaluator: Crew = Field(default_factory=lambda: ImpactEvaluator().crew())
+    pr_retriever: Crew = Field(default_factory=lambda: PRProcessor().crew())
+    publicator: Crew = Field(default_factory=lambda: Publication().crew())
 
 
 class MergeBotState(BaseModel):
-    mr_url: str = ""
-    mr_id: int = None
-    mr_title: str = ""
-    mr_details: str = ""
+    pr_url: str = ""
+    pr_id: int = None
+    pr_title: str = ""
+    pr_details: str = ""
     code_analysis_assessment: str = ""
     complexity_assessment: str = ""
     test_analysis_assessment: str = ""
@@ -120,7 +134,7 @@ class MergeBotState(BaseModel):
 
 class AnalysisResult(BaseModel):
     title: str
-    iid: int
+    id: int
     impact_score: str = Field(default="")
     recommendation: str = Field(default="")
     last_reviewed: str
@@ -128,55 +142,59 @@ class AnalysisResult(BaseModel):
 
 
 class MergeBotFlow(Flow[MergeBotState]):
-    crews = MergeBotCrews()
 
     @start()
-    def begin(self):
+    def initialize(self):
         logger.info("Commencing and starting the MergeBot")
+        self.crews = MergeBotCrews()
+        # The ID field is automatically available
+        logger.info(
+            f"Flow with ID: {self.state.id} initialized"
+        )
 
-    @listen(begin)
-    async def mr_retriever(self):
-        """Runs a Crew to extract Merge Request Details"""
-        mr_details = (
-            await self.crews.mr_processor.kickoff_async(
-                inputs={"input": self.state.mr_url}
+    @listen(initialize)
+    async def pr_retriever(self):
+        """Runs a Crew to extract Pull Request Details"""
+        pr_details = (
+            await self.crews.pr_retriever.kickoff_async(
+                inputs={"input": self.state.pr_url}
             )
         ).raw
-        self.state.mr_details = mr_details
+        self.state.pr_details = pr_details
 
-    @listen(mr_retriever)
+    @listen(pr_retriever)
     async def code_analysis_assessment(self):
-        """Runs the Code Analysis Assessment on the MR details"""
+        """Runs the Code Analysis Assessment on the PR details"""
         self.state.code_analysis_assessment = (
             await self.crews.code_analysis.kickoff_async(
-                inputs={"mr_details": self.state.mr_details}
+                inputs={"pr_details": self.state.pr_details}
             )
         ).raw
 
-    @listen(mr_retriever)
+    @listen(pr_retriever)
     async def complexity_assessment(self):
-        """Runs the Complexity Assessment on the MR details"""
+        """Runs the Complexity Assessment on the PR details"""
         self.state.complexity_assessment = (
             await self.crews.complexity_assessment.kickoff_async(
-                inputs={"mr_details": self.state.mr_details}
+                inputs={"pr_details": self.state.pr_details}
             )
         ).raw
 
-    @listen(mr_retriever)
+    @listen(pr_retriever)
     async def test_analysis_assessment(self):
-        """Runs the Test Analysis Assessment on the MR details"""
+        """Runs the Test Analysis Assessment on the PR details"""
         self.state.test_analysis_assessment = (
             await self.crews.test_analysis.kickoff_async(
-                inputs={"mr_details": self.state.mr_details}
+                inputs={"pr_details": self.state.pr_details}
             )
         ).raw
 
-    @listen(mr_retriever)
+    @listen(pr_retriever)
     async def risk_assessment(self):
-        """Runs the Risk Analysis Assessment on the MR details"""
+        """Runs the Risk Analysis Assessment on the PR details"""
         self.state.risk_assessment = (
             await self.crews.risk_analysis.kickoff_async(
-                inputs={"mr_details": self.state.mr_details}
+                inputs={"pr_details": self.state.pr_details}
             )
         ).raw
 
@@ -189,14 +207,14 @@ class MergeBotFlow(Flow[MergeBotState]):
         )
     )
     async def impact_evaluator(self):
-        """Runs the Impact Evaluator Analysis Assessment on the MR details"""
+        """Runs the Impact Evaluator Analysis Assessment on the PR details"""
         approval_policy = get_runtime_config(as_pydantic=True).approval_policy
         policy_str = approval_policy.to_markdown() if approval_policy else ""
         self.state.impact_assessment = extract_assessment(
             (
                 await self.crews.impact_evaluator.kickoff_async(
                     inputs={
-                        "mr_id": self.state.mr_id,
+                        "pr_id": self.state.pr_id,
                         "approval_policy": policy_str,
                         "code_analysis_assessment": self.state.code_analysis_assessment,
                         "complexity_assessment": self.state.complexity_assessment,
@@ -208,11 +226,11 @@ class MergeBotFlow(Flow[MergeBotState]):
         )
 
     @listen(impact_evaluator)
-    async def mr_decision(self):
-        """Runs the MR decision crew on the impact assessment report"""
+    async def pr_decision(self):
+        """Runs the PR decision crew on the impact assessment report"""
         response = await self.crews.publicator.kickoff_async(
             inputs={
-                "mr_id": self.state.mr_id,
+                "pr_id": self.state.pr_id,
                 "impact_assessment_report": self.state.impact_assessment,
             }
         )
@@ -229,28 +247,28 @@ class MergeBotFlow(Flow[MergeBotState]):
 
 
 async def run_flow(
-    mr_url: str, mr_iid: int = None, mr_title: str = "", project: str = None
+    pr_url: str, pr_id: int = None, pr_title: str = "", project: str = None
 ) -> AnalysisResult:
     """
-    Initiates the MergeBotFlow to process a merge request URL.
+    Initiates the MergeBotFlow to process a pull request (PR) or merge request (MR) URL.
 
     Args:
-        mr_url (str): The URL of the merge request to process.
-        mr_iid (int): Optional merge request ID to process.
-        mr_title (str): Optional merge request title.
-        project (str): The GitLab project/repository path.
+        pr_url (str): The URL of the pull request or merge request to process.
+        pr_id (int): Optional PR/MR ID to process.
+        pr_title (str): Optional PR/MR title.
+        project (str): The repository path.
 
     Returns:
         AnalysisResult: Validated analysis result for dashboard/tracking.
     """
-    mr_id = mr_iid or extract_merge_request_id(mr_url)
-    if not mr_id:
-        raise Exception(f"Failed to extract MR ID from URL: {mr_url}")
+    pr_id_val = pr_id or extract_pr_id(pr_url)
+    if not pr_id_val:
+        raise Exception(f"Failed to extract PR/MR ID from URL: {pr_url}")
 
     inital_state = {
-        "mr_url": mr_url,
-        "mr_id": mr_id,
-        "mr_title": mr_title,
+        "pr_url": pr_url,
+        "pr_id": pr_id_val,
+        "pr_title": pr_title,
         "project": project,
     }
 
@@ -268,8 +286,8 @@ async def run_flow(
 
     try:
         analysis_result = AnalysisResult(
-            title=mergebot.state.mr_title,
-            iid=mergebot.state.mr_id,
+            title=mergebot.state.pr_title,
+            id=mergebot.state.pr_id,
             impact_score=mergebot.state.impact_assessment.get("score"),
             recommendation=mergebot.state.impact_assessment.get("recommendation"),
             last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),

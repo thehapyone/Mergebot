@@ -1,6 +1,6 @@
 risk_analysis_task:
   description: |
-    Analyze the MR changes to identify any potential risks introduced. Consider factors such as:
+    Analyze the pull request (PR) changes to identify any potential risks introduced. Consider factors such as:
 
     - **Modifications to Critical Files or Configurations**: Changes to core modules, system configurations, or foundational code.
     - **Security Vulnerabilities**: Introduction of code that may expose the system to security threats, such as injection vulnerabilities, improper authentication mechanisms, or insecure data handling.
@@ -10,8 +10,8 @@ risk_analysis_task:
 
     Evaluate the severity of these risks and provide recommendations for mitigation.
 
-    **Merge Request Details**:
-    {mr_details}
+    **Pull Request Details**:
+    {pr_details}
 
   agent: risk_analysis
   expected_output: |

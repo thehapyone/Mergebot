@@ -2,12 +2,12 @@ evaluator_task:
   description: |
     Aggregate the assessments from all agents.
     Apply weights to each score to compute an overall impact score on a scale from 0 to 10.
-    Based on the overall impact score and predefined thresholds, determine whether the MR should be auto-approved and merged without human approval.
+    Based on the overall impact score and predefined thresholds, determine whether the pull or merge request (PR/MR) should be auto-approved and merged without human approval.
     Provide a comprehensive impact assessment report compiling all assessments, along with a clear recommendation.
 
     {approval_policy}
 
-    **Merge Request ID**: {mr_id}
+    **PR/MR ID**: {pr_id}
 
     **Agent Assessments**:
     - **Code Analysis Agent**: {code_analysis_assessment}
@@ -18,14 +18,14 @@ evaluator_task:
   agent: impact_evaluator
   expected_output: |
     - **Overall Impact Score**: A number between 0 and 10.
-    - **Recommendation**: A clear statement indicating whether the MR should be auto-approved and merged without human intervention.
-    - **Justification**: A detailed and formatted impact assessment report justifying the score and recommendation, ready for posting as a comment on the Merge Request.
+    - **Recommendation**: A clear statement indicating whether the pull or merge request (PR/MR) should be auto-approved and merged without human intervention.
+    - **Justification**: A detailed and formatted impact assessment report justifying the score and recommendation, ready for posting as a comment on the PR/MR.
     - If manual review is recommended, the report should be enriched with a summary table, triage information, reviewer guidance, and actionable findings for each agent, highlighting concrete issues and suggested remediations.
 
-    **Output Format (Markdown ready for MR comment):**
+    **Output Format (Markdown ready for PR/MR comment):**
 
     ```markdown
-    # Impact Assessment Report for MR #<mr_id>
+    # Impact Assessment Report for PR/MR #<pr_id>
 
     **Overall Impact Score**: X.X
 

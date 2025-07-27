@@ -1,13 +1,6 @@
-from mergebot.tools.gitlab.tools import (
-    GitlabMergeApprovalTool,
-    GitlabMergeCommentTool,
-    GitlabMergeRequestTool,
-    GitlabPipelineTool,
-)
+# mergebot/tools/gitlab/__init__.py
+from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 
 __all__ = [
-    "GitlabMergeApprovalTool",
-    "GitlabMergeCommentTool",
-    "GitlabMergeRequestTool",
-    "GitlabPipelineTool",
+    "GitlabAPIWrapper",
 ]

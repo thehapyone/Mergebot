@@ -1,10 +1,10 @@
 # Ondemand Runner
 
-The Ondemand Runner enables parallel analysis of multiple merge requests and updates the dashboard with results.
+The Ondemand Runner enables parallel analysis of multiple pull or merge requests (PR/MR) and updates the dashboard with results.
 
 ## Features
 
-- Scans all open MRs in a project.
+- Scans all open PRs/MRs in a project.
 - Runs analysis in parallel using async workers.
 - Updates the dashboard with new results and analytics.
 - Supports periodic mode for continuous monitoring.
@@ -17,6 +17,8 @@ mergebot ondemand --project mygroup/myrepo --workers 4
 
 ## Implementation
 
+- Managed by a single, VCS-agnostic Ondemand Runner that works seamlessly with both GitHub and GitLab.
+- All PR/MR data is normalized to a common schema for robust, platform-independent dashboard and analytics flows.
 - Uses asyncio for concurrency.
 - Integrates with the Dashboard Manager and Flow Engine.
 - Handles errors and preserves previous dashboard data.

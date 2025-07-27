@@ -1,6 +1,6 @@
 complexity_analyze_task:
   description: >
-    Analyze the changes made in the MR to evaluate their complexity. Use language-agnostic methods, considering aspects such as:
+    Analyze the changes made in the pull or merge request (PR) to evaluate their complexity. Use language-agnostic methods, considering aspects such as:
 
     - **Lines of Code Changed**: Total additions and deletions.
     - **Structural Modifications**: Changes to the architecture or design patterns.
@@ -8,8 +8,8 @@ complexity_analyze_task:
     - **Dependencies Affected**: Impact on external libraries, modules, or services.
     - **Refactoring Efforts**: Simplification or complication of existing code.
     
-    **Merge Request Details**:
-    {mr_details}
+    **Pull Request Details**:
+    {pr_details}
   agent: complexity_analyzer
   expected_output: >
     - A **complexity impact score** between 0 and 10, where higher scores indicate greater complexity and potential risk.

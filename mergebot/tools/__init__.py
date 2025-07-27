@@ -1,13 +1,11 @@
-from mergebot.tools.gitlab import (
-    GitlabMergeApprovalTool,
-    GitlabMergeCommentTool,
-    GitlabMergeRequestTool,
-    GitlabPipelineTool,
+from mergebot.tools.common import (
+    PullRequestApprovalTool,
+    PullRequestCommentTool,
+    PullRequestTool,
 )
 
 __all__ = [
-    "GitlabMergeApprovalTool",
-    "GitlabMergeCommentTool",
-    "GitlabMergeRequestTool",
-    "GitlabPipelineTool",
+    "PullRequestApprovalTool",
+    "PullRequestTool",
+    "PullRequestCommentTool",
 ]
