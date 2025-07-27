@@ -100,13 +100,15 @@ def extract_pr_id(output_string):
 
 
 class MergeBotCrews(BaseModel):
-    code_analysis: Crew = CodeAnalysis().crew()
-    complexity_assessment: Crew = ComplexityAnalysis().crew()
-    test_analysis: Crew = TestAnalysis().crew()
-    risk_analysis: Crew = RiskAnalysis().crew()
-    impact_evaluator: Crew = ImpactEvaluator().crew()
-    pr_retriever: Crew = PRProcessor().crew()
-    publicator: Crew = Publication().crew()
+    code_analysis: Crew = Field(default_factory=lambda: CodeAnalysis().crew())
+    complexity_assessment: Crew = Field(
+        default_factory=lambda: ComplexityAnalysis().crew()
+    )
+    test_analysis: Crew = Field(default_factory=lambda: TestAnalysis().crew())
+    risk_analysis: Crew = Field(default_factory=lambda: RiskAnalysis().crew())
+    impact_evaluator: Crew = Field(default_factory=lambda: ImpactEvaluator().crew())
+    pr_retriever: Crew = Field(default_factory=lambda: PRProcessor().crew())
+    publicator: Crew = Field(default_factory=lambda: Publication().crew())
 
 
 class MergeBotState(BaseModel):
@@ -140,13 +142,17 @@ class AnalysisResult(BaseModel):
 
 
 class MergeBotFlow(Flow[MergeBotState]):
-    crews = MergeBotCrews()
 
     @start()
-    def begin(self):
+    def initialize(self):
         logger.info("Commencing and starting the MergeBot")
+        self.crews = MergeBotCrews()
+        # The ID field is automatically available
+        logger.info(
+            f"Flow with ID: {self.state.id} initialized"
+        )
 
-    @listen(begin)
+    @listen(initialize)
     async def pr_retriever(self):
         """Runs a Crew to extract Pull Request Details"""
         pr_details = (
