@@ -3,6 +3,7 @@ import asyncio
 import sys
 
 from mergebot.ondemand_runner import OndemandRunner
+from mergebot.utils import configure_telemetry
 from mergebot.validator.config_manager import ensure_repo_config
 from mergebot.validator.logging_config import logger
 from mergebot.webhook_server import WebhookServer
@@ -86,6 +87,7 @@ async def main():
     # Ensure repo config before running anything, wrap entire execution for robust error handling
     try:
         ensure_repo_config(args.project)
+        configure_telemetry()
 
         if args.mode == "webhook":
             run_webhook_mode(args.port, args.project)

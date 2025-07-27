@@ -148,6 +148,12 @@ class AnalysisConfig(BaseModel):
     )
 
 
+class TelemetryConfig(BaseModel):
+    enabled: bool = Field(
+        default=False, description="Enable full telemetry via OpenTelemetry"
+    )
+
+
 class Config(BaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")
     repository: RepositoryConfig = Field(..., description="Repository configuration")
@@ -156,6 +162,7 @@ class Config(BaseModel):
     )
     approval_policy: Optional[ApprovalPolicy] = None
     analysis: Optional[AnalysisConfig] = None
+    telemetry: Optional[TelemetryConfig] = None
 
     def get_llm_model_for_crew(self, crew_name: str) -> str:
         """Get LLM model for the crew"""

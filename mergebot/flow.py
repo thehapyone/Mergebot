@@ -142,15 +142,12 @@ class AnalysisResult(BaseModel):
 
 
 class MergeBotFlow(Flow[MergeBotState]):
-
     @start()
     def initialize(self):
         logger.info("Commencing and starting the MergeBot")
         self.crews = MergeBotCrews()
         # The ID field is automatically available
-        logger.info(
-            f"Flow with ID: {self.state.id} initialized"
-        )
+        logger.info(f"Flow with ID: {self.state.id} initialized")
 
     @listen(initialize)
     async def pr_retriever(self):

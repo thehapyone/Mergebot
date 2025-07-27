@@ -33,3 +33,6 @@ approval_policy:
 analysis:
   max_mrs: 10  # 0 or missing means unlimited
   draft_mrs: false  # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
+
+telemetry:
+  enabled: false  # Disable all OpenTelemetry (including CrewAI) by default. Set to true to enable.

@@ -231,7 +231,7 @@ class DashboardManager:
                 recommendation = recommendation_map.get(pr_id_str, "")
             if not impact_score or impact_score == "N/A":
                 impact_score = impact_score_map.get(pr_id_str, "N/A")
-                
+
             rows.append(
                 f"| [!{pr['id']}]({pr.get('web_url', '#')}) | {pr.get('title', '')} | {pr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({pr.get('analysis_link', '#')}) |"
             )

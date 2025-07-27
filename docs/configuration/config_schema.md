@@ -22,8 +22,32 @@ This page documents the fields and structure of the Mergebot configuration file 
 | crews           | object | Per-crew configuration (optional)             |
 | approval_policy | object | Approval policy configuration (optional)      |
 | analysis        | object | Analysis options (optional, e.g. MR limits)   |
+| telemetry       | object | Telemetry/analytics toggle (optional, see below) |
 
 ---
+
+## Telemetry
+
+Mergebot supports a simple toggle to enable or disable all OpenTelemetry-based telemetry (including CrewAI telemetry):
+
+```yaml
+telemetry:
+  enabled: false  # Default: false. Set to true to enable all OpenTelemetry (including CrewAI) telemetry.
+```
+
+- When `enabled: false` (or omitted), Mergebot sets the environment variable `OTEL_SDK_DISABLED=true` at startup, disabling all OpenTelemetry instrumentation and telemetry.
+- When `enabled: true`, Mergebot unsets `OTEL_SDK_DISABLED` so telemetry is allowed.
+- If you set `OTEL_SDK_DISABLED=true` in your environment, this always takes precedence and disables telemetry regardless of config.
+
+**Environment variable override:**  
+You can force-disable all telemetry by setting `OTEL_SDK_DISABLED=true` in your environment before running Mergebot.
+
+Example:
+```bash
+export OTEL_SDK_DISABLED=true
+mergebot ...
+```
+
 
 ## Analysis Options
 
