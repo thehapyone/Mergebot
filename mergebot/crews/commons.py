@@ -2,6 +2,7 @@ import re
 
 from crewai import Crew, Process
 from crewai.project import crew
+from crewai import LLM
 
 from mergebot.validator.config import get_runtime_config
 
@@ -25,7 +26,10 @@ class BotBaseCrew:
     def __init__(self):
         # Get the LLM model for this crew
         crew_name = extract_class_name(self.__class__.__name__)
-        self.llm_model = self.config.get_llm_model_for_crew(crew_name)
+        llm_model = self.config.get_llm_model_for_crew(crew_name)
+        self.llm = LLM(
+            model=llm_model, drop_params=True, additional_drop_params=["stop"]
+        )
 
     @crew
     def crew(self) -> Crew:

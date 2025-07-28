@@ -13,7 +13,7 @@ class Publication(BotBaseCrew):
     def publicator(self) -> Agent:
         return Agent(
             config=self.agents_config["publicator"],
-            llm=self.llm_model,
+            llm=self.llm,
             tools=[PullRequestCommentTool()],
         )
 
@@ -21,7 +21,7 @@ class Publication(BotBaseCrew):
     def executor(self) -> Agent:
         return Agent(
             config=self.agents_config["executor"],
-            llm=self.llm_model,
+            llm=self.llm,
             tools=[PullRequestApprovalTool(), PullRequestCommentTool()],
         )
 

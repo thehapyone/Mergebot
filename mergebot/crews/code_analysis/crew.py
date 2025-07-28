@@ -10,7 +10,7 @@ class CodeAnalysis(BotBaseCrew):
 
     @agent
     def code_analyzer(self) -> Agent:
-        return Agent(config=self.agents_config["code_analyzer"], llm=self.llm_model)
+        return Agent(config=self.agents_config["code_analyzer"], llm=self.llm)
 
     @task
     def analysis_task(self) -> Task:

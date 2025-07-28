@@ -10,7 +10,7 @@ class RiskAnalysis(BotBaseCrew):
 
     @agent
     def risk_analysis(self) -> Agent:
-        return Agent(config=self.agents_config["risk_analysis"], llm=self.llm_model)
+        return Agent(config=self.agents_config["risk_analysis"], llm=self.llm)
 
     @task
     def risk_analysis_task(self) -> Task:

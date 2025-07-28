@@ -15,7 +15,7 @@ class PRProcessor(BotBaseCrew):
     def pr_retriever(self) -> Agent:
         return Agent(
             config=self.agents_config["pr_retriever"],
-            llm=self.llm_model,
+            llm=self.llm,
             tools=[PullRequestTool()],
         )
 
