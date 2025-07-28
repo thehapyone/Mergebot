@@ -1,8 +1,7 @@
 import re
 
-from crewai import Crew, Process
+from crewai import LLM, Crew, Process
 from crewai.project import crew
-from crewai import LLM
 
 from mergebot.validator.config import get_runtime_config
 

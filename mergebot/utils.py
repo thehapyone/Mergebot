@@ -1,4 +1,5 @@
 import os
+
 from mergebot.validator.config import get_runtime_config
 
 

@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import time
 
 from mergebot.dashboard.dashboard_manager import DashboardManager
@@ -239,6 +240,11 @@ class OndemandRunner:
             analytics=analytics_summary,
         )
         logger.info("[Ondemand] Dashboard update complete")
+
+        # If errors occurred exit with -1
+        if errors:
+            logger.error("[Ondemand] Errors detected during flow.")
+            sys.exit(-1)
 
     async def run_periodic(self, interval: int):
         """
