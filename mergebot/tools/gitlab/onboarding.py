@@ -31,7 +31,7 @@ class GitlabOnboardingManager(OnboardingManagerBase):
         default_branch = self.project.default_branch
 
         # Ensure the branch exists (create if not)
-        if not self.branch_exists(self.onboarding_branch):
+        if not self.branch_exists():
             self.project.branches.create(
                 {"branch": self.onboarding_branch, "ref": default_branch}
             )
