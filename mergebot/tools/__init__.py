@@ -1,11 +1,11 @@
 from mergebot.tools.common import (
-    PullRequestApprovalTool,
-    PullRequestCommentTool,
-    PullRequestTool,
+    ApprovePullOrMergeRequestTool,
+    GitlabMergeCommentTool,
+    GetPullOrMergeRequestTool,
 )
 
 __all__ = [
-    "PullRequestApprovalTool",
-    "PullRequestTool",
-    "PullRequestCommentTool",
+    "ApprovePullOrMergeRequestTool",
+    "GitlabMergeCommentTool",
+    "GetPullOrMergeRequestTool",
 ]

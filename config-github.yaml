@@ -1,26 +1,15 @@
 llm:
-  model: "azure/gpt-4.1"
+  model: "azure/gpt-4.1-nano"
 
 repository:
   type: "github"
 
   gitlab:
-    url: "https://gitlab.its.getingecloud.net"
     base_branch: "main"
 
   github:
     base_branch: "main"
 
-crews:
-  # CodeAnalysis:
-  #   llm:
-  #     model: "azure/o3-mini"
-  # ImpactEvaluator:
-  #   llm:
-  #     model: "azure/o3-mini"
-  TestAnalysis:
-    llm:
-      model: "azure/gpt-4.1-mini"
 
 approval_policy:
   threshold: 3.0
