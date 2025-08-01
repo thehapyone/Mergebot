@@ -74,7 +74,7 @@ class PRToolSchema(BaseModel):
 class GetPullOrMergeRequestTool(BaseVCSTool):
     """Fetches the complete details of a pull or merge request from the repository platform."""
 
-    name: str = "Get Pull or Merge Request"
+    name: str = "GetPullOrMergeRequest"
     description: str = GET_PULL_REQUEST_PROMPT
     args_schema: Type[BaseModel] = PRToolSchema
 
@@ -89,23 +89,16 @@ class GetPullOrMergeRequestTool(BaseVCSTool):
 
 
 class PullRequestCommentToolSchema(BaseModel):
-    # pr_number: int = Field(..., description="The pull or merge request number")
-    # message: str = Field(
-    #     ..., description="The comment to post to the pull or merge request"
-    # )
-    merge_request_iid: str = Field(
-        ..., description="The project level ID of the merge request"
-    )
-    comment: str = Field(
-        ..., description="The merge request comment to be posted to the MR"
+    pr_number: int = Field(..., description="The pull or merge request number")
+    message: str = Field(
+        ..., description="The comment to post to the pull or merge request"
     )
 
 
-
-class GitlabMergeCommentTool(BaseVCSTool):
+class PostCommentTool(BaseVCSTool):
     """Posts a comment to a pull or merge request in the repository platform."""
 
-    name: str = "Post Merge Requests Comment"
+    name: str = "PostComment"
     description: str = POST_PULL_REQUEST_COMMENT_PROMPT
     args_schema: Type[BaseModel] = PullRequestCommentToolSchema
 

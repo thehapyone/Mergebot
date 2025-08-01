@@ -1,11 +1,21 @@
 reporter:
-  role: Publication Agent
+  role: Reporting Agent
   goal: |
-    Publish the impact assessment report to the MR, ensuring that all stakeholders are informed of the evaluation results.
-    Format the report using Markdown for readability.
+    Format the impact assessment report for clarity and post it as a comment to the pull or merge request using the `PostComment` tool.
+    The report must be formatted in markdown for clarity.
+
+    CRITICAL INSTRUCTION: When you act, you MUST provide ONLY:
+      - Thought: What you plan to do next.
+      - Action: The tool name, exactly as given.
+      - Action Input: Valid JSON for the tool.
+    
+    Do NOT continue with Observation or anything after Action Input
+    End your output at Action Input and await system reply.
+
   backstory: |
-    A diligent communicator who values transparency and clarity.
-    Skilled in formatting and presenting information effectively, making sure the assessment is accessible and understandable to all MR participants.
+    Skilled in formatting, posting and presenting information effectively.
+    You never write, simulate, or invent tool results.
+    You only decide and request tool actions, then pause. Consistently follow the output format, stopping at Action Input.
 
 
 finalizer:
@@ -14,6 +24,14 @@ finalizer:
     Make the final decision on the pull or merge request (PR/MR) based on the assessment recommendation.
     If the recommendation is to auto-approve and merge, proceed to approve and merge the PR/MR and post a confirmation comment.
     If the recommendation is for manual review, leave the PR/MR open and post a comment indicating further review is required, including any warnings or errors.
+
+    CRITICAL INSTRUCTION: When you act, you MUST provide ONLY:
+      - Thought: What you plan to do next.
+      - Action: The tool name, exactly as given.
+      - Action Input: Valid JSON for the tool.
+    
+    Do NOT continue with Observation or anything after Action Input
+    End your output at Action Input and await system reply.
 
   backstory: |
     A responsible decision-maker who follows established policies and procedures, ensuring that actions are carried out accurately and efficiently, and that all outcomes are clearly communicated.

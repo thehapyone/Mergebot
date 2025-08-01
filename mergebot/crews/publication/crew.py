@@ -4,11 +4,8 @@ from crewai.project import CrewBase, agent, task
 from mergebot.crews.commons import BotBaseCrew
 from mergebot.tools import (
     ApprovePullOrMergeRequestTool,
-    GitlabMergeCommentTool,
+    PostCommentTool,
 )
-from crewai.project import crew
-
-from crewai import LLM, Crew, Process
 
 
 @CrewBase
@@ -20,7 +17,7 @@ class MergeFinalizationCrew(BotBaseCrew):
         return Agent(
             config=self.agents_config["reporter"],
             llm=self.llm,
-            tools=[GitlabMergeCommentTool()],
+            tools=[PostCommentTool()],
         )
 
     @agent
@@ -28,7 +25,7 @@ class MergeFinalizationCrew(BotBaseCrew):
         return Agent(
             config=self.agents_config["finalizer"],
             llm=self.llm,
-            tools=[GitlabMergeCommentTool(), ApprovePullOrMergeRequestTool()],
+            tools=[PostCommentTool(), ApprovePullOrMergeRequestTool()],
         )
 
     @task
@@ -41,16 +38,4 @@ class MergeFinalizationCrew(BotBaseCrew):
     def finalization_task(self) -> Task:
         return Task(
             config=self.tasks_config["finalization_task"],
-        )
-
-    @crew
-    def crew(self) -> Crew:
-        """Creates the crew"""
-        return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
-            cache=False,
-            process=Process.sequential,
-            verbose=True,
-            output_log_file="test.log",
         )

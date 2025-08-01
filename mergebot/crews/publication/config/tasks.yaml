@@ -1,24 +1,20 @@
 reporting_task:
   description: |
-    Receive the impact assessment report and the recommendation from the Impact Evaluator Crew.
-
-    **Tasks**:
-    - Format the impact assessment report using Markdown for readability and consistency.
-    - Post the formatted report as a comment on the MR, making it available to all stakeholders.
+    Publish this impact assessment report and format the report for clarity and consistency.
 
     **Inputs**:
-    - **MR ID**: {pr_id}
-    - **Impact Assessment Report**:
+    - **Pull/Merge Request ID**: {pr_id}
+    - **Impact Assessment Report** ->:
     {impact_assessment_report}
   agent: reporter
   expected_output: |
-    - The impact assessment report is posted on the MR as a comment, properly formatted in Markdown.
-    - Returns only the direct link (URL) to the posted comment and summary of the assessment report
+    - The report is posted on the pull/merge request as a comment and formatted in markdown.
+    - Returns the direct link (URL) to the posted comment as given by the tool and summary of the assessment report.
     - If posting fails, returns a clear error message.
 
 finalization_task:
   description: |
-    Based on the recommendation from the Impact Evaluator Crew, make the final decision and communicate the outcome.
+    Based on the recommendation, make the final decision and communicate the outcome.
 
     **If the recommendation is to "Auto-approve and merge"**:
     - Approve and merge the pull or merge request (PR/MR).

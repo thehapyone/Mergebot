@@ -1,5 +1,5 @@
 GET_PULL_REQUEST_PROMPT = """
-This tool fetches the complete details of a pull or merge request from the repository platform.
+This tool fetches the complete details of a pull or merge request.
 Example input: {\"pr_number\": \"10\"}
 """
 
@@ -11,8 +11,7 @@ For example, to post a comment \"Looks good to me!\" to pull or merge request nu
 """
 
 APPROVE_MERGE_REQUEST_PROMPT = """
-This tool is used to approves a pull or merge request in the repository platform.
-
+This tool is used to approves a pull or merge request.
 For example, to approve a pull or merge request number 10:
 
 Example input: {\"pr_number\": \"10\"}
