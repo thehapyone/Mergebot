@@ -169,6 +169,32 @@ files = [
 ]
 
 [[package]]
+name = "anthropic"
+version = "0.60.0"
+description = "The official Python library for the anthropic API"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "anthropic-0.60.0-py3-none-any.whl", hash = "sha256:65ad1f088a960217aaf82ba91ff743d6c89e9d811c6d64275b9a7c59ee9ac3c6"},
+    {file = "anthropic-0.60.0.tar.gz", hash = "sha256:a22ba187c6f4fd5afecb2fc913b960feccf72bc0d25c1b7ce0345e87caede577"},
+]
+
+[package.dependencies]
+anyio = ">=3.5.0,<5"
+distro = ">=1.7.0,<2"
+httpx = ">=0.25.0,<1"
+jiter = ">=0.4.0,<1"
+pydantic = ">=1.9.0,<3"
+sniffio = "*"
+typing-extensions = ">=4.10,<5"
+
+[package.extras]
+aiohttp = ["aiohttp", "httpx-aiohttp (>=0.1.8)"]
+bedrock = ["boto3 (>=1.28.57)", "botocore (>=1.31.57)"]
+vertex = ["google-auth[requests] (>=2,<3)"]
+
+[[package]]
 name = "anyio"
 version = "4.9.0"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
@@ -411,6 +437,26 @@ files = [
     {file = "bracex-2.6-py3-none-any.whl", hash = "sha256:0b0049264e7340b3ec782b5cb99beb325f36c3782a32e36e876452fd49a09952"},
     {file = "bracex-2.6.tar.gz", hash = "sha256:98f1347cd77e22ee8d967a30ad4e310b233f7754dbf31ff3fceb76145ba47dc7"},
 ]
+
+[[package]]
+name = "browserbase"
+version = "1.4.0"
+description = "The official Python library for the Browserbase API"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "browserbase-1.4.0-py3-none-any.whl", hash = "sha256:ea9f1fb4a88921975b8b9606835c441a59d8ce82ce00313a6d48bbe8e30f79fb"},
+    {file = "browserbase-1.4.0.tar.gz", hash = "sha256:e2ed36f513c8630b94b826042c4bb9f497c333f3bd28e5b76cb708c65b4318a0"},
+]
+
+[package.dependencies]
+anyio = ">=3.5.0,<5"
+distro = ">=1.7.0,<2"
+httpx = ">=0.23.0,<1"
+pydantic = ">=1.9.0,<3"
+sniffio = "*"
+typing-extensions = ">=4.10,<5"
 
 [[package]]
 name = "build"
@@ -826,14 +872,14 @@ cron = ["capturer (>=2.4)"]
 
 [[package]]
 name = "crewai"
-version = "0.141.0"
+version = "0.152.0"
 description = "Cutting-edge framework for orchestrating role-playing, autonomous AI agents. By fostering collaborative intelligence, CrewAI empowers agents to work together seamlessly, tackling complex tasks."
 optional = false
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
 files = [
-    {file = "crewai-0.141.0-py3-none-any.whl", hash = "sha256:1b8c7f49a8d9e469bfe84a902de965856b63a3e2b649c54ea379ee28b8461092"},
-    {file = "crewai-0.141.0.tar.gz", hash = "sha256:b3d658b64df64ffdae58645670a912778b845c292832dac5e49a461cc4d9e39a"},
+    {file = "crewai-0.152.0-py3-none-any.whl", hash = "sha256:42423a43bb8920dfe9efccc0c7cdd76985ada5f658f95aa7d4b9f8dff8efdf7c"},
+    {file = "crewai-0.152.0.tar.gz", hash = "sha256:fe7ccee499c7769031b4b495b2fa5ed8a5df5d7aaebe3231cc05bd238bc8bf62"},
 ]
 
 [package.dependencies]
@@ -845,7 +891,7 @@ instructor = ">=1.3.3"
 json-repair = "0.25.2"
 json5 = ">=0.10.0"
 jsonref = ">=1.1.0"
-litellm = "1.72.6"
+litellm = "1.74.3"
 onnxruntime = "1.22.0"
 openai = ">=1.13.3"
 openpyxl = ">=3.1.5"
@@ -853,6 +899,7 @@ opentelemetry-api = ">=1.30.0"
 opentelemetry-exporter-otlp-proto-http = ">=1.30.0"
 opentelemetry-sdk = ">=1.30.0"
 pdfplumber = ">=0.11.4"
+portalocker = "2.7.0"
 pydantic = ">=2.4.2"
 pyjwt = ">=2.9.0"
 python-dotenv = ">=1.0.0"
@@ -872,39 +919,43 @@ mem0 = ["mem0ai (>=0.1.94)"]
 openpyxl = ["openpyxl (>=3.1.5)"]
 pandas = ["pandas (>=2.2.3)"]
 pdfplumber = ["pdfplumber (>=0.11.4)"]
-tools = ["crewai-tools (>=0.51.0,<0.52.0)"]
+tools = ["crewai-tools (>=0.59.0,<0.60.0)"]
 
 [[package]]
 name = "crewai-tools"
-version = "0.49.0"
+version = "0.59.0"
 description = "Set of tools for the crewAI framework"
 optional = false
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
 files = [
-    {file = "crewai_tools-0.49.0-py3-none-any.whl", hash = "sha256:f771d8fd677cd4420409964ab8bb700af616341836051a25d534896e46e8b3c4"},
-    {file = "crewai_tools-0.49.0.tar.gz", hash = "sha256:fa2e3a0effb62cfc02cdad01a26eee6e9afef464b36f20f74168fed8c11c2c95"},
+    {file = "crewai_tools-0.59.0-py3-none-any.whl", hash = "sha256:816297934eb352368ff0869a0eb11dd9febb4c40b6d0eda8e6eba8f3e426f446"},
+    {file = "crewai_tools-0.59.0.tar.gz", hash = "sha256:030e4b65446f4c6eccdcba5380bbdc90896de74589cb1bdb3cabc2c22c83f326"},
 ]
 
 [package.dependencies]
-chromadb = ">=0.4.22"
+chromadb = "0.5.23"
 click = ">=8.1.8"
-crewai = ">=0.134.0"
+crewai = ">=0.150.0"
 docker = ">=7.1.0"
 embedchain = ">=0.1.114"
 lancedb = ">=0.5.4"
 openai = ">=1.12.0"
+portalocker = "2.7.0"
 pydantic = ">=2.6.1"
 pyright = ">=1.1.350"
 pytube = ">=15.0.0"
 requests = ">=2.31.0"
+stagehand = ">=0.4.1"
 tiktoken = ">=0.8.0"
 
 [package.extras]
 apify = ["langchain-apify (>=0.1.2,<1.0.0)"]
 beautifulsoup4 = ["beautifulsoup4 (>=4.12.3)"]
+bedrock = ["beautifulsoup4 (>=4.13.4)", "bedrock-agentcore (>=0.1.0)", "nest-asyncio (>=1.6.0)", "playwright (>=1.52.0)"]
 browserbase = ["browserbase (>=1.0.5)"]
 composio-core = ["composio-core (>=0.6.11.post1)"]
+couchbase = ["couchbase (>=4.3.5)"]
 databricks-sdk = ["databricks-sdk (>=0.46.0)"]
 exa-py = ["exa-py (>=1.8.7)"]
 firecrawl-py = ["firecrawl-py (>=1.8.0)"]
@@ -912,6 +963,7 @@ github = ["gitpython (==3.1.38)", "pygithub (==1.59.1)"]
 hyperbrowser = ["hyperbrowser (>=0.18.0)"]
 linkup-sdk = ["linkup-sdk (>=0.2.2)"]
 mcp = ["mcp (>=1.6.0)", "mcpadapt (>=0.1.9)"]
+mongodb = ["pymongo (>=4.13)"]
 multion = ["multion (>=1.1.0)"]
 oxylabs = ["oxylabs (==2.0.0)"]
 patronus = ["patronus (>=0.0.16)"]
@@ -923,7 +975,7 @@ serpapi = ["serpapi (>=0.1.5)"]
 snowflake = ["cryptography (>=43.0.3)", "snowflake-connector-python (>=3.12.4)", "snowflake-sqlalchemy (>=1.7.3)"]
 spider-client = ["spider-client (>=0.1.25)"]
 sqlalchemy = ["sqlalchemy (>=2.0.35)"]
-stagehand = ["stagehand-py (>=0.3.6)"]
+stagehand = ["stagehand (>=0.4.1)"]
 tavily-python = ["tavily-python (>=0.5.4)"]
 weaviate-client = ["weaviate-client (>=4.10.2)"]
 xml = ["unstructured[all-docs,local-inference] (>=0.17.2)"]
@@ -1590,7 +1642,6 @@ description = "Lightweight in-process concurrent programming"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\""
 files = [
     {file = "greenlet-3.2.3-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:1afd685acd5597349ee6d7a88a8bec83ce13c106ac78c196ee9dde7c04fe87be"},
     {file = "greenlet-3.2.3-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:761917cac215c61e9dc7324b2606107b3b292a8349bdebb31503ab4de3f559ac"},
@@ -2650,25 +2701,25 @@ pytest = ["pytest (>=7.0.0)", "rich (>=13.9.4,<14.0.0)"]
 
 [[package]]
 name = "litellm"
-version = "1.72.6"
+version = "1.74.3"
 description = "Library to easily interface with LLM API providers"
 optional = false
 python-versions = "!=2.7.*,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,!=3.7.*,>=3.8"
 groups = ["main"]
 files = [
-    {file = "litellm-1.72.6-py3-none-any.whl", hash = "sha256:e0ae98d25db4910e78b1a0a604f24c0d6875f6cdea02426b264a45d4fbdb8c46"},
-    {file = "litellm-1.72.6.tar.gz", hash = "sha256:4e5c7e4273b09b765302d2faaec30f77b42255c0055b427b55ea02b8092b8582"},
+    {file = "litellm-1.74.3-py3-none-any.whl", hash = "sha256:638ec73633c6f2cf78a7343723d8f3bc13c192558fcbaa29f3ba6bc7802e8663"},
+    {file = "litellm-1.74.3.tar.gz", hash = "sha256:a9e87ebe78947ceec67e75f830f1c956cc653b84563574241acea9c84e7e3ca1"},
 ]
 
 [package.dependencies]
-aiohttp = "*"
+aiohttp = ">=3.10"
 click = "*"
 httpx = ">=0.23.0"
 importlib-metadata = ">=6.8.0"
 jinja2 = ">=3.1.2,<4.0.0"
 jsonschema = ">=4.22.0,<5.0.0"
 openai = ">=1.68.2"
-pydantic = ">=2.0.0,<3.0.0"
+pydantic = ">=2.5.0,<3.0.0"
 python-dotenv = ">=0.2.0"
 tiktoken = ">=0.7.0"
 tokenizers = "*"
@@ -2676,7 +2727,7 @@ tokenizers = "*"
 [package.extras]
 caching = ["diskcache (>=5.6.1,<6.0.0)"]
 extra-proxy = ["azure-identity (>=1.15.0,<2.0.0)", "azure-keyvault-secrets (>=4.8.0,<5.0.0)", "google-cloud-kms (>=2.21.3,<3.0.0)", "prisma (==0.11.0)", "redisvl (>=0.4.1,<0.5.0) ; python_version >= \"3.9\" and python_version < \"3.14\"", "resend (>=0.8.0,<0.9.0)"]
-proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "boto3 (==1.34.34)", "cryptography (>=43.0.1,<44.0.0)", "fastapi (>=0.115.5,<0.116.0)", "fastapi-sso (>=0.16.0,<0.17.0)", "gunicorn (>=23.0.0,<24.0.0)", "litellm-enterprise (==0.1.7)", "litellm-proxy-extras (==0.2.3)", "mcp (==1.9.3) ; python_version >= \"3.10\"", "orjson (>=3.9.7,<4.0.0)", "pynacl (>=1.5.0,<2.0.0)", "python-multipart (>=0.0.18,<0.0.19)", "pyyaml (>=6.0.1,<7.0.0)", "rich (==13.7.1)", "rq", "uvicorn (>=0.29.0,<0.30.0)", "uvloop (>=0.21.0,<0.22.0) ; sys_platform != \"win32\"", "websockets (>=13.1.0,<14.0.0)"]
+proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "boto3 (==1.34.34)", "cryptography (>=43.0.1,<44.0.0)", "fastapi (>=0.115.5,<0.116.0)", "fastapi-sso (>=0.16.0,<0.17.0)", "gunicorn (>=23.0.0,<24.0.0)", "litellm-enterprise (==0.1.12)", "litellm-proxy-extras (==0.2.10)", "mcp (==1.10.0) ; python_version >= \"3.10\"", "orjson (>=3.9.7,<4.0.0)", "pynacl (>=1.5.0,<2.0.0)", "python-multipart (>=0.0.18,<0.0.19)", "pyyaml (>=6.0.1,<7.0.0)", "rich (==13.7.1)", "rq", "uvicorn (>=0.29.0,<0.30.0)", "uvloop (>=0.21.0,<0.22.0) ; sys_platform != \"win32\"", "websockets (>=13.1.0,<14.0.0)"]
 utils = ["numpydoc"]
 
 [[package]]
@@ -3489,14 +3540,14 @@ sympy = "*"
 
 [[package]]
 name = "openai"
-version = "1.75.0"
+version = "1.98.0"
 description = "The official Python library for the openai API"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "openai-1.75.0-py3-none-any.whl", hash = "sha256:fe6f932d2ded3b429ff67cc9ad118c71327db32eb9d32dd723de3acfca337125"},
-    {file = "openai-1.75.0.tar.gz", hash = "sha256:fb3ea907efbdb1bcfd0c44507ad9c961afd7dce3147292b54505ecfd17be8fd1"},
+    {file = "openai-1.98.0-py3-none-any.whl", hash = "sha256:b99b794ef92196829120e2df37647722104772d2a74d08305df9ced5f26eae34"},
+    {file = "openai-1.98.0.tar.gz", hash = "sha256:3ee0fcc50ae95267fd22bd1ad095ba5402098f3df2162592e68109999f685427"},
 ]
 
 [package.dependencies]
@@ -3510,6 +3561,7 @@ tqdm = ">4"
 typing-extensions = ">=4.11,<5"
 
 [package.extras]
+aiohttp = ["aiohttp", "httpx-aiohttp (>=0.1.8)"]
 datalib = ["numpy (>=1)", "pandas (>=1.2.3)", "pandas-stubs (>=1.1.0.11)"]
 realtime = ["websockets (>=13,<16)"]
 voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
@@ -4154,15 +4206,37 @@ test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=8.3.4)", "pytest-
 type = ["mypy (>=1.14.1)"]
 
 [[package]]
-name = "portalocker"
-version = "2.10.1"
-description = "Wraps the portalocker recipe for easy usage"
+name = "playwright"
+version = "1.54.0"
+description = "A high-level API to automate web browsers"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "portalocker-2.10.1-py3-none-any.whl", hash = "sha256:53a5984ebc86a025552264b459b46a2086e269b21823cb572f8f28ee759e45bf"},
-    {file = "portalocker-2.10.1.tar.gz", hash = "sha256:ef1bf844e878ab08aee7e40184156e1151f228f103aa5c6bd0724cc330960f8f"},
+    {file = "playwright-1.54.0-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:bf3b845af744370f1bd2286c2a9536f474cc8a88dc995b72ea9a5be714c9a77d"},
+    {file = "playwright-1.54.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:780928b3ca2077aea90414b37e54edd0c4bbb57d1aafc42f7aa0b3fd2c2fac02"},
+    {file = "playwright-1.54.0-py3-none-macosx_11_0_universal2.whl", hash = "sha256:81d0b6f28843b27f288cfe438af0a12a4851de57998009a519ea84cee6fbbfb9"},
+    {file = "playwright-1.54.0-py3-none-manylinux1_x86_64.whl", hash = "sha256:09919f45cc74c64afb5432646d7fef0d19fff50990c862cb8d9b0577093f40cc"},
+    {file = "playwright-1.54.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:13ae206c55737e8e3eae51fb385d61c0312eeef31535643bb6232741b41b6fdc"},
+    {file = "playwright-1.54.0-py3-none-win32.whl", hash = "sha256:0b108622ffb6906e28566f3f31721cd57dda637d7e41c430287804ac01911f56"},
+    {file = "playwright-1.54.0-py3-none-win_amd64.whl", hash = "sha256:9e5aee9ae5ab1fdd44cd64153313a2045b136fcbcfb2541cc0a3d909132671a2"},
+    {file = "playwright-1.54.0-py3-none-win_arm64.whl", hash = "sha256:a975815971f7b8dca505c441a4c56de1aeb56a211290f8cc214eeef5524e8d75"},
+]
+
+[package.dependencies]
+greenlet = ">=3.1.1,<4.0.0"
+pyee = ">=13,<14"
+
+[[package]]
+name = "portalocker"
+version = "2.7.0"
+description = "Wraps the portalocker recipe for easy usage"
+optional = false
+python-versions = ">=3.5"
+groups = ["main"]
+files = [
+    {file = "portalocker-2.7.0-py2.py3-none-any.whl", hash = "sha256:a07c5b4f3985c3cf4798369631fb7011adb498e2a46d8440efc75a8f29a0f983"},
+    {file = "portalocker-2.7.0.tar.gz", hash = "sha256:032e81d534a88ec1736d03f780ba073f047a06c478b06e2937486f334e955c51"},
 ]
 
 [package.dependencies]
@@ -4171,7 +4245,7 @@ pywin32 = {version = ">=226", markers = "platform_system == \"Windows\""}
 [package.extras]
 docs = ["sphinx (>=1.7.1)"]
 redis = ["redis"]
-tests = ["pytest (>=5.4.1)", "pytest-cov (>=2.8.1)", "pytest-mypy (>=0.8.0)", "pytest-timeout (>=2.1.0)", "redis", "sphinx (>=6.0.0)", "types-redis"]
+tests = ["pytest (>=5.4.1)", "pytest-cov (>=2.8.1)", "pytest-mypy (>=0.8.0)", "pytest-timeout (>=2.1.0)", "redis", "sphinx (>=6.0.0)"]
 
 [[package]]
 name = "posthog"
@@ -4656,6 +4730,24 @@ toml = ["tomli (>=2.0.1)"]
 yaml = ["pyyaml (>=6.0.1)"]
 
 [[package]]
+name = "pyee"
+version = "13.0.0"
+description = "A rough port of Node.js's EventEmitter to Python with a few tricks of its own"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "pyee-13.0.0-py3-none-any.whl", hash = "sha256:48195a3cddb3b1515ce0695ed76036b5ccc2ef3a9f963ff9f77aec0139845498"},
+    {file = "pyee-13.0.0.tar.gz", hash = "sha256:b391e3c5a434d1f5118a25615001dbc8f669cf410ab67d04c4d4e07c55481c37"},
+]
+
+[package.dependencies]
+typing-extensions = "*"
+
+[package.extras]
+dev = ["black", "build", "flake8", "flake8-black", "isort", "jupyter-console", "mkdocs", "mkdocs-include-markdown-plugin", "mkdocstrings[python]", "mypy", "pytest", "pytest-asyncio ; python_version >= \"3.4\"", "pytest-trio ; python_version >= \"3.7\"", "sphinx", "toml", "tox", "trio", "trio ; python_version > \"3.6\"", "trio-typing ; python_version > \"3.6\"", "twine", "twisted", "validate-pyproject[all]"]
+
+[[package]]
 name = "pygithub"
 version = "2.6.1"
 description = "Use the full Github API v3"
@@ -4970,7 +5062,7 @@ description = "Python for Window Extensions"
 optional = false
 python-versions = "*"
 groups = ["main"]
-markers = "sys_platform == \"win32\" or platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" or sys_platform == \"win32\""
 files = [
     {file = "pywin32-310-cp310-cp310-win32.whl", hash = "sha256:6dd97011efc8bf51d6793a82292419eba2c71cf8e7250cfac03bba284454abc1"},
     {file = "pywin32-310-cp310-cp310-win_amd64.whl", hash = "sha256:c3e78706e4229b915a0821941a84e7ef420bf2b77e08c9dae3c76fd03fd2ae3d"},
@@ -5694,6 +5786,33 @@ pure-eval = "*"
 
 [package.extras]
 tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
+
+[[package]]
+name = "stagehand"
+version = "0.5.0"
+description = "Python SDK for Stagehand"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "stagehand-0.5.0-py3-none-any.whl", hash = "sha256:4b7a61e414c8680ed601d7b3ddc1ea46b4b308d649a286f65db0f17b28f19a68"},
+    {file = "stagehand-0.5.0.tar.gz", hash = "sha256:58d11bc05178033e0f224c2d7969cff8945d0e5b1416dc88b30e4d578f309cdc"},
+]
+
+[package.dependencies]
+anthropic = ">=0.51.0"
+browserbase = ">=1.4.0"
+httpx = ">=0.24.0"
+litellm = ">=1.72.0"
+openai = ">=1.83.0"
+playwright = ">=1.42.1"
+pydantic = ">=1.10.0"
+python-dotenv = ">=1.0.0"
+requests = ">=2.31.0"
+rich = ">=13.7.0"
+
+[package.extras]
+dev = ["black (>=23.3.0)", "isort (>=5.12.0)", "mypy (>=1.3.0)", "psutil (>=5.9.0)", "pytest (>=7.3.1)", "pytest-asyncio (>=0.21.0)", "pytest-cov (>=4.1.0)", "pytest-mock (>=3.10.0)", "ruff"]
 
 [[package]]
 name = "starlette"
@@ -6895,4 +7014,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "bd4f614bd9b90983aad1b44c44ea8537a4fa12d26b29ec1ccdbe72e2d7367480"
+content-hash = "8cd32ee9d5d78a17842b12ab209385004f1a6fc6da8bcacef1a842a6b1cc1522"

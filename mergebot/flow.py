@@ -10,8 +10,8 @@ from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
     ImpactEvaluator,
+    MergeFinalizationCrew,
     PRProcessor,
-    Publication,
     RiskAnalysis,
     TestAnalysis,
 )
@@ -108,7 +108,7 @@ class MergeBotCrews(BaseModel):
     risk_analysis: Crew = Field(default_factory=lambda: RiskAnalysis().crew())
     impact_evaluator: Crew = Field(default_factory=lambda: ImpactEvaluator().crew())
     pr_retriever: Crew = Field(default_factory=lambda: PRProcessor().crew())
-    publicator: Crew = Field(default_factory=lambda: Publication().crew())
+    merge_finalizer: Crew = Field(default_factory=lambda: MergeFinalizationCrew().crew())
 
 
 class MergeBotState(BaseModel):
@@ -225,7 +225,7 @@ class MergeBotFlow(Flow[MergeBotState]):
     @listen(impact_evaluator)
     async def pr_decision(self):
         """Runs the PR decision crew on the impact assessment report"""
-        response = await self.crews.publicator.kickoff_async(
+        response = await self.crews.merge_finalizer.kickoff_async(
             inputs={
                 "pr_id": self.state.pr_id,
                 "impact_assessment_report": self.state.impact_assessment,

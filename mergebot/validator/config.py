@@ -15,7 +15,9 @@ class LLMConfig(BaseModel):
 
 
 class GitLabConfig(BaseModel):
-    url: str = Field(..., description="GitLab API endpoint URL")
+    url: str = Field(
+        default=os.getenv("GITLAB_URL"), description="GitLab API endpoint URL"
+    )
     private_token: Optional[str] = Field(
         default=os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN"),
         description="Private token for GitLab API authentication",

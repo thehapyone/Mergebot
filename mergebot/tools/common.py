@@ -71,10 +71,10 @@ class PRToolSchema(BaseModel):
     pr_number: int = Field(..., description="Pull or merge request number")
 
 
-class PullRequestTool(BaseVCSTool):
-    """Tool for getting pull or merge requests from the VCS platform."""
+class GetPullOrMergeRequestTool(BaseVCSTool):
+    """Fetches the complete details of a pull or merge request from the repository platform."""
 
-    name: str = "Get Pull Request"
+    name: str = "GetPullOrMergeRequest"
     description: str = GET_PULL_REQUEST_PROMPT
     args_schema: Type[BaseModel] = PRToolSchema
 
@@ -84,21 +84,21 @@ class PullRequestTool(BaseVCSTool):
     ) -> str:
         pr_number = kwargs.get("pr_number")
         if not pr_number:
-            return "The Pull Request number is required."
+            return "The pull or merge request number is required."
         return self.api_wrapper.get_pull_request(pr_number)
 
 
 class PullRequestCommentToolSchema(BaseModel):
     pr_number: int = Field(..., description="The pull or merge request number")
-    comment: str = Field(
+    message: str = Field(
         ..., description="The comment to post to the pull or merge request"
     )
 
 
-class PullRequestCommentTool(BaseVCSTool):
-    """Tool for posting comments to pull or merge requests."""
+class PostCommentTool(BaseVCSTool):
+    """Posts a comment to a pull or merge request in the repository platform."""
 
-    name: str = "Post Pull Request Comment"
+    name: str = "PostComment"
     description: str = POST_PULL_REQUEST_COMMENT_PROMPT
     args_schema: Type[BaseModel] = PullRequestCommentToolSchema
 
@@ -107,20 +107,20 @@ class PullRequestCommentTool(BaseVCSTool):
         **kwargs: Any,
     ) -> str:
         pr_number = kwargs.get("pr_number")
-        comment = kwargs.get("comment")
-        if not (pr_number and comment):
-            return "The pull or merge request number and comment are required."
-        return self.api_wrapper.comment_pull_request(pr_number, comment)
+        message = kwargs.get("message")
+        if not (pr_number and message):
+            return "The pull or merge request number and message are required."
+        return self.api_wrapper.comment_pull_request(pr_number, message)
 
 
 class PullRequestApprovalToolSchema(BaseModel):
     pr_number: int = Field(..., description="The pull or merge request number")
 
 
-class PullRequestApprovalTool(BaseVCSTool):
-    """Tool for approving pull or merge requests."""
+class ApprovePullOrMergeRequestTool(BaseVCSTool):
+    """Approves a pull or merge request in the repository platform."""
 
-    name: str = "Approve Pull Request"
+    name: str = "Approve Pull or Merge Request"
     description: str = APPROVE_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = PullRequestApprovalToolSchema
 

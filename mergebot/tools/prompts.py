@@ -1,20 +1,17 @@
 GET_PULL_REQUEST_PROMPT = """
-This tool will fetch the complete details of a pull or merge request.
+This tool fetches the complete details of a pull or merge request.
 Example input: {\"pr_number\": \"10\"}
 """
 
 POST_PULL_REQUEST_COMMENT_PROMPT = """
-This tool is useful when you need to post a comment to a pull or merge request in the repository.
-    
-For example, to post a comment "Looks good to me!" to pull or merge request number 10:
-
-Example input: {\"pr_number\": \"10\", \"comment\": \"Looks good to me!\"}
+Posts a comment to a pull or merge request. 
+For example, to post a comment \"Looks good to me!\" to pull or merge request number 10, you would use this input:
+{\"pr_number\": \"10\", \"message\": \"Looks good to me!\"}
 
 """
 
 APPROVE_MERGE_REQUEST_PROMPT = """
-This tool is useful when you need to approve a pull or merge request in a repository.
-    
+This tool approves a pull or merge request.
 For example, to approve a pull or merge request number 10:
 
 Example input: {\"pr_number\": \"10\"}

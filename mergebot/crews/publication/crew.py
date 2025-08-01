@@ -2,37 +2,40 @@ from crewai import Agent, Task
 from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
-from mergebot.tools import PullRequestApprovalTool, PullRequestCommentTool
+from mergebot.tools import (
+    ApprovePullOrMergeRequestTool,
+    PostCommentTool,
+)
 
 
 @CrewBase
-class Publication(BotBaseCrew):
-    """Publication Crew to handle MR publication tasks."""
+class MergeFinalizationCrew(BotBaseCrew):
+    """Crew to handle MR/PR assessment reporting and finalization tasks."""
 
     @agent
-    def publicator(self) -> Agent:
+    def reporter(self) -> Agent:
         return Agent(
-            config=self.agents_config["publicator"],
+            config=self.agents_config["reporter"],
             llm=self.llm,
-            tools=[PullRequestCommentTool()],
+            tools=[PostCommentTool()],
         )
 
     @agent
-    def executor(self) -> Agent:
+    def finalizer(self) -> Agent:
         return Agent(
-            config=self.agents_config["executor"],
+            config=self.agents_config["finalizer"],
             llm=self.llm,
-            tools=[PullRequestApprovalTool(), PullRequestCommentTool()],
+            tools=[PostCommentTool(), ApprovePullOrMergeRequestTool()],
         )
 
     @task
-    def publication_task(self) -> Task:
+    def reporting_task(self) -> Task:
         return Task(
-            config=self.tasks_config["publication_task"],
+            config=self.tasks_config["reporting_task"],
         )
 
     @task
-    def execution_task(self) -> Task:
+    def finalization_task(self) -> Task:
         return Task(
-            config=self.tasks_config["execution_task"],
+            config=self.tasks_config["finalization_task"],
         )

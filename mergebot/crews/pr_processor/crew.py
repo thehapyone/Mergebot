@@ -2,7 +2,7 @@ from crewai import Agent, Task
 from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
-from mergebot.tools import PullRequestTool
+from mergebot.tools import GetPullOrMergeRequestTool
 
 
 @CrewBase
@@ -16,7 +16,7 @@ class PRProcessor(BotBaseCrew):
         return Agent(
             config=self.agents_config["pr_retriever"],
             llm=self.llm,
-            tools=[PullRequestTool()],
+            tools=[GetPullOrMergeRequestTool()],
         )
 
     @task

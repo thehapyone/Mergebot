@@ -1,43 +1,38 @@
-publication_task:
+reporting_task:
   description: |
-    Receive the impact assessment report and the recommendation from the Impact Evaluator Crew.
-
-    **Tasks**:
-    - Format the impact assessment report using Markdown for readability and consistency.
-    - Post the formatted report as a comment on the pull request (PR), making it available to all stakeholders.
+    Publish this impact assessment report and format the report for clarity and consistency.
 
     **Inputs**:
-    - **PR ID**: {pr_id}
-    - **Impact Assessment Report**:
+    - **Pull/Merge Request ID**: {pr_id}
+    - **Impact Assessment Report** ->:
     {impact_assessment_report}
-  agent: publicator
+  agent: reporter
   expected_output: |
-    - The impact assessment report is posted on the pull request (PR) as a comment, properly formatted in Markdown.
-    - Returns only the direct link (URL) to the posted comment and summary of the assessment report
+    - The report is posted on the pull/merge request as a comment and formatted in markdown.
+    - Returns the direct link (URL) to the posted comment as given by the tool and summary of the assessment report.
     - If posting fails, returns a clear error message.
 
-execution_task:
+finalization_task:
   description: |
-    Based on the recommendation from the Impact Evaluator Crew, execute the following:
+    Based on the recommendation, make the final decision and communicate the outcome.
 
     **If the recommendation is to "Auto-approve and merge"**:
-    - Approve the pull request (PR) using the VCS API.
-    - Post a confirmation comment on the PR indicating whether the approval and merge actions succeeded or failed, including any error messages or warnings.
+    - Approve and merge the pull or merge request (PR/MR).
+    - Post a confirmation comment on the PR/MR indicating whether the approval and merge actions succeeded or failed, including any error messages or warnings.
 
     **If the recommendation is "Requires human review"**:
-    - Leave the PR open for manual review.
-    - Post a comment on the PR indicating that it requires further review due to its impact assessment, and include any warnings or errors encountered during processing.
+    - Leave the PR/MR open for manual review.
+    - Post a comment on the PR/MR indicating that it requires further review due to its impact assessment, and include any warnings or errors encountered during processing.
 
     **Inputs**:
     - **PR ID**: {pr_id}
 
-
-  agent: executor
+  agent: finalizer
   expected_output: |
-    - A confirmation comment is always posted on the pull request (PR), summarizing the outcome of the action (success, failure, and any warnings or errors encountered).
+    - A confirmation comment is always posted on the pull or merge request (PR/MR), summarizing the outcome of the action (success, failure, and any warnings or errors encountered).
     - **If auto-approved and merged**:
-      - The PR is approved and merged into the target branch (if possible).
+      - The PR/MR is approved and merged into the target branch (if possible).
       - The comment clearly states whether the operation succeeded or failed, and includes any warnings or errors (such as authorization failures).
     - **If not auto-approved**:
-      - The PR remains open for manual review.
+      - The PR/MR remains open for manual review.
       - The comment clearly states that further review is required and includes any processing warnings or errors.
