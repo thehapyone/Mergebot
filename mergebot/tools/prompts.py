@@ -11,7 +11,7 @@ For example, to post a comment \"Looks good to me!\" to pull or merge request nu
 """
 
 APPROVE_MERGE_REQUEST_PROMPT = """
-This tool is used to approves a pull or merge request.
+This tool approves a pull or merge request.
 For example, to approve a pull or merge request number 10:
 
 Example input: {\"pr_number\": \"10\"}
