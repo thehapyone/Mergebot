@@ -108,7 +108,9 @@ class MergeBotCrews(BaseModel):
     risk_analysis: Crew = Field(default_factory=lambda: RiskAnalysis().crew())
     impact_evaluator: Crew = Field(default_factory=lambda: ImpactEvaluator().crew())
     pr_retriever: Crew = Field(default_factory=lambda: PRProcessor().crew())
-    merge_finalizer: Crew = Field(default_factory=lambda: MergeFinalizationCrew().crew())
+    merge_finalizer: Crew = Field(
+        default_factory=lambda: MergeFinalizationCrew().crew()
+    )
 
 
 class MergeBotState(BaseModel):
@@ -228,7 +230,8 @@ class MergeBotFlow(Flow[MergeBotState]):
         response = await self.crews.merge_finalizer.kickoff_async(
             inputs={
                 "pr_id": self.state.pr_id,
-                "impact_assessment_report": self.state.impact_assessment,
+                "impact_assessment_report": self.state.impact_assessment.get("report"),
+                "recommendation": self.state.impact_assessment.get("recommendation"),
             }
         )
         self.state.analysis_link = extract_url_from_text(response.tasks_output[0].raw)

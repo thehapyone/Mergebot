@@ -120,7 +120,7 @@ class PullRequestApprovalToolSchema(BaseModel):
 class ApprovePullOrMergeRequestTool(BaseVCSTool):
     """Approves a pull or merge request in the repository platform."""
 
-    name: str = "Approve Pull or Merge Request"
+    name: str = "ApprovePullOrMergeRequest"
     description: str = APPROVE_MERGE_REQUEST_PROMPT
     args_schema: Type[BaseModel] = PullRequestApprovalToolSchema
 
