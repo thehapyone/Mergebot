@@ -1,17 +1,37 @@
 import os
+import time
+from functools import lru_cache
 
+import jwt
+import requests
 from github import Github
 
 from mergebot.tools.api_base import PullRequestAPIBase
 from mergebot.validator.config import get_runtime_config
 
 
+def generate_github_app_jwt(app_id: str, private_key: str) -> str:
+    now = int(time.time())
+    payload = {
+        "iat": now - 60,
+        "exp": now + (10 * 60),
+        "iss": app_id,
+    }
+    return jwt.encode(payload, private_key, algorithm="RS256")
+
+
 class GitHubAPIWrapper(PullRequestAPIBase):
     """
-    GitHub API Wrapper.
+    GitHub API Wrapper supporting both PAT and GitHub App authentication.
     """
 
     config_section: str = "github"
+
+    # GitHub App attributes
+    github_app_id: str = None
+    github_installation_id: str = None
+    github_app_private_key: str = None
+    github_app_access_token: str = None
 
     def validate_github(self):
         cfg = get_runtime_config()["repository"]["github"]
@@ -34,35 +54,102 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 "GitHub repository must be provided via CLI, config.yaml or GITHUB_REPOSITORY."
             )
 
-        # 3) Token (must exist in some source)
+        # 3) Auth: Prefer PAT, else GitHub App
         self.github_personal_access_token = (
             self.github_personal_access_token
             or cfg.get("private_token")
             or os.getenv("GITHUB_TOKEN")
         )
-        if not self.github_personal_access_token:
-            raise ValueError(
-                "GitHub Personal Access Token must be provided via CLI, config.yaml or GITHUB_TOKEN."
+
+        # --- GitHub App authentication ---
+        self.github_app_id = (
+            self.github_app_id
+            or str(cfg.get("app_id") or os.getenv("GITHUB_APP_ID") or "").strip()
+        )
+        self.github_installation_id = (
+            self.github_installation_id
+            or str(
+                cfg.get("installation_id")
+                or os.getenv("GITHUB_APP_INSTALLATION_ID")
+                or ""
+            ).strip()
+        )
+        self.github_app_private_key = cfg.get("private_key") or os.getenv(
+            "GITHUB_APP_PRIVATE_KEY"
+        )
+
+        # --- Authentication logic ---
+        if self.github_app_id and self.github_app_private_key:
+            # Prefer GitHub App regardless of PAT
+            self._initialize_github_app(self.github_repository)
+            self.github = Github(
+                self.github_app_access_token, base_url=self.github_api_url
+            )
+        else:
+            # Fallback to PAT
+            self.github = Github(
+                self.github_personal_access_token, base_url=self.github_api_url
             )
 
-        # 4) Branches w/ defaults
-        self.github_branch = (
-            self.github_branch
-            or cfg.get("branch")
-            or cfg.get("base_branch")
-            or os.getenv("GITHUB_BRANCH", "main")
-        )
-        self.gitlab_base_branch = (
-            self.gitlab_base_branch
-            or cfg.get("base_branch")
-            or os.getenv("GITHUB_BASE_BRANCH", "main")
+        # Initialize the repository instance
+        self.github_repo_instance = self.github.get_repo(self.github_repository)
+
+    def _discover_installation_id(self, jwt_token: str, repo_full_name: str) -> str:
+        """
+        Finds the installation_id for the app on the given repository.
+        """
+        headers = {
+            "Authorization": f"Bearer {jwt_token}",
+            "Accept": "application/vnd.github+json",
+        }
+        url = f"{self.github_api_url}/repos/{repo_full_name}/installation"
+        resp = requests.get(url, headers=headers)
+        if resp.status_code == 200:
+            return str(resp.json().get("id"))
+        return None
+
+    def _get_installation_token(self, jwt_token: str, installation_id: str) -> str:
+        """
+        Exchanges a JWT for an installation access token.
+        """
+        headers = {
+            "Authorization": f"Bearer {jwt_token}",
+            "Accept": "application/vnd.github+json",
+        }
+        url = f"{self.github_api_url}/app/installations/{installation_id}/access_tokens"
+        resp = requests.post(url, headers=headers)
+        if resp.status_code == 201:
+            app_access_token = resp.json().get("token")
+            if app_access_token:
+                return app_access_token
+            raise ValueError("Failed to obtain GitHub App installation access token.")
+        raise Exception(
+            f"Failed to get installation access token: {resp.status_code} {resp.text}"
         )
 
-        # Instantiate & authenticate the GitHub client
-        self.github = Github(
-            self.github_personal_access_token, base_url=self.github_api_url
+    @lru_cache(maxsize=2)
+    def _initialize_github_app(self, repo):
+        """
+        Initializes the GitHub App authentication.
+        If installation_id is not provided, it will be auto-discovered.
+        If private_key is not provided, it will raise an error.
+        """
+        jwt_token = generate_github_app_jwt(
+            self.github_app_id, self.github_app_private_key
         )
-        self.github_repo_instance = self.github.get_repo(self.github_repository)
+
+        if not self.github_installation_id:
+            self.github_installation_id = self._discover_installation_id(
+                jwt_token, repo
+            )
+            if not self.github_installation_id:
+                raise ValueError(
+                    "Could not determine GitHub App installation_id for repository."
+                )
+
+        self.github_app_access_token = self._get_installation_token(
+            jwt_token, self.github_installation_id
+        )
 
     def get_pull_request(self, pr_number: int) -> str:
         try:
@@ -168,7 +255,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         try:
             file = self.github_repo_instance.get_contents(file_path, ref=branch_name)
 
-            self.project.update_file(
+            self.github_repo_instance.update_file(
                 path=file_path,
                 message=commit_message,
                 content=file_contents,

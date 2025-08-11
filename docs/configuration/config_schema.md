@@ -119,6 +119,32 @@ If a crew does not specify an LLM, it will use the global model.
 
 ## Repository Configuration
 
+### GitHub
+
+```yaml
+repository:
+  type: github
+  github:
+    base_branch: main
+    # GitHub App authentication (recommended)
+    app_id: 123456                # GitHub App ID (int or ENV: GITHUB_APP_ID)
+    installation_id: 987654       # Installation ID (int, optional; ENV: GITHUB_APP_INSTALLATION_ID)
+    private_key: <raw PEM value> # raw PEM (ENV: GITHUB_APP_PRIVATE_KEY)
+    # Legacy Personal Access Token (not recommended)
+    private_token: YOUR_TOKEN     # (not recommended, use env var)
+```
+
+- `type`: Must be `github` for GitHub repositories.
+- `github`: Required if type is `github`.
+- **GitHub App authentication is recommended.**  
+  - `app_id`: The numeric App ID for your GitHub App.  
+  - `installation_id`: The installation ID for the App on your repository/organization. If omitted, Mergebot will auto-discover it.  
+  - `private_key`: the raw PEM string.  
+  - You can also set these via environment variables: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`.
+- `private_token`: (Legacy) Personal Access Token. If provided, Mergebot will use this instead of the App credentials.
+
+### GitLab
+
 ```yaml
 repository:
   type: gitlab
