@@ -61,13 +61,16 @@ To run Mergebot as a true service user (not on behalf of a personal account), us
 3. **Configure Mergebot**
    - In your config, supply:
      ```yaml
-     repository:
-       type: "github"
-       github:
-         base_branch: "main"
-         app_id: <your-app-id>
-         installation_id: <your-installation-id>  # optional; auto-discovered if omitted
-         private_key: <private key>  # or set GITHUB_APP_PRIVATE_KEY env
+    repository:
+      type: "github"
+      github:
+        base_branch: "main"
+        app_id: <your-app-id>
+        installation_id: <your-installation-id>  # optional; auto-discovered if omitted
+        private_key: |
+          -----BEGIN RSA PRIVATE KEY-----
+          YOUR-PEM-CONTENT-HERE
+          -----END RSA PRIVATE KEY-----     # Raw PEM string (or set GITHUB_APP_PRIVATE_KEY env)
      ```
    - You can also set these as environment variables: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`.
 
