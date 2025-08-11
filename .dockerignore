@@ -42,6 +42,7 @@ docker-compose.yml
 **/*.env
 docker
 **/*config.yaml
+*.pem
 
 # Ignore the virtual environment directory
 venv/

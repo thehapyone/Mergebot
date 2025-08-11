@@ -5,9 +5,12 @@ import sys
 from typing import Dict, Optional
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from mergebot.validator.logging_config import logger
+
+load_dotenv()
 
 
 class LLMConfig(BaseModel):
@@ -37,25 +40,51 @@ class GitLabConfig(BaseModel):
 
 # GitHub configuration mirrors GitLab but for GitHub REST API
 class GitHubConfig(BaseModel):
+    """
+    GitHub authentication supports **either** a Personal Access Token
+    or a GitHub App (App ID + private key, with optional installation_id).
+
+    Only one path is required; PAT remains for backward-compatibility.
+    """
+
     api_url: str = Field(
         default="https://api.github.com", description="GitHub API endpoint URL"
     )
+
+    # --- Personal-access-token path (legacy) ---
     private_token: Optional[str] = Field(
         default=os.getenv("GITHUB_TOKEN"),
-        description="Personal access token for GitHub API authentication",
+        description="Personal access token for GitHub API authentication (legacy)",
     )
+
+    # --- GitHub-App path ---
+    app_id: Optional[str] = Field(
+        default=os.getenv("GITHUB_APP_ID"), description="Numeric GitHub App ID"
+    )
+    installation_id: Optional[str] = Field(
+        default=os.getenv("GITHUB_APP_INSTALLATION_ID"),
+        description="Installation ID for the GitHub App (optional)",
+    )
+    private_key: Optional[str] = Field(
+        default=os.getenv("GITHUB_APP_PRIVATE_KEY"),
+        description="The raw PEM string for the GitHub App private key",
+    )
+
     base_branch: str = Field(default="main", description="Base branch for the project")
 
-    @field_validator("private_token")
-    @classmethod
-    def validate_private_token(cls, v: str):
-        if not v:
+    @model_validator(mode="after")
+    def validate_auth_choice(self):
+        has_pat = bool(self.private_token)
+        has_app = bool(self.app_id) and bool(self.private_key)
+
+        if not (has_pat or has_app):
             raise ValueError(
-                "Missing GitHub personal access token. "
-                "Set the GITHUB_TOKEN environment variable or provide the token "
-                "in the 'private_token' config field."
+                "GitHub authentication required: provide either\n"
+                "  • personal access token (private_token / GITHUB_TOKEN)  **or**\n"
+                "  • app_id + private_key (or GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY)\n"
+                "installation_id is optional; Mergebot will auto-discover if omitted."
             )
-        return v
+        return self
 
 
 class RepositoryConfig(BaseModel):

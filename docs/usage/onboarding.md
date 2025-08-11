@@ -67,7 +67,29 @@ When Mergebot starts (in any mode), it performs the following steps:
 - By default, Draft/WIP PRs/MRs are skipped. To analyze them, set `draft_mrs: true` in your config.
 - **Note:** Mergebot always requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior and is merged with any repository config (`.mergebot.yml`) to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
 - **VCS API access:**  
-  - For GitHub: Create a dedicated GitHub user or App for bot/service account actions, and generate a personal access token (`GITHUB_TOKEN`).
+  - For GitHub: **Recommended: Use a GitHub App for Mergebot service user actions.**
+    - Create a GitHub App in your organization or user account.
+    - Set the following permissions:
+      - Contents: Read & write
+      - Pull requests: Read & write
+      - Issues: Read & write
+      - Checks: Read & write (optional, for CI status)
+      - Metadata: Read-only (always granted)
+    - Subscribe to webhooks for: `pull_request`, `issue_comment`, and any others Mergebot should react to.
+    - Install the App on the target repository or organization.
+    - In your Mergebot config, supply:
+      ```yaml
+      repository:
+        type: "github"
+        github:
+          base_branch: "main"
+          app_id: <your-app-id>
+          installation_id: <your-installation-id>  # optional; auto-discovered if omitted
+          private_key: <your raw private key value>  # or set GITHUB_APP_PRIVATE_KEY env
+      ```
+    - You can also set these as environment variables: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`.
+    - **Legacy:** You may still use a dedicated GitHub user and personal access token (`GITHUB_TOKEN`), but this is discouraged. If both are present, Mergebot will use the App credentials.
+    - _Do not use a personal user’s API token_, as this will make it appear that user is performing all Mergebot actions.
   - For GitLab: Create a dedicated GitLab user or Project Bot, and generate a personal access token (`GITLAB_PERSONAL_ACCESS_TOKEN`).
   - Add this service account as a member to the relevant project(s) or organization(s) with the minimum required permissions.
   - _Do not use a personal user’s API token_, as this will make it appear that user is performing all Mergebot actions.
@@ -113,6 +135,10 @@ repository:
 #   type: "github"
 #   github:
 #     base_branch: "main"
+#     # GitHub App authentication (recommended)
+#     app_id: <your-app-id>
+#     installation_id: <your-installation-id>  # optional; auto-discovered if omitted
+#     private_key: <your raw private key value>  # or set GITHUB_APP_PRIVATE_KEY env
 
 approval_policy:
   threshold: 3.0
