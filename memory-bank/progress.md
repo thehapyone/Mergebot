@@ -1,47 +1,49 @@
 # Progress
 
 ## What Works
-- Mergebot now provides automated **impact assessment for every change request** (PR/MR), classifying changes as low, medium, or high impact and taking action based on policy.
-- Modular crew system implemented for code analysis, complexity, test, risk, impact evaluation, and publication
-- Dashboard system for real-time PR/MR analytics and feedback, now managed by a single, VCS-agnostic DashboardManager and ondemand runner with unified PR/MR normalization
-- Full integration with both GitHub and GitLab for PR/MR monitoring, onboarding, and feedback
-- **Unified, platform-agnostic VCS tool layer:** All crew modules now use tools from `mergebot/tools/common.py` for PR/MR operations, supporting both GitHub and GitLab through a single interface.
-- Advanced configuration schema supporting global and per-crew LLMs via LiteLLM (OpenAI, Azure, Anthropic, Google, etc.)
-- Comprehensive, browsable documentation site (MkDocs Material) with onboarding, approval policy, and CI/CD guides
-- Environment variable best practices for all sensitive credentials
-- Automated CI/CD pipeline for linting, style checks, Docker build, Docker Hub publishing, and documentation deployment
-- **Configurable PR/MR analysis controls:** Users can now set `analysis.max_mrs` to limit concurrent PR/MR analysis and `analysis.draft_mrs` to control whether Draft/WIP PRs/MRs are analyzed.
-- **Refactored draft/WIP detection:** A dedicated helper function (`is_draft_pr`) is used for consistent, maintainable draft/WIP PR/MR detection logic.
-- **Documentation and onboarding:** All new analysis options and behaviors are fully documented and reflected in onboarding flows.
-- **PR/MR-centric migration complete:** All code, dashboard, and documentation now use PR/MR-centric and VCS-agnostic terminology.
-- **Unified dashboard/analytics logic:** All dashboard, analytics, and rerun request logic is now robust and unified for both GitHub and GitLab, with recent bugfixes for dashboard issue search and rerun request filtering.
 
-## What's Left to Build
-- SaaS dashboard and multi-project management
-- More granular crew and LLM configuration options
-- Additional CI/CD and deployment guides
-- **Pipeline tool integration:** The platform-agnostic pipeline tool is available but not yet used in any crew logic.
-- Ongoing documentation and Memory Bank updates as features evolve
+- Self-hosted Mergebot runs in ondemand mode with GitHub App authentication (PEM normalization, config/env, tested).
+- All documentation, config, validation, and code align with “raw PEM only.”
+- PAT flow still present for backward compatibility.
+
+## What's Left to Build (Detailed TODO for next milestone)
+
+### 1. Webhook-Driven GitHub App Support (Self-Hosted & SaaS)
+- [ ] Add robust /webhook endpoint for GitHub App PR/issue_comment events.
+- [ ] Parse PR events, trigger re-run when PR is opened, updated, synchronized, reopened.
+- [ ] Parse issue/pull_request comment events — trigger re-review if comment content matches e.g. `@mergebot review`.
+- [ ] Validate webhook HMAC signature using the app’s webhook secret.
+- [ ] Ensure idempotency & queuing (avoid double-processing large bursts).
+- [ ] Refactor runner so ondemand vs webhook jobs share core flow (no duplication).
+
+### 2. Cloud/SaaS mode with Public GitHub App (mergebot.dev)
+- [ ] Create a hosted GitHub App (mergebot.dev) with correct OAuth callback + webhook URLs.
+- [ ] Add OAuth endpoints:
+    - `/auth/github/callback` to capture & store user tokens (if needed).
+- [ ] Create a minimal multi-tenant Postgres schema:
+    - `users` (id, github login/id, authz, ...)
+    - `installations` (installation_id, org, repo(s), plan, webhook secret)
+- [ ] Adapt config to `MERGEBOT_MODE=cloud` (multi-tenant loads app creds and keys from DB/env, not yaml).
+- [ ] Add repo opt-in/out UI (optional for MVP).
+- [ ] Support per-repo run scheduling and webhook-push flow (no polling).
+- [ ] Add admin task/CLI for triggering jobs or test runs across tenants.
+- [ ] Billing/analytics webhooks (future/out of scope).
+
+### 3. Intelligent Rereview via Comment Command
+- [ ] Support custom trigger phrase for re-review: on new `issue_comment` on PR, if body contains “@mergebot review” or “/mergebot review” (configurable pattern).
+- [ ] Add workflow note to docs & PR comment templates.
+- [ ] Must avoid accidental infinite loop (bot must not trigger itself).
+
+### 4. Documentation/Examples
+- [ ] Update onboarding & usage docs for webhook & cloud/SaaS usage.
+- [ ] Provide example installation YAML for SaaS onboarding, including tips for app approval, callback URL, and webhook secret.
+
+### 5. Upgrade/Legacy Handling
+- [ ] Auto-migrate any old configs still using `private_key_path` or path logic; warn user in logs, guide to PEM.
+- [ ] CLI command to validate current setup and print SaaS-vs-self-host recommendation.
+
+---
 
 ## Current Status
-- Documentation and onboarding overhaul complete
-- Modular, extensible architecture in production use
-- **All crew modules, dashboard, and ondemand runner now use platform-agnostic VCS tools and unified PR/MR normalization, with no remaining GitLab-specific tool usage.**
-- CI/CD and ondemand mode are the recommended and supported workflows
-- Automated code quality checks and Docker publishing in place
-- **Analysis controls and draft/WIP skipping are now configuration-driven and fully integrated.**
-- **All user-facing text, dashboard, and documentation are now PR/MR-centric and VCS-agnostic.**
-- **System is stable and ready for production use on both GitHub and GitLab.**
 
-## Known Issues
-- No critical technical issues; pending feature expansion for additional VCS and deployment scenarios
-
-## Evolution of Project Decisions
-- Adopted documentation-first workflow using the Memory Bank and MkDocs
-- Committed to modular, extensible architecture for all major components
-- **Standardized on a unified, platform-agnostic VCS tool layer for all crew operations, supporting both GitHub and GitLab.**
-- Standardized on LiteLLM for LLM abstraction and provider flexibility
-- Prioritized CI/CD integration and ondemand mode for reliability and scalability
-- Automated code quality enforcement and Docker publishing for improved developer experience
-- **Moved all PR/MR property logic (e.g., draft/WIP detection) into helper functions for maintainability and clarity.**
-- **Refactored dashboard and ondemand runner to a single, VCS-agnostic implementation, with robust bugfixes and normalization patterns.**
+All ondemand, PEM, and validation foundations are complete. Next phase is to design, implement, and document automated webhook-triggered jobs, SaaS onboarding/user management, and advanced “@mergebot review” triggers.

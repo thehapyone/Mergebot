@@ -40,8 +40,9 @@ repository:
   github:
     app_id: 123456
     private_key: |
-        -----BEGIN PRIVATE KEY-----
-        -----END PRIVATE KEY----- 
+      -----BEGIN RSA PRIVATE KEY-----
+      YOUR-PEM-CONTENT-HERE
+      -----END RSA PRIVATE KEY-----
     # installation_id: 987654   # optional
 ```
 

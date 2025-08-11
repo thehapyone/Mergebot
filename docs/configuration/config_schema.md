@@ -129,7 +129,10 @@ repository:
     # GitHub App authentication (recommended)
     app_id: 123456                # GitHub App ID (int or ENV: GITHUB_APP_ID)
     installation_id: 987654       # Installation ID (int, optional; ENV: GITHUB_APP_INSTALLATION_ID)
-    private_key: <raw PEM value> # raw PEM (ENV: GITHUB_APP_PRIVATE_KEY)
+    private_key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      YOUR-PEM-CONTENT-HERE
+      -----END RSA PRIVATE KEY-----     # Raw PEM string (ENV: GITHUB_APP_PRIVATE_KEY)
     # Legacy Personal Access Token (not recommended)
     private_token: YOUR_TOKEN     # (not recommended, use env var)
 ```
