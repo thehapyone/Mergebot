@@ -144,7 +144,7 @@ repository:
   - `installation_id`: The installation ID for the App on your repository/organization. If omitted, Mergebot will auto-discover it.  
   - `private_key`: the raw PEM string.  
   - You can also set these via environment variables: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`.
-- `private_token`: (Legacy) Personal Access Token. If provided, Mergebot will use this instead of the App credentials.
+- `private_token`: (Legacy) Personal Access Token. This is used as a fallback if GitHub App credentials are not provided.
 
 ### GitLab
 
