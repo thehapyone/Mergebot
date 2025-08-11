@@ -138,7 +138,7 @@ repository:
 #     # GitHub App authentication (recommended)
 #     app_id: <your-app-id>
 #     installation_id: <your-installation-id>  # optional; auto-discovered if omitted
-#     private_key_path: /path/to/private-key.pem  # or set GITHUB_APP_PRIVATE_KEY env
+#     private_key: <your raw private key value>  # or set GITHUB_APP_PRIVATE_KEY env
 
 approval_policy:
   threshold: 3.0
