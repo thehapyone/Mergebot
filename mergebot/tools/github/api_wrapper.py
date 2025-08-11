@@ -127,7 +127,6 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             f"Failed to get installation access token: {resp.status_code} {resp.text}"
         )
 
-    @lru_cache(maxsize=2)
     def _initialize_github_app(self, repo):
         """
         Initializes the GitHub App authentication.

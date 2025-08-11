@@ -8,6 +8,9 @@ import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from mergebot.validator.logging_config import logger
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class LLMConfig(BaseModel):
