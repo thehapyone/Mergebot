@@ -26,6 +26,7 @@ class MergeFinalizationCrew(BotBaseCrew):
             config=self.agents_config["finalizer"],
             llm=self.llm,
             tools=[PostCommentTool(), ApprovePullOrMergeRequestTool()],
+            max_iter=3
         )
 
     @task
