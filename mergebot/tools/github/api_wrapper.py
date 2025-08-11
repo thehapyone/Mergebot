@@ -1,6 +1,5 @@
 import os
 import time
-from functools import lru_cache
 
 import jwt
 import requests
