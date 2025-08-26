@@ -10,11 +10,10 @@ from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
     ImpactEvaluator,
-    MergeFinalizationCrew,
-    PRProcessor,
     RiskAnalysis,
     TestAnalysis,
 )
+from mergebot.services import pr_service, approval_service
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
@@ -107,10 +106,6 @@ class MergeBotCrews(BaseModel):
     test_analysis: Crew = Field(default_factory=lambda: TestAnalysis().crew())
     risk_analysis: Crew = Field(default_factory=lambda: RiskAnalysis().crew())
     impact_evaluator: Crew = Field(default_factory=lambda: ImpactEvaluator().crew())
-    pr_retriever: Crew = Field(default_factory=lambda: PRProcessor().crew())
-    merge_finalizer: Crew = Field(
-        default_factory=lambda: MergeFinalizationCrew().crew()
-    )
 
 
 class MergeBotState(BaseModel):
@@ -128,7 +123,9 @@ class MergeBotState(BaseModel):
         "report": "",
     }
     analysis_link: str = ""
-    impact_evaluator: str = ""
+    final_decision: dict = Field(
+        default_factory=dict, description="Final decision summary and metadata."
+    )
     usage_metrics: dict = Field(
         default_factory=dict, description="Usage metrics for the crew's execution."
     )
@@ -141,6 +138,8 @@ class AnalysisResult(BaseModel):
     recommendation: str = Field(default="")
     last_reviewed: str
     analysis_link: str
+    approved: bool = Field(default=False)
+    action_taken: str = Field(default="")
 
 
 class MergeBotFlow(Flow[MergeBotState]):
@@ -153,13 +152,9 @@ class MergeBotFlow(Flow[MergeBotState]):
 
     @listen(initialize)
     async def pr_retriever(self):
-        """Runs a Crew to extract Pull Request Details"""
-        pr_details = (
-            await self.crews.pr_retriever.kickoff_async(
-                inputs={"input": self.state.pr_url}
-            )
-        ).raw
-        self.state.pr_details = pr_details
+        """Fetches PR/MR details using service layer"""
+        details = await pr_service.get_pull_or_merge_request_details(self.state.pr_id)
+        self.state.pr_details = details
 
     @listen(pr_retriever)
     async def code_analysis_assessment(self):
@@ -226,24 +221,48 @@ class MergeBotFlow(Flow[MergeBotState]):
 
     @listen(impact_evaluator)
     async def pr_decision(self):
-        """Runs the PR decision crew on the impact assessment report"""
-        response = await self.crews.merge_finalizer.kickoff_async(
-            inputs={
-                "pr_id": self.state.pr_id,
-                "impact_assessment_report": self.state.impact_assessment.get("report"),
-                "recommendation": self.state.impact_assessment.get("recommendation"),
-            }
-        )
-        self.state.analysis_link = extract_url_from_text(response.tasks_output[0].raw)
-        self.state.impact_evaluator = response.raw
+        """Finalize by posting impact report and taking approval action via service layer."""
+        rec = self.state.impact_assessment.get("recommendation", "").strip().lower()
+        report = self.state.impact_assessment.get("report") or ""
+        # Post impact assessment report
+        link = await approval_service.post_comment(self.state.pr_id, report)
+        self.state.analysis_link = link or "N/A"
+
+        # Take action based on recommendation
+        if "approve" in rec:
+            try:
+                await approval_service.approve_change(self.state.pr_id)
+                await approval_service.post_comment(
+                    self.state.pr_id,
+                    "Action: Approved based on impact evaluator recommendation.",
+                )
+                action_note = "Approved"
+            except Exception as e:
+                logger.error(f"Approval action failed: {e}")
+                action_note = f"Approval failed: {e}"
+        else:
+            await approval_service.post_comment(
+                self.state.pr_id,
+                "Action: Not approved based on impact evaluator recommendation.",
+            )
+            action_note = "Not approved"
+
+        # Store deterministic, structured final decision data
+        self.state.final_decision = {
+            "recommendation": self.state.impact_assessment.get("recommendation"),
+            "impact_score": self.state.impact_assessment.get("score"),
+            "action_taken": action_note,
+            "analysis_link": self.state.analysis_link,
+            "approved": "approve" in rec,
+        }
 
         # Store the crew usage metrics
         self.state.usage_metrics = {
             crew_name: crew.usage_metrics.model_dump() for crew_name, crew in self.crews
         }
 
-        logger.info("\nFinal Response:")
-        logger.info(self.state.impact_evaluator)
+        logger.info("\nFinal Decision:")
+        logger.info(self.state.final_decision)
 
 
 async def run_flow(
@@ -292,6 +311,8 @@ async def run_flow(
             recommendation=mergebot.state.impact_assessment.get("recommendation"),
             last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
             analysis_link=mergebot.state.analysis_link,
+            approved=mergebot.state.final_decision.get("approved", False),
+            action_taken=mergebot.state.final_decision.get("action_taken", ""),
         )
     except ValidationError as e:
         logger.error(f"AnalysisResult validation failed: {e}")

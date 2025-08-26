@@ -1,5 +1,5 @@
 llm:
-  model: "azure/gpt-4.1-nano"
+  model: "litellm_proxy/gpt-5-mini"
 
 repository:
   type: "gitlab"
@@ -10,7 +10,6 @@ repository:
   github:
     base_branch: "main"
 
-
 approval_policy:
   threshold: 3.0
   weights:
@@ -20,8 +19,8 @@ approval_policy:
     RiskAnalysis: 0.2
 
 analysis:
-  max_mrs: 10  # 0 or missing means unlimited
-  draft_mrs: false  # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
+  max_mrs: 10 # 0 or missing means unlimited
+  draft_mrs: false # If true, analyze Draft/WIP MRs. If false (default), skip Draft/WIP MRs.
 
 telemetry:
-  enabled: false  # Disable all OpenTelemetry (including CrewAI) by default. Set to true to enable.
+  enabled: false # Disable all OpenTelemetry (including CrewAI) by default. Set to true to enable.

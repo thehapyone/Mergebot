@@ -1,16 +1,23 @@
-# Publication Crew
+# Publication (Removed in v0.1.0)
 
-The Publication crew finalizes the review process by posting the decision and updating the dashboard.
+This crew has been removed. Finalization is now performed directly by the Flow Engine via the Service Layer, which executes all external actions (posting comments, approvals) with retries and backoff.
 
-## Responsibilities
+## Current Responsibilities (handled by services)
 
-- Publish the final recommendation (auto-approve or escalate) to the merge request.
-- Update the dashboard with analysis links and status.
-- Notify stakeholders as needed.
+- Post the formatted impact assessment report (comment) to the PR/MR.
+- If the recommendation indicates approval, approve the PR/MR and post an action confirmation comment.
 
-## Implementation
+These are executed by:
+- mergebot.services.approval_service.post_impact_report(...)
+- mergebot.services.approval_service.approve_change(...)
+- mergebot.services.approval_service.post_comment(...)
 
-- Uses an AI agent configured via `agents.yaml` and `tasks.yaml`.
-- Runs as the final step in the flow pipeline.
+## Rationale
 
-> **See also:** [Flow Engine](../flow.md)
+- Eliminates recursive tool-call loops within AI agents.
+- Centralizes error handling with exponential backoff and jitter (max 3 attempts).
+- Keeps AI crews reasoning-only and side-effect free.
+
+> See also:
+> - Flow Engine (../flow.md)
+> - Service Layer overview in docs/architecture/flow.md
