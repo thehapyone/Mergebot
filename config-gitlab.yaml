@@ -1,5 +1,5 @@
 llm:
-  model: "litellm_proxy/gpt-5-mini"
+  model: "azure/gpt-4.1-mini"
 
 repository:
   type: "gitlab"

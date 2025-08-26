@@ -204,20 +204,20 @@ class MergeBotFlow(Flow[MergeBotState]):
         """Runs the Impact Evaluator Analysis Assessment on the PR details"""
         approval_policy = get_runtime_config(as_pydantic=True).approval_policy
         policy_str = approval_policy.to_markdown() if approval_policy else ""
-        self.state.impact_assessment = extract_assessment(
-            (
-                await self.crews.impact_evaluator.kickoff_async(
-                    inputs={
-                        "pr_id": self.state.pr_id,
-                        "approval_policy": policy_str,
-                        "code_analysis_assessment": self.state.code_analysis_assessment,
-                        "complexity_assessment": self.state.complexity_assessment,
-                        "test_analysis": self.state.test_analysis_assessment,
-                        "risk_assessment": self.state.risk_assessment,
-                    }
-                )
-            ).raw
-        )
+        impact_evaluator = (
+            await self.crews.impact_evaluator.kickoff_async(
+                inputs={
+                    "pr_id": self.state.pr_id,
+                    "approval_policy": policy_str,
+                    "code_analysis_assessment": self.state.code_analysis_assessment,
+                    "complexity_assessment": self.state.complexity_assessment,
+                    "test_analysis": self.state.test_analysis_assessment,
+                    "risk_assessment": self.state.risk_assessment,
+                }
+            )
+        ).raw
+
+        self.state.impact_assessment = extract_assessment(impact_evaluator)
 
     @listen(impact_evaluator)
     async def pr_decision(self):
