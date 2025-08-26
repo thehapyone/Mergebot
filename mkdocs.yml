@@ -66,9 +66,10 @@ plugins:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
-  - Installation: installation.md
+  - GitHub App Quickstart: quickstart_github_app.md
   - Usage:
       - Overview: usage/overview.md
+      - Running Mergebot: usage/running.md
       - CLI Reference: usage/cli_reference.md
       - Onboarding: usage/onboarding.md
   - Configuration:
@@ -90,6 +91,7 @@ nav:
   - Operations:
       - Docker: operations/docker.md
       - Docker Compose: operations/docker_compose.md
+      - GitHub Actions: operations/github_actions.md
       - GitLab CI: operations/gitlab_ci.md
   - Capabilities: capabilities.md
   - Roadmap: roadmap.md

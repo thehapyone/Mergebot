@@ -158,3 +158,18 @@ approval_policy:
 - All config is validated and merged in a robust, platform-agnostic way.
 
 For more details, see the main [Home](../index.md) or [Approval Policy](../configuration/approval_policy.md).
+
+---
+
+## CI Integration
+
+You can run Mergebot as part of your CI pipelines to automate code review and impact assessment.
+
+- **GitHub Actions:**  
+  See [GitHub Actions Operations Guide](../operations/github_actions.md)
+- **GitLab CI:**  
+  See [GitLab CI Operations Guide](../operations/gitlab_ci.md)
+- **Direct invocation / custom CI:**  
+  Mergebot can be invoked using Docker or Python in any pipeline system.
+
+Set up your credentials as described above, then connect to your platform’s CI as detailed in the operations docs for automation best practices.

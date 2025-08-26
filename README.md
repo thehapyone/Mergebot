@@ -40,6 +40,19 @@ docker pull thehapyone/mergebot:latest
 
 ## Usage
 
+---
+
+### 🚀 Ways to Run Mergebot
+
+- **Cloud-Hosted** (coming soon): Activate via web UI (no infra required)
+- **Self-hosted (Docker/Python):** See [Installation](docs/installation.md)
+- **CI Automation (GitHub/GitLab):**  
+  - [GitHub Actions](docs/operations/github_actions.md)
+  - [GitLab CI](docs/operations/gitlab_ci.md)
+- **Direct CLI:** See [Running Mergebot](docs/usage/running.md)
+
+_All modes, with one navigation overview:_ 👉 [docs/usage/running.md](docs/usage/running.md)
+
 See the [Quickstart guide](docs/quickstart.md) for setup and usage instructions.
 
 ---

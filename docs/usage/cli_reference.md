@@ -24,3 +24,7 @@ mergebot --help
 | --help         | Show help message                   |
 
 > **Tip:** For most users, the recommended mode is `ondemand` via CI/CD.
+
+---
+
+See [Running Mergebot](running.md) for all supported CLI, CI, and integration patterns.
