@@ -49,7 +49,7 @@ def _compute_backoff_delay(
 ) -> float:
     pure = base_delay * (factor ** (attempt - 1))
     delay = min(pure, max_delay)
-    # Full jitter
+    # Add jitter to the delay
     return max(0.0, delay + random.uniform(-jitter, jitter))
 
 

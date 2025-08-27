@@ -316,11 +316,16 @@ class MergeBotFlow(Flow[MergeBotState]):
                     logger.error(f"Approval action failed: {e}")
                     action_note = f"Approval failed: {e}"
             else:
-                await approval_service.post_comment(
-                    self.state.pr_id,
-                    not_approved_message,
-                )
-                action_note = "Not approved"
+                try:
+                    await approval_service.post_comment(
+                        self.state.pr_id,
+                        not_approved_message,
+                    )
+                    action_note = "Not approved"
+                except Exception as e:
+                    logger.error(f"Failed to post 'not approved' comment: {e}")
+                    action_note = f"Failed to post comment: {e}"
+
             final_recommendation = self.state.impact_assessment.get("recommendation")
 
         # Store deterministic, structured final decision data
