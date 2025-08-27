@@ -296,7 +296,7 @@ class MergeBotFlow(Flow[MergeBotState]):
                 self.state.pr_id, inconclusive_message
             )
             action_note = "Human review required (inconclusive)"
-            final_recommendation = "Requires Human Review"
+            final_recommendation = action_note
         else:
             # Post the impact assessment report first
             self.state.analysis_link = await approval_service.post_comment(
@@ -383,8 +383,8 @@ async def run_flow(
         analysis_result = AnalysisResult(
             title=mergebot.state.pr_title,
             id=mergebot.state.pr_id,
-            impact_score=mergebot.state.impact_assessment.get("score"),
-            recommendation=mergebot.state.impact_assessment.get("recommendation"),
+            impact_score=mergebot.state.final_decision.get("score"),
+            recommendation=mergebot.state.final_decision.get("recommendation"),
             last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
             analysis_link=mergebot.state.analysis_link,
             approved=mergebot.state.final_decision.get("approved", False),
