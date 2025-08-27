@@ -1,5 +1,5 @@
 llm:
-  model: "azure/gpt-4.1"
+  model: "azure/gpt-4.1-mini"
 
 repository:
   type: "github"

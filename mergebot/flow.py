@@ -84,30 +84,42 @@ def validate_impact_assessment(data: dict) -> dict:
     """
     Validate and normalize the impact assessment extracted from the LLM output.
 
-    Guarantees:
-    - recommendation: one of {"Approve", "Requires Human Review"} (title case)
-      • If the original contains "approve" (any case), choose "Approve"
-      • Otherwise default to "Requires Human Review"
-    - score: non-empty string; if missing -> "N/A"
-    - report: non-empty trimmed text; if missing -> fallback summary
+    Policy:
+    - Do NOT fabricate values. Only trim/normalize lightly.
+    - Recommendation: title to "Approve" if it contains "approve", otherwise keep as-is.
+    - Score: keep as-is (empty means not extracted).
+    - Report: keep as-is (empty means not extracted).
     """
     data = data or {}
-    raw_recommendation = str(data.get("recommendation", "") or "").strip().lower()
-    normalized_recommendation = (
-        "Approve" if "approve" in raw_recommendation else "Requires Human Review"
-    )
-
-    score = str(data.get("score", "") or "").strip() or "N/A"
+    raw_rec = str(data.get("recommendation", "") or "").strip()
+    score = str(data.get("score", "") or "").strip()
     report = str(data.get("report", "") or "").strip()
-    if not report:
-        # Minimal safe fallback to avoid posting empty comments
-        report = "Automated impact summary unavailable. Defaulting to safe handling and human review."
+
+    # Light normalization
+    recommendation = "Auto-Approve" if "approve" in raw_rec.lower() else raw_rec
 
     return {
         "score": score,
-        "recommendation": normalized_recommendation,
+        "recommendation": recommendation,
         "report": report,
     }
+
+
+def is_conclusive_impact_assessment(data: dict) -> bool:
+    """
+    An assessment is conclusive only if BOTH recommendation and score were extracted.
+    - recommendation: non-empty after trimming
+    - score: non-empty and not in {"N/A","NA"} (case-insensitive)
+    """
+    if not isinstance(data, dict):
+        return False
+    rec = str(data.get("recommendation", "") or "").strip()
+    score = str(data.get("score", "") or "").strip()
+    if not rec or not score:
+        return False
+    if score.upper() in {"N/A", "NA"}:
+        return False
+    return True
 
 
 def extract_pr_id(output_string):
@@ -256,10 +268,7 @@ class MergeBotFlow(Flow[MergeBotState]):
         """Finalize by posting impact report and taking approval action via service layer."""
         rec = self.state.impact_assessment.get("recommendation", "").strip().lower()
         report = self.state.impact_assessment.get("report") or ""
-        # Post impact assessment report
-        self.state.analysis_link = await approval_service.post_comment(
-            self.state.pr_id, report
-        )
+
         pr_style = "MR" if get_platform_type() == "gitlab" else "PR"
         approval_message = (
             f"✅ {pr_style} has been auto-approved as recommended in the Impact Assessment Report (see assessment report).\n"
@@ -270,34 +279,57 @@ class MergeBotFlow(Flow[MergeBotState]):
             f"❌ {pr_style} has not been auto-approved as per the Impact Assessment Report.\n"
             f"Please review the report and take necessary actions manually."
         )
+        inconclusive_message = (
+            f"⚠️ Impact Assessment result appears inconclusive or not in the expected format.\n\n"
+            f"Recommended next steps:\n"
+            f"- Consider using a more capable AI model for the Impact Evaluator crew.\n"
+            f"- Review your approval configuration (docs/configuration/approval_policy.md).\n"
+            f"- Review the Mergebot logs for potential errors or truncation.\n\n"
+            f"This review will be held for human attention. No auto-approval has been performed."
+        )
 
-        # Take action based on recommendation
-        if "approve" in rec:
-            try:
-                await approval_service.approve_change(self.state.pr_id)
+        approved_flag = False
+
+        # If required fields weren't extracted, post guidance and require human review
+        if not is_conclusive_impact_assessment(self.state.impact_assessment):
+            self.state.analysis_link = await approval_service.post_comment(
+                self.state.pr_id, inconclusive_message
+            )
+            action_note = "Human review required (inconclusive)"
+            final_recommendation = "Requires Human Review"
+        else:
+            # Post the impact assessment report first
+            self.state.analysis_link = await approval_service.post_comment(
+                self.state.pr_id, report
+            )
+            # Take action based on recommendation
+            if "approve" in rec:
+                try:
+                    await approval_service.approve_change(self.state.pr_id)
+                    await approval_service.post_comment(
+                        self.state.pr_id,
+                        approval_message,
+                    )
+                    action_note = "Approved"
+                    approved_flag = True
+                except Exception as e:
+                    logger.error(f"Approval action failed: {e}")
+                    action_note = f"Approval failed: {e}"
+            else:
                 await approval_service.post_comment(
                     self.state.pr_id,
-                    approval_message,
+                    not_approved_message,
                 )
-
-                action_note = "Approved"
-            except Exception as e:
-                logger.error(f"Approval action failed: {e}")
-                action_note = f"Approval failed: {e}"
-        else:
-            await approval_service.post_comment(
-                self.state.pr_id,
-                not_approved_message,
-            )
-            action_note = "Not approved"
+                action_note = "Not approved"
+            final_recommendation = self.state.impact_assessment.get("recommendation")
 
         # Store deterministic, structured final decision data
         self.state.final_decision = {
-            "recommendation": self.state.impact_assessment.get("recommendation"),
+            "recommendation": final_recommendation,
             "impact_score": self.state.impact_assessment.get("score"),
             "action_taken": action_note,
             "analysis_link": self.state.analysis_link,
-            "approved": "approve" in rec,
+            "approved": approved_flag,
         }
 
         # Store the crew usage metrics
