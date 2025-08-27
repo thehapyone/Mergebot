@@ -13,7 +13,7 @@ from mergebot.crews import (
     RiskAnalysis,
     TestAnalysis,
 )
-from mergebot.services import pr_service, approval_service
+from mergebot.services import approval_service, pr_service
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
@@ -272,20 +272,20 @@ class MergeBotFlow(Flow[MergeBotState]):
         pr_style = "MR" if get_platform_type() == "gitlab" else "PR"
         approval_message = (
             f"✅ {pr_style} has been auto-approved as recommended in the Impact Assessment Report (see assessment report).\n"
-            f"This action has been automated as per the established policy.\n"
-            f"If CI or downstream issues arise, please review the report or raise an issue manually."
+            "This action has been automated as per the established policy.\n"
+            "If CI or downstream issues arise, please review the report or raise an issue manually."
         )
         not_approved_message = (
             f"❌ {pr_style} has not been auto-approved as per the Impact Assessment Report.\n"
-            f"Please review the report and take necessary actions manually."
+            "Please review the report and take necessary actions manually."
         )
         inconclusive_message = (
-            f"⚠️ Impact Assessment result appears inconclusive or not in the expected format.\n\n"
-            f"Recommended next steps:\n"
-            f"- Consider using a more capable AI model for the Impact Evaluator crew.\n"
-            f"- Review your approval configuration (docs/configuration/approval_policy.md).\n"
-            f"- Review the Mergebot logs for potential errors or truncation.\n\n"
-            f"This review will be held for human attention. No auto-approval has been performed."
+            "⚠️ Impact Assessment result appears inconclusive or not in the expected format.\n\n"
+            "Recommended next steps:\n"
+            "- Consider using a more capable AI model for the Impact Evaluator crew.\n"
+            "- Review your approval configuration (docs/configuration/approval_policy.md).\n"
+            "- Review the Mergebot logs for potential errors or truncation.\n\n"
+            "This review will be held for human attention. No auto-approval has been performed."
         )
 
         approved_flag = False

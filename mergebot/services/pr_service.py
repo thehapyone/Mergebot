@@ -1,6 +1,4 @@
-from typing import Optional
-
-from mergebot.services.common import async_retry, ServiceError
+from mergebot.services.common import ServiceError, async_retry
 from mergebot.tools.common import GetPullOrMergeRequestTool
 from mergebot.validator.logging_config import logger
 

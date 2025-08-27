@@ -1,7 +1,7 @@
 import re
 
-from mergebot.services.common import async_retry, ServiceError
-from mergebot.tools.common import PostCommentTool, ApprovePullOrMergeRequestTool
+from mergebot.services.common import ServiceError, async_retry
+from mergebot.tools.common import ApprovePullOrMergeRequestTool, PostCommentTool
 from mergebot.validator.logging_config import logger
 
 
@@ -48,7 +48,7 @@ def sanitize_comment_body(body: str) -> str:
 
     # If it ends with a closing fence, drop it
     if text.endswith("```"):
-        text = text[: -3].rstrip()
+        text = text[:-3].rstrip()
 
     return text
 

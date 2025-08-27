@@ -1,8 +1,7 @@
 import asyncio
-import math
 import random
-from typing import Optional, Callable, Any, Coroutine, TypeVar
 from functools import wraps
+from typing import Any, Callable, Coroutine, Optional, TypeVar
 
 from mergebot.validator.logging_config import logger
 
