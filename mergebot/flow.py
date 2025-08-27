@@ -10,11 +10,10 @@ from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
     ImpactEvaluator,
-    MergeFinalizationCrew,
-    PRProcessor,
     RiskAnalysis,
     TestAnalysis,
 )
+from mergebot.services import approval_service, pr_service
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
@@ -81,6 +80,48 @@ def extract_assessment(impact_assessment: str) -> dict:
     }
 
 
+def validate_impact_assessment(data: dict) -> dict:
+    """
+    Validate and normalize the impact assessment extracted from the LLM output.
+
+    Policy:
+    - Do NOT fabricate values. Only trim/normalize lightly.
+    - Recommendation: title to "Approve" if it contains "approve", otherwise keep as-is.
+    - Score: keep as-is (empty means not extracted).
+    - Report: keep as-is (empty means not extracted).
+    """
+    data = data or {}
+    raw_rec = str(data.get("recommendation", "") or "").strip()
+    score = str(data.get("score", "") or "").strip()
+    report = str(data.get("report", "") or "").strip()
+
+    # Light normalization
+    recommendation = "Auto-Approve" if "approve" in raw_rec.lower() else raw_rec
+
+    return {
+        "score": score,
+        "recommendation": recommendation,
+        "report": report,
+    }
+
+
+def is_conclusive_impact_assessment(data: dict) -> bool:
+    """
+    An assessment is conclusive only if BOTH recommendation and score were extracted.
+    - recommendation: non-empty after trimming
+    - score: non-empty and not in {"N/A","NA"} (case-insensitive)
+    """
+    if not isinstance(data, dict):
+        return False
+    rec = str(data.get("recommendation", "") or "").strip()
+    score = str(data.get("score", "") or "").strip()
+    if not rec or not score:
+        return False
+    if score.upper() in {"N/A", "NA"}:
+        return False
+    return True
+
+
 def extract_pr_id(output_string):
     """
     Extracts the PR/MR ID from a GitHub or GitLab URL.
@@ -107,10 +148,6 @@ class MergeBotCrews(BaseModel):
     test_analysis: Crew = Field(default_factory=lambda: TestAnalysis().crew())
     risk_analysis: Crew = Field(default_factory=lambda: RiskAnalysis().crew())
     impact_evaluator: Crew = Field(default_factory=lambda: ImpactEvaluator().crew())
-    pr_retriever: Crew = Field(default_factory=lambda: PRProcessor().crew())
-    merge_finalizer: Crew = Field(
-        default_factory=lambda: MergeFinalizationCrew().crew()
-    )
 
 
 class MergeBotState(BaseModel):
@@ -128,7 +165,9 @@ class MergeBotState(BaseModel):
         "report": "",
     }
     analysis_link: str = ""
-    impact_evaluator: str = ""
+    final_decision: dict = Field(
+        default_factory=dict, description="Final decision summary and metadata."
+    )
     usage_metrics: dict = Field(
         default_factory=dict, description="Usage metrics for the crew's execution."
     )
@@ -141,6 +180,8 @@ class AnalysisResult(BaseModel):
     recommendation: str = Field(default="")
     last_reviewed: str
     analysis_link: str
+    approved: bool = Field(default=False)
+    action_taken: str = Field(default="")
 
 
 class MergeBotFlow(Flow[MergeBotState]):
@@ -153,13 +194,9 @@ class MergeBotFlow(Flow[MergeBotState]):
 
     @listen(initialize)
     async def pr_retriever(self):
-        """Runs a Crew to extract Pull Request Details"""
-        pr_details = (
-            await self.crews.pr_retriever.kickoff_async(
-                inputs={"input": self.state.pr_url}
-            )
-        ).raw
-        self.state.pr_details = pr_details
+        """Fetches PR/MR details using service layer"""
+        details = await pr_service.get_pull_or_merge_request_details(self.state.pr_id)
+        self.state.pr_details = details
 
     @listen(pr_retriever)
     async def code_analysis_assessment(self):
@@ -209,41 +246,104 @@ class MergeBotFlow(Flow[MergeBotState]):
         """Runs the Impact Evaluator Analysis Assessment on the PR details"""
         approval_policy = get_runtime_config(as_pydantic=True).approval_policy
         policy_str = approval_policy.to_markdown() if approval_policy else ""
-        self.state.impact_assessment = extract_assessment(
-            (
-                await self.crews.impact_evaluator.kickoff_async(
-                    inputs={
-                        "pr_id": self.state.pr_id,
-                        "approval_policy": policy_str,
-                        "code_analysis_assessment": self.state.code_analysis_assessment,
-                        "complexity_assessment": self.state.complexity_assessment,
-                        "test_analysis": self.state.test_analysis_assessment,
-                        "risk_assessment": self.state.risk_assessment,
-                    }
-                )
-            ).raw
+        impact_evaluator = (
+            await self.crews.impact_evaluator.kickoff_async(
+                inputs={
+                    "pr_id": self.state.pr_id,
+                    "approval_policy": policy_str,
+                    "code_analysis_assessment": self.state.code_analysis_assessment,
+                    "complexity_assessment": self.state.complexity_assessment,
+                    "test_analysis": self.state.test_analysis_assessment,
+                    "risk_assessment": self.state.risk_assessment,
+                }
+            )
+        ).raw
+
+        self.state.impact_assessment = validate_impact_assessment(
+            extract_assessment(impact_evaluator)
         )
 
     @listen(impact_evaluator)
     async def pr_decision(self):
-        """Runs the PR decision crew on the impact assessment report"""
-        response = await self.crews.merge_finalizer.kickoff_async(
-            inputs={
-                "pr_id": self.state.pr_id,
-                "impact_assessment_report": self.state.impact_assessment.get("report"),
-                "recommendation": self.state.impact_assessment.get("recommendation"),
-            }
+        """Finalize by posting impact report and taking approval action via service layer."""
+        rec = self.state.impact_assessment.get("recommendation", "").strip().lower()
+        report = self.state.impact_assessment.get("report") or ""
+
+        pr_style = "MR" if get_platform_type() == "gitlab" else "PR"
+        approval_message = (
+            f"✅ {pr_style} has been auto-approved as recommended in the Impact Assessment Report (see assessment report).\n"
+            "This action has been automated as per the established policy.\n"
+            "If CI or downstream issues arise, please review the report or raise an issue manually."
         )
-        self.state.analysis_link = extract_url_from_text(response.tasks_output[0].raw)
-        self.state.impact_evaluator = response.raw
+        not_approved_message = (
+            f"❌ {pr_style} has not been auto-approved as per the Impact Assessment Report.\n"
+            "Please review the report and take necessary actions manually."
+        )
+        inconclusive_message = (
+            "⚠️ Impact Assessment result appears inconclusive or not in the expected format.\n\n"
+            "Recommended next steps:\n"
+            "- Consider using a more capable AI model for the Impact Evaluator crew.\n"
+            "- Review your approval configuration (docs/configuration/approval_policy.md).\n"
+            "- Review the Mergebot logs for potential errors or truncation.\n\n"
+            "This review will be held for human attention. No auto-approval has been performed."
+        )
+
+        approved_flag = False
+
+        # If required fields weren't extracted, post guidance and require human review
+        if not is_conclusive_impact_assessment(self.state.impact_assessment):
+            self.state.analysis_link = await approval_service.post_comment(
+                self.state.pr_id, inconclusive_message
+            )
+            action_note = "Human review required (inconclusive)"
+            final_recommendation = action_note
+        else:
+            # Post the impact assessment report first
+            self.state.analysis_link = await approval_service.post_comment(
+                self.state.pr_id, report
+            )
+            # Take action based on recommendation
+            if "approve" in rec:
+                try:
+                    await approval_service.approve_change(self.state.pr_id)
+                    await approval_service.post_comment(
+                        self.state.pr_id,
+                        approval_message,
+                    )
+                    action_note = "Approved"
+                    approved_flag = True
+                except Exception as e:
+                    logger.error(f"Approval action failed: {e}")
+                    action_note = f"Approval failed: {e}"
+            else:
+                try:
+                    await approval_service.post_comment(
+                        self.state.pr_id,
+                        not_approved_message,
+                    )
+                    action_note = "Not approved"
+                except Exception as e:
+                    logger.error(f"Failed to post 'not approved' comment: {e}")
+                    action_note = f"Failed to post comment: {e}"
+
+            final_recommendation = self.state.impact_assessment.get("recommendation")
+
+        # Store deterministic, structured final decision data
+        self.state.final_decision = {
+            "recommendation": final_recommendation,
+            "impact_score": self.state.impact_assessment.get("score"),
+            "action_taken": action_note,
+            "analysis_link": self.state.analysis_link,
+            "approved": approved_flag,
+        }
 
         # Store the crew usage metrics
         self.state.usage_metrics = {
             crew_name: crew.usage_metrics.model_dump() for crew_name, crew in self.crews
         }
 
-        logger.info("\nFinal Response:")
-        logger.info(self.state.impact_evaluator)
+        logger.info("\nFinal Decision:")
+        logger.info(self.state.final_decision)
 
 
 async def run_flow(
@@ -288,10 +388,12 @@ async def run_flow(
         analysis_result = AnalysisResult(
             title=mergebot.state.pr_title,
             id=mergebot.state.pr_id,
-            impact_score=mergebot.state.impact_assessment.get("score"),
-            recommendation=mergebot.state.impact_assessment.get("recommendation"),
+            impact_score=mergebot.state.final_decision.get("impact_score"),
+            recommendation=mergebot.state.final_decision.get("recommendation"),
             last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
             analysis_link=mergebot.state.analysis_link,
+            approved=mergebot.state.final_decision.get("approved", False),
+            action_taken=mergebot.state.final_decision.get("action_taken", ""),
         )
     except ValidationError as e:
         logger.error(f"AnalysisResult validation failed: {e}")

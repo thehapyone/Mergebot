@@ -157,7 +157,7 @@ repository:
     base_branch: main
 ```
 
-- `type`: Must be `gitlab` (GitHub support coming soon)
+- `type`: Must be `gitlab`
 - `gitlab`: Required if type is `gitlab`
 - **Set the GitLab personal access token as the `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable** (recommended).
 

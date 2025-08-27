@@ -2,8 +2,9 @@
 
 ## What Works
 
-- Self-hosted Mergebot runs in ondemand mode with GitHub App authentication (PEM normalization, config/env, tested).
+- Self-hosted Mergebot runs in ondemand mode with GitHub App authentication (raw PEM via env or config), validated end-to-end.
 - All documentation, config, validation, and code align with “raw PEM only.”
+- Docs updated to reflect GitHub + GitLab support and PEM guidance (Quickstart GitHub App, Docker Compose, Config Schema, FAQ, Capabilities, README).
 - PAT flow still present for backward compatibility.
 
 ## What's Left to Build (Detailed TODO for next milestone)
@@ -41,6 +42,9 @@
 ### 5. Upgrade/Legacy Handling
 - [ ] Auto-migrate any old configs still using `private_key_path` or path logic; warn user in logs, guide to PEM.
 - [ ] CLI command to validate current setup and print SaaS-vs-self-host recommendation.
+
+### 6. PEM normalization utility
+- [ ] Add normalization for single-line secrets where `\\n` should be converted to real newlines before JWT signing; update docs to remove caveat once implemented.
 
 ---
 

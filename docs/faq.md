@@ -4,7 +4,7 @@ Frequently Asked Questions about Mergebot
 
 ## What platforms does Mergebot support?
 
-- Currently, Mergebot supports GitLab. GitHub and Bitbucket support are planned.
+- Mergebot supports GitHub and GitLab. Bitbucket support is planned.
 
 ## How does Mergebot decide to auto-approve or escalate a merge request?
 
@@ -16,7 +16,7 @@ Frequently Asked Questions about Mergebot
 
 ## Where can I find the dashboard?
 
-- The dashboard is created as a GitLab issue in your project and updated automatically.
+- The dashboard is created as a repository issue (GitHub or GitLab) in your project and updated automatically.
 
 ## How do I get help or report a bug?
 
