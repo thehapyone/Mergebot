@@ -80,6 +80,36 @@ def extract_assessment(impact_assessment: str) -> dict:
     }
 
 
+def validate_impact_assessment(data: dict) -> dict:
+    """
+    Validate and normalize the impact assessment extracted from the LLM output.
+
+    Guarantees:
+    - recommendation: one of {"Approve", "Requires Human Review"} (title case)
+      • If the original contains "approve" (any case), choose "Approve"
+      • Otherwise default to "Requires Human Review"
+    - score: non-empty string; if missing -> "N/A"
+    - report: non-empty trimmed text; if missing -> fallback summary
+    """
+    data = data or {}
+    raw_recommendation = str(data.get("recommendation", "") or "").strip().lower()
+    normalized_recommendation = (
+        "Approve" if "approve" in raw_recommendation else "Requires Human Review"
+    )
+
+    score = str(data.get("score", "") or "").strip() or "N/A"
+    report = str(data.get("report", "") or "").strip()
+    if not report:
+        # Minimal safe fallback to avoid posting empty comments
+        report = "Automated impact summary unavailable. Defaulting to safe handling and human review."
+
+    return {
+        "score": score,
+        "recommendation": normalized_recommendation,
+        "report": report,
+    }
+
+
 def extract_pr_id(output_string):
     """
     Extracts the PR/MR ID from a GitHub or GitLab URL.
@@ -217,7 +247,9 @@ class MergeBotFlow(Flow[MergeBotState]):
             )
         ).raw
 
-        self.state.impact_assessment = extract_assessment(impact_evaluator)
+        self.state.impact_assessment = validate_impact_assessment(
+            extract_assessment(impact_evaluator)
+        )
 
     @listen(impact_evaluator)
     async def pr_decision(self):
@@ -225,8 +257,19 @@ class MergeBotFlow(Flow[MergeBotState]):
         rec = self.state.impact_assessment.get("recommendation", "").strip().lower()
         report = self.state.impact_assessment.get("report") or ""
         # Post impact assessment report
-        link = await approval_service.post_comment(self.state.pr_id, report)
-        self.state.analysis_link = link or "N/A"
+        self.state.analysis_link = await approval_service.post_comment(
+            self.state.pr_id, report
+        )
+        pr_style = "MR" if get_platform_type() == "gitlab" else "PR"
+        approval_message = (
+            f"✅ {pr_style} has been auto-approved as recommended in the Impact Assessment Report (see assessment report).\n"
+            f"This action has been automated as per the established policy.\n"
+            f"If CI or downstream issues arise, please review the report or raise an issue manually."
+        )
+        not_approved_message = (
+            f"❌ {pr_style} has not been auto-approved as per the Impact Assessment Report.\n"
+            f"Please review the report and take necessary actions manually."
+        )
 
         # Take action based on recommendation
         if "approve" in rec:
@@ -234,8 +277,9 @@ class MergeBotFlow(Flow[MergeBotState]):
                 await approval_service.approve_change(self.state.pr_id)
                 await approval_service.post_comment(
                     self.state.pr_id,
-                    "Action: Approved based on impact evaluator recommendation.",
+                    approval_message,
                 )
+
                 action_note = "Approved"
             except Exception as e:
                 logger.error(f"Approval action failed: {e}")
@@ -243,7 +287,7 @@ class MergeBotFlow(Flow[MergeBotState]):
         else:
             await approval_service.post_comment(
                 self.state.pr_id,
-                "Action: Not approved based on impact evaluator recommendation.",
+                not_approved_message,
             )
             action_note = "Not approved"
 
