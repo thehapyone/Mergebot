@@ -10,10 +10,10 @@ Mergebot provides a comprehensive set of features for automated code review and 
 - Centralized dashboard with analytics
 - Configurable workflows and extensible architecture
 - Docker and CLI support
+- Supports both GitHub and GitLab workflows
 
 ## Planned Features
 
-- GitHub support
 - Policy-as-code DSL
 - Real-time LLM feedback
 - Slack/Teams notifications

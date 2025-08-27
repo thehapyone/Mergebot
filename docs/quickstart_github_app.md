@@ -32,6 +32,13 @@ export GITHUB_APP_PRIVATE_KEY="$(cat private-key.pem)"
 # export GITHUB_APP_INSTALLATION_ID=987654
 ```
 
+!!! note "PEM formatting and CI secrets"
+    - Provide the raw PEM (not a file path). The value should include the header/footer lines.
+    - Secrets work as:
+      - Multiline PEM (recommended): paste the full contents including line breaks.
+      - Single-line PEM with '\n': you can store the PEM on one line with literal '\n' newlines. Mergebot accepts both formats.
+    - GitHub Actions: set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` as repository or org secrets; the workflow examples pass them through to Docker.
+
 You may instead set these keys in `mergebot/config.yaml` or `.mergebot.yml`:
 
 ```yaml

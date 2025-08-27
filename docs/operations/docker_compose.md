@@ -13,7 +13,11 @@ services:
     volumes:
       - ./mergebot/config.yaml:/home/appuser/mergebot/config.yaml
     environment:
-      - GITLAB_TOKEN=${GITLAB_TOKEN}
+      # GitHub App (recommended for GitHub)
+      # - GITHUB_APP_ID=${GITHUB_APP_ID}
+      # - GITHUB_APP_PRIVATE_KEY=${GITHUB_APP_PRIVATE_KEY}
+      # GitLab PAT (for GitLab)
+      - GITLAB_PERSONAL_ACCESS_TOKEN=${GITLAB_PERSONAL_ACCESS_TOKEN}
 ```
 
 ## Usage

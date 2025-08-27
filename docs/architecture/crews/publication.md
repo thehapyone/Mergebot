@@ -1,4 +1,4 @@
-# Publication (Removed in v0.1.0)
+# Publication
 
 This crew has been removed. Finalization is now performed directly by the Flow Engine via the Service Layer, which executes all external actions (posting comments, approvals) with retries and backoff.
 
