@@ -383,7 +383,7 @@ async def run_flow(
         analysis_result = AnalysisResult(
             title=mergebot.state.pr_title,
             id=mergebot.state.pr_id,
-            impact_score=mergebot.state.final_decision.get("score"),
+            impact_score=mergebot.state.final_decision.get("impact_score"),
             recommendation=mergebot.state.final_decision.get("recommendation"),
             last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
             analysis_link=mergebot.state.analysis_link,
