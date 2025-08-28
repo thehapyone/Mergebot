@@ -76,12 +76,53 @@ class OndemandRunner:
         config = get_runtime_config(as_pydantic=True)
         draft_prs_enabled = config.analysis.draft_mrs if config.analysis else False
 
-        prs_to_analyze = [
-            pr
-            for pr_iid, pr in open_pr_iids.items()
-            if (pr_iid not in tracked_prs or pr_iid in rerun_requests)
-            and not skip_draft_pr(pr, draft_prs_enabled)
-        ]
+        # Compute helper sets for selection
+        open_ids = set(open_pr_iids.keys())
+        tracked_open_ids = set(tracked_prs).intersection(open_ids)
+
+        # Parse previous rows to detect missing/incomplete analyses
+        prior_rows = self.dashboard_manager.parse_active_prs_table(dashboard["body"])
+        pending_analysis_ids = set()
+        for pr_id, row in prior_rows.items():
+            last_reviewed = (row.get("last_reviewed") or "").strip()
+            impact_score = (row.get("impact_score") or "").strip()
+            recommendation = (row.get("recommendation") or "").strip()
+            if (not last_reviewed or last_reviewed == "N/A") or (
+                (not impact_score or impact_score == "N/A") and not recommendation
+            ):
+                pending_analysis_ids.add(pr_id)
+        # Only consider currently open PRs/MRs
+        pending_analysis_ids = pending_analysis_ids.intersection(open_ids)
+
+        # Build prioritized analysis list:
+        # 1) Explicit rerun requests
+        # 2) Tracked entries with missing/incomplete analysis
+        # 3) New (untracked) open PRs/MRs
+        rerun_list = []
+        for pr_iid, pr in open_pr_iids.items():
+            if pr_iid in rerun_requests and not skip_draft_pr(pr, draft_prs_enabled):
+                rerun_list.append(pr)
+
+        pending_list = []
+        for pr_iid, pr in open_pr_iids.items():
+            if (
+                pr_iid in pending_analysis_ids
+                and pr_iid not in rerun_requests
+                and not skip_draft_pr(pr, draft_prs_enabled)
+            ):
+                pending_list.append(pr)
+
+        new_list = []
+        for pr_iid, pr in open_pr_iids.items():
+            if (
+                pr_iid not in tracked_prs
+                and pr_iid not in rerun_requests
+                and pr_iid not in pending_analysis_ids
+                and not skip_draft_pr(pr, draft_prs_enabled)
+            ):
+                new_list.append(pr)
+
+        prs_to_analyze = rerun_list + pending_list + new_list
 
         # Apply max_prs limit from config if set
         max_prs = config.analysis.max_mrs if config.analysis else None
@@ -167,27 +208,25 @@ class OndemandRunner:
             analysis_durations.append(result["duration"])
 
         # For PRs/MRs not analyzed in this run, preserve previous dashboard data
-        # TODO: Previous data should be fetched from the dashboard
-        #       instead of assuming it is in the dashboard_data.
-        #       Analysis link is not shown for example
-        for pr in open_prs:
-            # Consolidate attribute extraction for both platforms
-            pr_id = getattr(pr, "iid", getattr(pr, "number", "<unknown>"))
+        # Only include items that were already tracked on the dashboard and are still open.
+        for pr_id in tracked_open_ids.difference(analyzed_iids):
+            pr = open_pr_iids.get(pr_id)
+            if not pr:
+                continue
             pr_title = getattr(pr, "title", "<unknown>")
             pr_url = getattr(pr, "web_url", getattr(pr, "html_url", "#"))
-            if pr_id not in analyzed_iids:
-                analysis_results.append(
-                    {
-                        "id": pr_id,
-                        "title": pr_title,
-                        "status": "Tracked",
-                        "impact_score": "N/A",
-                        "recommendation": "",
-                        "last_reviewed": "N/A",
-                        "analysis_link": "#",
-                        "web_url": pr_url,
-                    }
-                )
+            analysis_results.append(
+                {
+                    "id": pr_id,
+                    "title": pr_title,
+                    "status": "Tracked",
+                    "impact_score": "N/A",
+                    "recommendation": "",
+                    "last_reviewed": "N/A",
+                    "analysis_link": "#",
+                    "web_url": pr_url,
+                }
+            )
         # Compute analytics summary metrics, accumulating with previous values
         prev_analytics = dashboard_data["analytics"]
         prs_processed = prev_analytics.get("PRs/MRs Processed", 0) + len(prs_to_analyze)
