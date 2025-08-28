@@ -265,6 +265,43 @@ class DashboardManager:
         rows = [f"| {k} | **{v}** |" for k, v in analytics.items()]
         return header + "\n" + "\n".join(rows)
 
+    def parse_active_prs_table(self, markdown: str) -> Dict[str, Dict[str, str]]:
+        """
+        Parse the 'Active Pull/Merge Requests' table and return a map:
+        {
+            "<id>": {"impact_score": str, "recommendation": str, "last_reviewed": str}
+        }
+        If the table is not present, returns an empty dict.
+        """
+        try:
+            table_match = re.search(
+                r"## 🧩 \*\*Active Pull/Merge Requests \(PR/MR\)\*\*.*?\n((?:\|.*\n)+)",
+                markdown,
+                re.DOTALL,
+            )
+            if not table_match:
+                return {}
+            table_text = table_match.group(1)
+            result: Dict[str, Dict[str, str]] = {}
+            for line in table_text.splitlines():
+                m = re.match(
+                    r"\|\s*\[!(\d+)\][^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|([^\|]*)\|([^\|]*)\|",
+                    line,
+                )
+                if m:
+                    pr_id = m.group(1)
+                    impact_score = m.group(2).strip()
+                    recommendation = m.group(3).strip()
+                    last_reviewed = m.group(4).strip()
+                    result[pr_id] = {
+                        "impact_score": impact_score,
+                        "recommendation": recommendation,
+                        "last_reviewed": last_reviewed,
+                    }
+            return result
+        except Exception:
+            return {}
+
     def parse_analytics_summary(self, markdown: str) -> dict:
         """
         Parse the analytics summary table from the dashboard markdown.
