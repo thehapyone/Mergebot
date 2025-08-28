@@ -3093,14 +3093,14 @@ files = [
 
 [[package]]
 name = "mkdocs-mermaid2-plugin"
-version = "1.2.1"
+version = "1.2.2"
 description = "A MkDocs plugin for including mermaid graphs in markdown sources"
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "mkdocs_mermaid2_plugin-1.2.1-py3-none-any.whl", hash = "sha256:22d2cf2c6867d4959a5e0903da2dde78d74581fc0b107b791bc4c7ceb9ce9741"},
-    {file = "mkdocs_mermaid2_plugin-1.2.1.tar.gz", hash = "sha256:9c7694c73a65905ac1578f966e5c193325c4d5a5bc1836727e74ac9f99d0e921"},
+    {file = "mkdocs_mermaid2_plugin-1.2.2-py3-none-any.whl", hash = "sha256:a003dddd6346ecc0ad530f48f577fe6f8b21ea23fbee09eabf0172bbc1f23df8"},
+    {file = "mkdocs_mermaid2_plugin-1.2.2.tar.gz", hash = "sha256:20a44440d32cf5fd1811b3e261662adb3e1b98be272e6f6fb9a476f3e28fd507"},
 ]
 
 [package.dependencies]
@@ -7015,4 +7015,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "04804f1c47123cb17bb3c6c807c3d6be055cb0db4b334026cbcfaabd036cfa7a"
+content-hash = "d229a46b1bdea7f1b2c792aacb1d60ea13b7db39f6a13f0f8ddbf7fd4d66b28d"
