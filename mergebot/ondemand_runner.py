@@ -99,27 +99,17 @@ class OndemandRunner:
         # 2) Tracked entries with missing/incomplete analysis
         # 3) New (untracked) open PRs/MRs
         rerun_list = []
-        for pr_iid, pr in open_pr_iids.items():
-            if pr_iid in rerun_requests and not skip_draft_pr(pr, draft_prs_enabled):
-                rerun_list.append(pr)
-
         pending_list = []
-        for pr_iid, pr in open_pr_iids.items():
-            if (
-                pr_iid in pending_analysis_ids
-                and pr_iid not in rerun_requests
-                and not skip_draft_pr(pr, draft_prs_enabled)
-            ):
-                pending_list.append(pr)
-
         new_list = []
         for pr_iid, pr in open_pr_iids.items():
-            if (
-                pr_iid not in tracked_prs
-                and pr_iid not in rerun_requests
-                and pr_iid not in pending_analysis_ids
-                and not skip_draft_pr(pr, draft_prs_enabled)
-            ):
+            if skip_draft_pr(pr, draft_prs_enabled):
+                continue
+
+            if pr_iid in rerun_requests:
+                rerun_list.append(pr)
+            elif pr_iid in pending_analysis_ids:
+                pending_list.append(pr)
+            elif pr_iid not in tracked_prs:
                 new_list.append(pr)
 
         prs_to_analyze = rerun_list + pending_list + new_list
