@@ -9,6 +9,7 @@ from typing_extensions import Literal
 
 from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
+from mergebot.dashboard.dedupe import stats_quality_key
 
 # Section markers for robust, sectioned updates
 DASHBOARD_MARKER = "<!-- marker:MERGEBOT_DASHBOARD -->"
@@ -283,6 +284,7 @@ class DashboardManager:
                 return {}
             table_text = table_match.group(1)
             result: Dict[str, Dict[str, str]] = {}
+
             for line in table_text.splitlines():
                 m = re.match(
                     r"\|\s*\[!(\d+)\][^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|([^\|]*)\|([^\|]*)\|",
@@ -293,11 +295,21 @@ class DashboardManager:
                     impact_score = m.group(2).strip()
                     recommendation = m.group(3).strip()
                     last_reviewed = m.group(4).strip()
-                    result[pr_id] = {
-                        "impact_score": impact_score,
-                        "recommendation": recommendation,
-                        "last_reviewed": last_reviewed,
-                    }
+                    existing = result.get(pr_id)
+                    if (
+                        existing is None
+                        or stats_quality_key(impact_score, recommendation, last_reviewed)
+                        > stats_quality_key(
+                            existing.get("impact_score", ""),
+                            existing.get("recommendation", ""),
+                            existing.get("last_reviewed", ""),
+                        )
+                    ):
+                        result[pr_id] = {
+                            "impact_score": impact_score,
+                            "recommendation": recommendation,
+                            "last_reviewed": last_reviewed,
+                        }
             return result
         except Exception:
             return {}

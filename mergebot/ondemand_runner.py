@@ -7,6 +7,7 @@ from mergebot.flow import run_flow
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config
 from mergebot.validator.logging_config import logger
+from mergebot.dashboard.dedupe import dedupe_mr_rows, dedupe_prs_by_id
 
 
 def skip_draft_pr(pr, draft_prs_enabled: bool) -> bool:
@@ -114,6 +115,9 @@ class OndemandRunner:
 
         prs_to_analyze = rerun_list + pending_list + new_list
 
+        # De-duplicate in case any path introduced duplicates (defensive)
+        prs_to_analyze = dedupe_prs_by_id(prs_to_analyze, self.pr_id_attr)
+
         # Apply max_prs limit from config if set
         max_prs = config.analysis.max_mrs if config.analysis else None
 
@@ -188,7 +192,7 @@ class OndemandRunner:
                 analysis_results.append(
                     {k: result[k] for k in result if k != "duration" and k != "error"}
                 )
-                analyzed_iids.add(pr_iid)
+                analyzed_iids.add(str(pr_iid))
             else:
                 errors.append((pr_iid, result["error"]))
                 analysis_results.append(
@@ -217,6 +221,9 @@ class OndemandRunner:
                     "web_url": pr_url,
                 }
             )
+        # Deduplicate MR rows to ensure one entry per PR/MR
+        analysis_results = dedupe_mr_rows(analysis_results)
+
         # Compute analytics summary metrics, accumulating with previous values
         prev_analytics = dashboard_data["analytics"]
         prs_processed = prev_analytics.get("PRs/MRs Processed", 0) + len(prs_to_analyze)
