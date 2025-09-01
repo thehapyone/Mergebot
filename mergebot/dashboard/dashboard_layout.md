@@ -28,6 +28,13 @@ _Check a box below to ask Mergebot to reanalyze any PR/MR. The bot will process 
 
 ---
 
+## 🔒 **Active Session**
+<!-- marker:MERGEBOT_SESSION_LOCK -->
+{{ locks_section }}
+<!-- marker:MERGEBOT_SESSION_LOCK -->
+
+---
+
 ## 📊 **Analytics**
 
 {{ analytics_table }}

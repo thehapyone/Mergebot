@@ -7,6 +7,7 @@ Mergebot provides a comprehensive set of features for automated code review and 
 - AI-driven code review using modular crews
 - Automated impact assessment and approval policy
 - Parallel analysis of multiple merge requests
+- Project-level session lock to prevent concurrent runs per repository
 - Centralized dashboard with analytics
 - Configurable workflows and extensible architecture
 - Docker and CLI support

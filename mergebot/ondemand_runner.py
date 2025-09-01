@@ -3,11 +3,12 @@ import sys
 import time
 
 from mergebot.dashboard.dashboard_manager import DashboardManager
+from mergebot.dashboard.dedupe import dedupe_mr_rows, dedupe_prs_by_id
+from mergebot.dashboard.session_lock import SessionLockCoordinator
 from mergebot.flow import run_flow
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config
 from mergebot.validator.logging_config import logger
-from mergebot.dashboard.dedupe import dedupe_mr_rows, dedupe_prs_by_id
 
 
 def skip_draft_pr(pr, draft_prs_enabled: bool) -> bool:
@@ -65,6 +66,15 @@ class OndemandRunner:
         Runs a single dashboard scan and update, analyzing all relevant pull or merge requests in parallel.
         """
         logger.info("[Ondemand] Running dashboard scan and update (one-shot)")
+        # Acquire project-level session lock to prevent concurrent sessions across instances
+        lock = SessionLockCoordinator(self.dashboard_manager)
+        if not await lock.try_acquire():
+            logger.info(
+                "[Ondemand] Skipping run: session lock is held by another instance."
+            )
+            return
+        lock.start_heartbeat()
+
         dashboard = self.dashboard_manager.get_or_create_dashboard()
         open_prs, open_pr_iids = self.dashboard_manager.get_open_prs()
 
@@ -276,6 +286,10 @@ class OndemandRunner:
             analytics=analytics_summary,
         )
         logger.info("[Ondemand] Dashboard update complete")
+
+        # Release the session lock
+        await lock.stop_heartbeat()
+        await lock.release()
 
         # If errors occurred exit with -1
         if errors:

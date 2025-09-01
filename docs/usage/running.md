@@ -52,6 +52,20 @@ Stay tuned for release updates!
   Useful for scripting, advanced workflows, or debugging.
   See [CLI Reference](cli_reference.md) for full details.
 
+## Project Session Lock
+
+To prevent duplicate analysis/comments across multiple Mergebot instances for the same repository, Mergebot uses a project-level session lock:
+
+- Scope: one active session per project at a time (applies to both ondemand and webhook-triggered runs).
+- Storage: persisted in the Dashboard issue under the “Active Session” section (between MERGEBOT_SESSION_LOCK markers).
+- Default TTL: 10 minutes. While a run is active, a heartbeat extends the lock so it won’t expire mid-run.
+- Crash safety: if a runner crashes, the lock expires after TTL and future runs proceed.
+- Identity: Mergebot uses hostname-pid-uuid.
+
+Behavior:
+- If another instance holds the lock, new runs will skip with a log message like “session lock is held by another instance”.
+- The Dashboard layout always shows a single “Active Session” header; the lock JSON is rendered underneath.
+
 ---
 
 ## Next Steps

@@ -2,52 +2,50 @@
 
 ## What Works
 
+- Project-level session lock implemented and integrated:
+  - Stateless, dashboard-backed lock persisted under the single “Active Session” section between `<!-- marker:MERGEBOT_SESSION_LOCK -->` markers.
+  - Default TTL is 10 minutes (600s) with heartbeat refresh (~200s) while a run is active.
+  - Both ondemand and webhook-triggered runs acquire the same project-scoped lock, preventing concurrent sessions across instances.
+  - Layout normalization ensures only one “Active Session” header; the lock updater only replaces the content between markers.
 - Self-hosted Mergebot runs in ondemand mode with GitHub App authentication (raw PEM via env or config), validated end-to-end.
-- All documentation, config, validation, and code align with “raw PEM only.”
-- Docs updated to reflect GitHub + GitLab support and PEM guidance (Quickstart GitHub App, Docker Compose, Config Schema, FAQ, Capabilities, README).
-- PAT flow still present for backward compatibility.
+- Documentation updated across Architecture, Usage, Operations, and Capabilities to describe session lock scope, TTL, and behavior.
+- PAT flow still present for GitLab and backward compatibility.
 
-## What's Left to Build (Detailed TODO for next milestone)
+## What's Left to Build (Detailed TODO)
 
-### 1. Webhook-Driven GitHub App Support (Self-Hosted & SaaS)
-- [ ] Add robust /webhook endpoint for GitHub App PR/issue_comment events.
-- [ ] Parse PR events, trigger re-run when PR is opened, updated, synchronized, reopened.
-- [ ] Parse issue/pull_request comment events — trigger re-review if comment content matches e.g. `@mergebot review`.
-- [ ] Validate webhook HMAC signature using the app’s webhook secret.
-- [ ] Ensure idempotency & queuing (avoid double-processing large bursts).
-- [ ] Refactor runner so ondemand vs webhook jobs share core flow (no duplication).
+### A) Session Lock Hardening
+- [ ] Add unit/integration tests for `SessionLockCoordinator`:
+  - Acquire vs. busy scenarios, verify-after-write (nonce) behavior, expired lock takeover.
+  - Heartbeat extension and ownership change detection.
+  - Normalization behavior if markers are missing or layout drift occurs.
+- [ ] Optional config knobs (if requested by users):
+  - Expose `lock.ttl_seconds` and `lock.refresh_interval_seconds` via config schema + validation.
+- [ ] Robust retries and backoff:
+  - Add jittered backoff around dashboard reads/writes to handle API rate limits or transient failures.
+- [ ] Observability:
+  - Emit concise logs/metrics for lock lifecycle (acquire, extend, release, busy/skip).
 
-### 2. Cloud/SaaS mode with Public GitHub App (mergebot.dev)
-- [ ] Create a hosted GitHub App (mergebot.dev) with correct OAuth callback + webhook URLs.
-- [ ] Add OAuth endpoints:
-    - `/auth/github/callback` to capture & store user tokens (if needed).
-- [ ] Create a minimal multi-tenant Postgres schema:
-    - `users` (id, github login/id, authz, ...)
-    - `installations` (installation_id, org, repo(s), plan, webhook secret)
-- [ ] Adapt config to `MERGEBOT_MODE=cloud` (multi-tenant loads app creds and keys from DB/env, not yaml).
-- [ ] Add repo opt-in/out UI (optional for MVP).
-- [ ] Support per-repo run scheduling and webhook-push flow (no polling).
-- [ ] Add admin task/CLI for triggering jobs or test runs across tenants.
-- [ ] Billing/analytics webhooks (future/out of scope).
+### B) Webhook-Driven GitHub App Support (Self-Hosted & SaaS)
+- [ ] Harden webhook server for GitHub (HMAC signature validation) and extend event handling.
+- [ ] Trigger re-review on PR opened/updated/synchronized/reopened; dedupe bursts.
+- [ ] Add command-based re-review (e.g., “@mergebot review”, configurable).
+- [ ] Ensure ondemand vs webhook runs share core flow without duplication (already align with lock).
 
-### 3. Intelligent Rereview via Comment Command
-- [ ] Support custom trigger phrase for re-review: on new `issue_comment` on PR, if body contains “@mergebot review” or “/mergebot review” (configurable pattern).
-- [ ] Add workflow note to docs & PR comment templates.
-- [ ] Must avoid accidental infinite loop (bot must not trigger itself).
+### C) Cloud/SaaS mode (separate track)
+- [ ] Multi-tenant persistence and OAuth/install flows (DB schema, installation linkage, webhook secrets).
+- [ ] Admin tasks and scheduling.
 
-### 4. Documentation/Examples
-- [ ] Update onboarding & usage docs for webhook & cloud/SaaS usage.
-- [ ] Provide example installation YAML for SaaS onboarding, including tips for app approval, callback URL, and webhook secret.
+### D) PEM normalization utility
+- [ ] Normalize single-line `\\n` secrets to real newlines for `GITHUB_APP_PRIVATE_KEY` before JWT signing.
+- [ ] Update onboarding docs to remove the caveat once implemented.
 
-### 5. Upgrade/Legacy Handling
-- [ ] Auto-migrate any old configs still using `private_key_path` or path logic; warn user in logs, guide to PEM.
-- [ ] CLI command to validate current setup and print SaaS-vs-self-host recommendation.
+### E) Docs & Examples
+- [ ] Add a small “Troubleshooting” note for lock-related issues (e.g., dashboard markers missing, rate limits).
 
-### 6. PEM normalization utility
-- [ ] Add normalization for single-line secrets where `\\n` should be converted to real newlines before JWT signing; update docs to remove caveat once implemented.
-
----
 
 ## Current Status
 
-All ondemand, PEM, and validation foundations are complete. Next phase is to design, implement, and document automated webhook-triggered jobs, SaaS onboarding/user management, and advanced “@mergebot review” triggers.
+- Project session lock (10-minute TTL + heartbeat) is implemented and documented.
+- Ondemand and webhook flows both respect the session lock to avoid duplicate analysis/comments.
+- Documentation updated to reflect concurrency control, behavior on busy lock, and layout normalization.
+- Next phase focuses on tests, optional configuration knobs, and webhook hardening (HMAC, dedupe bursts), as well as PEM normalization for GitHub App private key handling.

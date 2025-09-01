@@ -7,9 +7,9 @@ from typing import Any, Dict, List
 from jinja2 import Template
 from typing_extensions import Literal
 
+from mergebot.dashboard.dedupe import stats_quality_key
 from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
-from mergebot.dashboard.dedupe import stats_quality_key
 
 # Section markers for robust, sectioned updates
 DASHBOARD_MARKER = "<!-- marker:MERGEBOT_DASHBOARD -->"
@@ -17,6 +17,7 @@ ACTIVE_PRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_PRS -->"
 RERUNS_MARKER = "<!-- marker:MERGEBOT_RERUNS -->"
 ACTIONS_MARKER = "<!-- marker:MERGEBOT_ACTIONS -->"
 ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
+SESSION_LOCK_MARKER = "<!-- marker:MERGEBOT_SESSION_LOCK -->"
 
 
 class DashboardManager:
@@ -164,10 +165,11 @@ class DashboardManager:
         template_str = self._initial_dashboard_body()
         template = Template(template_str)
 
-        # Extract previous MR table for Last Reviewed preservation
+        # Extract previous MR table for Last Reviewed preservation and current lock section
         previous_table = None
+        locks_section = "_No active session lock_"
         try:
-            # Find the Active Merge Requests table in the current dashboard
+            # Find the Active Merge Requests table and Session Lock section in the current dashboard
             dashboard = self.get_or_create_dashboard()
             body = dashboard.get("body", "")
             table_match = re.search(
@@ -177,8 +179,18 @@ class DashboardManager:
             )
             if table_match:
                 previous_table = table_match.group(1)
+
+            # Extract the session lock section content between markers (without markers)
+            lock_pattern = rf"{re.escape(SESSION_LOCK_MARKER)}(.*?){re.escape(SESSION_LOCK_MARKER)}"
+            lock_match = re.search(lock_pattern, body, re.DOTALL)
+            if lock_match:
+                content = (lock_match.group(1) or "").strip()
+                if content:
+                    locks_section = content
         except Exception:
+            # Keep defaults if anything goes wrong
             previous_table = None
+            locks_section = "_No active session lock_"
 
         # Render all sections
         rendered = template.render(
@@ -187,6 +199,7 @@ class DashboardManager:
             rerun_checklist=self._render_rerun_checklist(mr_data, rerun_requests),
             action_log=self._render_action_log(action_log),
             analytics_table=self._render_analytics_table(analytics),
+            locks_section=locks_section,
         )
         return rendered
 
@@ -296,14 +309,12 @@ class DashboardManager:
                     recommendation = m.group(3).strip()
                     last_reviewed = m.group(4).strip()
                     existing = result.get(pr_id)
-                    if (
-                        existing is None
-                        or stats_quality_key(impact_score, recommendation, last_reviewed)
-                        > stats_quality_key(
-                            existing.get("impact_score", ""),
-                            existing.get("recommendation", ""),
-                            existing.get("last_reviewed", ""),
-                        )
+                    if existing is None or stats_quality_key(
+                        impact_score, recommendation, last_reviewed
+                    ) > stats_quality_key(
+                        existing.get("impact_score", ""),
+                        existing.get("recommendation", ""),
+                        existing.get("last_reviewed", ""),
                     ):
                         result[pr_id] = {
                             "impact_score": impact_score,

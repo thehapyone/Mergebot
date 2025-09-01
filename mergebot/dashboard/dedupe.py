@@ -6,7 +6,9 @@ def _is_non_empty_non_na(value: str) -> bool:
     return bool(v) and v.upper() != "N/A"
 
 
-def stats_quality_key(impact_score: str, recommendation: str, last_reviewed: str) -> Tuple[int, int, int]:
+def stats_quality_key(
+    impact_score: str, recommendation: str, last_reviewed: str
+) -> Tuple[int, int, int]:
     """
     Quality key for dashboard stats when parsing prior rows.
     Order of preference (higher is better):

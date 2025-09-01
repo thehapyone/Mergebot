@@ -36,3 +36,23 @@ Mergebot is designed as a modular, extensible system for automated pull or merge
 
 ## Critical Implementation Paths
 - PR/MR event triggers or CI/CD pipeline → Core engine → Crew execution → Feedback aggregation → VCS update → Dashboard update → Memory Bank documentation
+
+## Session Lock Pattern
+
+A stateless, project-scoped session lock prevents concurrent Mergebot runs on the same repository.
+
+- Persistence: Lock is stored inside the repository’s Dashboard issue under a single “Active Session” header, with content bounded by `<!-- marker:MERGEBOT_SESSION_LOCK -->` markers. Only the content between markers is updated; the header is owned by the template.
+- TTL & Heartbeat: Default TTL is 10 minutes (600s). A heartbeat extends `expires_at` periodically (~200s by default) while a session is active to avoid mid-run expiry.
+- Owner Identity: Uses `hostname-pid-uuid` for traceability.
+- Acquisition Algorithm: Optimistic write-then-verify with a nonce.
+  1) Read dashboard and parse lock JSON.
+  2) If an unexpired lock exists with a different owner, skip (busy).
+  3) Otherwise, write a lock with a unique nonce and immediate `expires_at`.
+  4) Re-read; proceed only if our nonce is present (we won the race).
+- Release: On completion, if we still own the lock (owner+nonce match), replace the lock section with a placeholder (no active lock).
+- Normalized Placement: If markers exist but are out of place, the coordinator rewrites the section to reside under the “Active Session” area before “Analytics” within the main dashboard region.
+- Integration Points:
+  - Ondemand Runner: Acquire at the start of `run_once()`. If busy, skip the run. Otherwise, start heartbeat and release in a finally step.
+  - Webhook Server: `analyze_with_session_lock()` wraps `run_flow(...)` so webhook-triggered runs respect the same project session lock.
+- Failure Safety: If the process crashes, the lock expires automatically after TTL, allowing future sessions to proceed.
+- Rationale: Project-level session lock avoids duplicate dashboard updates and duplicated PR/MR comments from overlapping runs, with zero external infrastructure.

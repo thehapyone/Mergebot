@@ -6,6 +6,10 @@
 - **Containerization**: Docker (for deployment and local development)
 - **Configuration**: YAML files for crew and system configuration
 - **LLM Abstraction**: [LiteLLM](https://docs.litellm.ai/docs/) for multi-provider LLM support (OpenAI, Azure, Anthropic, Google, etc.)
+- **Web Server**: FastAPI + Uvicorn (webhook server)
+- **Concurrency**: asyncio (parallel analysis, async workers)
+- **Templating**: Jinja2 (dashboard layout rendering)
+- **VCS Libraries**: PyGitHub, python-gitlab (API wrappers)
 - **Documentation**: MkDocs Material (Markdown, Mermaid diagrams, CI/CD integration)
 - **Dependency Management**: Poetry (for all dev and runtime dependencies)
 
@@ -21,10 +25,16 @@
 - System must be extensible to support new crews, LLM providers, and analysis modules
 - All actions and decisions must be auditable and traceable
 - Documentation and onboarding must be comprehensive and easy to maintain
+- Concurrency control relies on a stateless, project-scoped session lock persisted inside the repository Dashboard issue (default TTL 10 minutes with heartbeat); no external infra required.
 
 ## Dependencies
 - Python standard library
-- Third-party libraries for GitHub and GitLab API integration, YAML parsing, LiteLLM, MkDocs, and web server functionality (see pyproject.toml for details)
+- Third-party libraries (see pyproject.toml), including:
+  - fastapi, uvicorn (webhook server)
+  - jinja2 (dashboard template rendering)
+  - pygithub, python-gitlab (VCS API access)
+  - crewai and related tools (analysis orchestration)
+  - pydantic, pyyaml, python-dotenv (config/validation)
 - Docker for containerization
 
 ## Tool Usage Patterns
@@ -32,3 +42,4 @@
 - Configuration-driven: system and crew behavior controlled via YAML files, supporting global and per-crew LLM settings
 - Documentation-first: all context, decisions, and progress tracked in the Memory Bank and docs site
 - CI/CD integration: ondemand mode is the recommended and supported workflow for production use
+- Project-level session lock: ondemand and webhook runs acquire a dashboard-backed lock (between `MERGEBOT_SESSION_LOCK` markers) to ensure only one active session per project; heartbeat extends TTL and lock expires automatically on crash.

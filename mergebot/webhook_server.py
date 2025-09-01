@@ -4,6 +4,8 @@ from typing import Dict, Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 
+from mergebot.dashboard.dashboard_manager import DashboardManager
+from mergebot.dashboard.session_lock import SessionLockCoordinator
 from mergebot.flow import run_flow
 from mergebot.utils import get_platform_type
 from mergebot.validator.logging_config import logger
@@ -62,6 +64,7 @@ class WebhookServer:
         self.port = port
         self.project = project
         self.platform_type = get_platform_type()
+        self.dashboard_manager = DashboardManager(self.platform_type)
         self.app = FastAPI()
         self._setup_routes()
 
@@ -70,6 +73,29 @@ class WebhookServer:
         Register the webhook route with the FastAPI app.
         """
         self.app.post("/webhook")(self.handle_webhook)
+
+    async def analyze_with_session_lock(self, mr_url: str):
+        """
+        Acquire a project-level session lock, run the analysis flow, then release the lock.
+        This prevents concurrent sessions across instances for the same project.
+        """
+        try:
+            lock = SessionLockCoordinator(self.dashboard_manager)
+            if not await lock.try_acquire():
+                logger.info(
+                    "[Webhook] Skipping run: session lock is held by another instance."
+                )
+                return
+            lock.start_heartbeat()
+            try:
+                await run_flow(mr_url, project=self.project)
+            finally:
+                await lock.stop_heartbeat()
+                await lock.release()
+        except Exception as e:
+            logger.error(
+                f"[Webhook] Error in analyze_with_session_lock: {e}", exc_info=True
+            )
 
     async def handle_webhook(self, request: Request):
         """
@@ -115,7 +141,7 @@ class WebhookServer:
 
             if mr_url:
                 logger.info(f"Processing MR/PR: {mr_url}")
-                asyncio.create_task(run_flow(mr_url, project=self.project))
+                asyncio.create_task(self.analyze_with_session_lock(mr_url))
             else:
                 logger.info("No actionable MR/PR found in event")
 
