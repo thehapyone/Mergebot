@@ -32,7 +32,7 @@ ruff = "^0.12.11"
 mkdocs-material = "^9.6.15"
 mkdocs-mermaid2-plugin = "^1.2.2"
 mkdocs-git-revision-date-localized-plugin = "^1.4.7"
-mkdocs-autorefs = "^1.4.2"
+mkdocs-autorefs = "^1.4.3"
 mkdocs-awesome-pages-plugin = "^2.10.1"
 
 [tool.codespell]
