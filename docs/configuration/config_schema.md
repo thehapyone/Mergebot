@@ -23,6 +23,7 @@ This page documents the fields and structure of the Mergebot configuration file 
 | approval_policy | object | Approval policy configuration (optional)      |
 | analysis        | object | Analysis options (optional, e.g. MR limits)   |
 | telemetry       | object | Telemetry/analytics toggle (optional, see below) |
+| merge           | object | Auto-merge configuration (optional)              |
 
 ---
 
@@ -176,6 +177,31 @@ approval_policy:
     TestAnalysis: 0.2
     RiskAnalysis: 0.2
 ```
+
+---
+
+## Merge Configuration
+
+Configure auto-merge behavior. Draft/WIP requests are never merged.
+
+merge:
+  enabled: false              # Explicit opt-in for auto-merge (default off)
+  threshold: null             # If null, falls back to approval_policy.threshold
+  strategy: repo_default      # 'repo_default' | 'merge' | 'squash' | 'rebase' (platform support varies)
+  rules:
+    ci_passed: true               # Require CI to be green
+    no_changes_requested: true    # Block if any review has "changes requested"
+    mergeable: true               # Require platform to report mergeable (no conflicts)
+    approval_state: true          # Require platform approval state (e.g., required approvals met)
+    branch_prefixes:              # Optional allow-list for source branches
+      - "feature/"
+      - "bugfix/"
+
+Notes:
+- Draft/WIP: Mergebot will never merge Draft/WIP PRs/MRs (hard rule).
+- Threshold fallback: If merge.threshold is not set, Mergebot uses approval_policy.threshold for merge gating.
+- Branch allow-list: If rules.branch_prefixes is set, Mergebot only auto-merges when the source branch starts with one of the listed prefixes (e.g., feature/, bugfix/). If unset, all source branches are eligible (subject to other rules).
+- Comments: Mergebot posts a concise comment explaining merge performed/skipped and reasons.
 
 ---
 

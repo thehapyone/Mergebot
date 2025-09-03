@@ -213,6 +213,79 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         except Exception as e:
             return f"Failed to approve Pull Request {pr_number}: {str(e)}"
 
+    def get_pull_request_status(self, pr_number: int) -> dict:
+        """
+        Return structured PR status used for merge guardrails.
+        """
+        try:
+            pr = self.github_repo_instance.get_pull(pr_number)
+            # Draft status
+            draft = bool(getattr(pr, "draft", False))
+            # Mergeable state
+            mergeable = pr.mergeable
+            # Reviews summary
+            approved = 0
+            changes_requested = 0
+            try:
+                for review in pr.get_reviews():
+                    state = (review.state or "").upper()
+                    if state == "APPROVED":
+                        approved += 1
+                    elif state == "CHANGES_REQUESTED":
+                        changes_requested += 1
+            except Exception:
+                # If reviews API fails for any reason, leave counts at 0
+                pass
+            approval_state = approved > 0 and changes_requested == 0
+
+            # CI status via combined status on HEAD commit
+            ci_passed = None
+            try:
+                head_sha = pr.head.sha
+                commit = self.github_repo_instance.get_commit(head_sha)
+                combined = commit.get_combined_status()
+                # success | failure | pending
+                ci_passed = (combined.state or "").lower() == "success"
+            except Exception:
+                ci_passed = None
+
+            return {
+                "state": pr.state,
+                "draft": draft,
+                "mergeable": bool(mergeable) if mergeable is not None else None,
+                "ci_passed": ci_passed,
+                "approval_state": approval_state,
+                "source_branch": getattr(pr.head, "ref", None),
+                "target_branch": getattr(pr.base, "ref", None),
+                "reviews": {
+                    "changes_requested": changes_requested,
+                    "approved": approved,
+                },
+            }
+        except Exception as e:
+            return {
+                "error": f"Failed to retrieve pull request status for ID {pr_number}: {str(e)}"
+            }
+
+    def merge_pull_request(self, pr_number: int, strategy: str = "repo_default") -> str:
+        """
+        Merge the pull request using the preferred strategy.
+        strategy: repo_default | merge | squash | rebase
+        """
+        try:
+            pr = self.github_repo_instance.get_pull(pr_number)
+            if strategy == "repo_default":
+                result = pr.merge()  # respect repo defaults if possible
+            else:
+                method = strategy if strategy in {"merge", "squash", "rebase"} else "merge"
+                result = pr.merge(merge_method=method)
+            if getattr(result, "merged", False) or (isinstance(result, dict) and result.get("merged") is True):
+                return f"Merged PR #{pr_number}: {pr.html_url}"
+            # PyGithub may return dict; handle gracefully
+            return f"Merged PR #{pr_number}: {pr.html_url}"
+        except Exception as e:
+            return f"Failed to merge Pull Request {pr_number}: {str(e)}"
+
     def create_file(
         self, branch_name: str, file_path: str, file_contents: str, commit_message: str
     ) -> bool:

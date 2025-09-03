@@ -30,6 +30,8 @@ from mergebot.tools.prompts import (
     APPROVE_MERGE_REQUEST_PROMPT,
     GET_PULL_REQUEST_PROMPT,
     POST_PULL_REQUEST_COMMENT_PROMPT,
+    MERGE_PULL_REQUEST_PROMPT,
+    GET_PULL_REQUEST_STATUS_PROMPT,
 )
 from mergebot.utils import get_platform_type
 
@@ -138,3 +140,44 @@ class PipelineToolSchema(BaseModel):
     """Input for the Pipeline tool."""
 
     pipeline_id: str = Field(..., description="The ID of the pipeline")
+
+
+class MergeToolSchema(BaseModel):
+    pr_number: int = Field(..., description="The pull or merge request number")
+    strategy: str | None = Field(
+        default=None,
+        description="Merge strategy: repo_default | merge | squash | rebase (platform support varies)",
+    )
+
+
+class MergePullOrMergeRequestTool(BaseVCSTool):
+    """Merges a pull or merge request in the repository platform."""
+
+    name: str = "MergePullOrMergeRequest"
+    description: str = MERGE_PULL_REQUEST_PROMPT
+    args_schema: Type[BaseModel] = MergeToolSchema
+
+    def _run(self, **kwargs: Any) -> str:
+        pr_number = kwargs.get("pr_number")
+        strategy = kwargs.get("strategy") or "repo_default"
+        if not pr_number:
+            return "The pull or merge request number is required."
+        return self.api_wrapper.merge_pull_request(pr_number, strategy=strategy)
+
+
+class GetPRStatusToolSchema(BaseModel):
+    pr_number: int = Field(..., description="The pull or merge request number")
+
+
+class GetPullRequestStatusTool(BaseVCSTool):
+    """Fetches a structured status for a pull or merge request."""
+
+    name: str = "GetPullRequestStatus"
+    description: str = GET_PULL_REQUEST_STATUS_PROMPT
+    args_schema: Type[BaseModel] = GetPRStatusToolSchema
+
+    def _run(self, **kwargs: Any) -> dict | str:
+        pr_number = kwargs.get("pr_number")
+        if not pr_number:
+            return "The pull or merge request number is required."
+        return self.api_wrapper.get_pull_request_status(pr_number)

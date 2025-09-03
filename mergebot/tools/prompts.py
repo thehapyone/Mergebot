@@ -18,6 +18,35 @@ Example input: {\"pr_number\": \"10\"}
 
 """
 
+MERGE_PULL_REQUEST_PROMPT = """
+This tool merges a pull or merge request.
+You can optionally specify a merge strategy if the platform supports it.
+
+Allowed strategies:
+- repo_default (use repository default)
+- merge
+- squash
+- rebase
+
+Example inputs:
+- {\"pr_number\": \"10\"}
+- {\"pr_number\": \"10\", \"strategy\": \"squash\"}
+"""
+
+GET_PULL_REQUEST_STATUS_PROMPT = """
+This tool fetches a structured status for a pull or merge request, used to evaluate auto-merge rules.
+
+The returned status includes:
+- state: open|closed|merged
+- draft: true|false
+- mergeable: true|false|null
+- ci_passed: true|false|null
+- approval_state: true|false|null
+- reviews: { changes_requested: number, approved: number }
+
+Example input: {\"pr_number\": \"10\"}
+"""
+
 
 FETCH_PIPELINE_DETAILS_PROMPT = """
 This tool will fetch detailed information of a specific pipeline, including job logs and summarized relevant information.  

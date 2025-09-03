@@ -385,9 +385,9 @@ class SessionLockCoordinator:
         if not lock_obj:
             return False
         try:
-            l = lock_obj["lock"]
-            exp = l.get("expires_at")
-            owner = l.get("owner")
+            lock_data = lock_obj["lock"]
+            exp = lock_data.get("expires_at")
+            owner = lock_data.get("owner")
             if not exp or not owner:
                 return False
             exp_dt = datetime.fromisoformat(exp.replace("Z", "+00:00"))

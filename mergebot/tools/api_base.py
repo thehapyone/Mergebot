@@ -107,6 +107,37 @@ class PullRequestAPIBase(BaseModel):
             "This method should be implemented in subclasses to fetch pull/merge request details."
         )
 
+    def get_pull_request_status(self, pr_number: int) -> dict:
+        """
+        Return a structured status for pre-merge guardrails:
+        {
+          "state": "open|closed|merged",
+          "draft": bool,
+          "mergeable": bool|None,
+          "ci_passed": bool|None,
+          "approval_state": bool|None,
+          "source_branch": str|None,
+          "target_branch": str|None,
+          "reviews": {
+            "changes_requested": int,
+            "approved": int
+          }
+        }
+        """
+        raise NotImplementedError(
+            "This method should be implemented in subclasses to return PR/MR status."
+        )
+
+    def merge_pull_request(self, pr_number: int, strategy: str = "repo_default") -> str:
+        """
+        Perform the merge operation using the repository's platform.
+        strategy: 'repo_default' | 'merge' | 'squash' | 'rebase' (platform support varies)
+        Returns a human-readable string (include a link when available).
+        """
+        raise NotImplementedError(
+            "This method should be implemented in subclasses to perform the merge."
+        )
+
     @staticmethod
     def pretty_print_pull_request(pr_details: dict) -> str:
         """
