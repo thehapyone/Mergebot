@@ -277,9 +277,13 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             if strategy == "repo_default":
                 result = pr.merge()  # respect repo defaults if possible
             else:
-                method = strategy if strategy in {"merge", "squash", "rebase"} else "merge"
+                method = (
+                    strategy if strategy in {"merge", "squash", "rebase"} else "merge"
+                )
                 result = pr.merge(merge_method=method)
-            if getattr(result, "merged", False) or (isinstance(result, dict) and result.get("merged") is True):
+            if getattr(result, "merged", False) or (
+                isinstance(result, dict) and result.get("merged") is True
+            ):
                 return f"Merged PR #{pr_number}: {pr.html_url}"
             # PyGithub may return dict; handle gracefully
             return f"Merged PR #{pr_number}: {pr.html_url}"

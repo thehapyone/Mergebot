@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Any
+from typing import Any, Dict, Tuple
 
 from mergebot.services import approval_service, merge_service
 from mergebot.utils import get_platform_type
@@ -67,7 +67,9 @@ async def process_decision(
 
     # Handle inconclusive assessment
     if not _is_conclusive_impact_assessment(impact_assessment):
-        analysis_link = await approval_service.post_comment(pr_id, messages["inconclusive"])
+        analysis_link = await approval_service.post_comment(
+            pr_id, messages["inconclusive"]
+        )
         action_note = "Human review required (inconclusive)"
         final_recommendation = action_note
         return (
@@ -105,14 +107,24 @@ async def process_decision(
             score_val = merge_service.parse_first_float(raw_score)
 
             # Threshold fallback: merge.threshold -> approval_policy.threshold -> 3.0
-            approval_threshold = cfg.approval_policy.threshold if cfg.approval_policy else 3.0
-            merge_threshold = merge_cfg.threshold if merge_cfg.threshold is not None else approval_threshold
-            score_ok_for_merge = (score_val is not None) and (score_val <= merge_threshold)
+            approval_threshold = (
+                cfg.approval_policy.threshold if cfg.approval_policy else 3.0
+            )
+            merge_threshold = (
+                merge_cfg.threshold
+                if merge_cfg.threshold is not None
+                else approval_threshold
+            )
+            score_ok_for_merge = (score_val is not None) and (
+                score_val <= merge_threshold
+            )
 
             # Pre-merge guardrails
             status = await merge_service.get_status(pr_id)
             rules_dict = (
-                merge_cfg.rules.model_dump() if hasattr(merge_cfg.rules, "model_dump") else dict(merge_cfg.rules)
+                merge_cfg.rules.model_dump()
+                if hasattr(merge_cfg.rules, "model_dump")
+                else dict(merge_cfg.rules)
             )
             allowed_by_rules, reasons = merge_service.evaluate_rules(
                 status, rules=rules_dict, enforce_never_merge_draft=True
@@ -120,12 +132,16 @@ async def process_decision(
 
             # Source branch prefix rule (allow-list).
             # Prefer rules.branch_prefixes; fall back to deprecated allowed_source_branch_prefixes for back-compat.
-            prefixes = getattr(getattr(merge_cfg, "rules", None), "branch_prefixes", None)
+            prefixes = getattr(
+                getattr(merge_cfg, "rules", None), "branch_prefixes", None
+            )
             if prefixes is None:
                 prefixes = getattr(merge_cfg, "allowed_source_branch_prefixes", None)
             if prefixes:
                 source_branch = (status.get("source_branch") or "").strip()
-                if not any(isinstance(p, str) and source_branch.startswith(p) for p in prefixes):
+                if not any(
+                    isinstance(p, str) and source_branch.startswith(p) for p in prefixes
+                ):
                     allowed_by_rules = False
                     reasons.append(
                         f"Source branch '{source_branch or '?'}' not allowed by prefix rules"
@@ -133,13 +149,17 @@ async def process_decision(
 
             if not score_ok_for_merge:
                 reasons.append(
-                    "Impact score above merge threshold" if score_val is not None else "Impact score unavailable"
+                    "Impact score above merge threshold"
+                    if score_val is not None
+                    else "Impact score unavailable"
                 )
 
             if allowed_by_rules and score_ok_for_merge:
                 # Perform merge
                 try:
-                    result = await merge_service.merge_change(pr_id, strategy=merge_cfg.strategy)
+                    result = await merge_service.merge_change(
+                        pr_id, strategy=merge_cfg.strategy
+                    )
                     summary = (
                         f"✅ Auto-merged using strategy: {merge_cfg.strategy}\n"
                         f"- Weighted score: {score_val} (threshold: {merge_threshold})\n"

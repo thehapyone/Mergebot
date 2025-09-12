@@ -190,6 +190,7 @@ merge:
   strategy: repo_default      # 'repo_default' | 'merge' | 'squash' | 'rebase' (platform support varies)
   rules:
     ci_passed: true               # Require CI to be green
+    ci_strict: false              # If true, treat unknown/no CI as failure (default false allows projects without CI)
     no_changes_requested: true    # Block if any review has "changes requested"
     mergeable: true               # Require platform to report mergeable (no conflicts)
     approval_state: true          # Require platform approval state (e.g., required approvals met)
@@ -201,6 +202,7 @@ Notes:
 - Draft/WIP: Mergebot will never merge Draft/WIP PRs/MRs (hard rule).
 - Threshold fallback: If merge.threshold is not set, Mergebot uses approval_policy.threshold for merge gating.
 - Branch allow-list: If rules.branch_prefixes is set, Mergebot only auto-merges when the source branch starts with one of the listed prefixes (e.g., feature/, bugfix/). If unset, all source branches are eligible (subject to other rules).
+- CI behavior: With rules.ci_passed: true, failing CI blocks. If no pipelines/checks are configured, CI is treated as unknown and allowed by default. Set rules.ci_strict: true to block when CI is unknown/not configured.
 - Comments: Mergebot posts a concise comment explaining merge performed/skipped and reasons.
 
 ---

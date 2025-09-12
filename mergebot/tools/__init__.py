@@ -1,9 +1,9 @@
 from mergebot.tools.common import (
     ApprovePullOrMergeRequestTool,
     GetPullOrMergeRequestTool,
-    PostCommentTool,
-    MergePullOrMergeRequestTool,
     GetPullRequestStatusTool,
+    MergePullOrMergeRequestTool,
+    PostCommentTool,
 )
 
 __all__ = [

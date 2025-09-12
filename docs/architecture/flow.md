@@ -26,11 +26,19 @@ The Flow Engine orchestrates the Mergebot review pipeline. Tool usage has been e
      - Report (markdown)
 
 4. Finalization (Service Layer)
-   - Orchestrator posts the impact report using `mergebot.services.approval_service.post_impact_report(...)`.
-   - If the recommendation is approve, orchestrator calls:
-     - `approval_service.approve_change(...)`
-     - `approval_service.post_comment(...)` to notify the action taken.
+   - Orchestrator posts the impact report using `mergebot.services.approval_service.post_comment(...)` (the full markdown report).
+   - The orchestrator delegates final decision and actions to `mergebot.services.decision_service.process_decision(pr_id, impact_assessment)`, which:
+     - Approves when recommended
+     - Applies merge guardrails and performs auto-merge via `mergebot.services.merge_service` when enabled
+     - Always posts a concise status comment (merged or skipped with reasons)
    - No AI agent calls tools directly.
+
+5. Auto‑Merge Stage (Service Layer)
+   - Guardrails (configurable under `merge.rules`): `ci_passed`, `no_changes_requested`, `mergeable`, `approval_state`
+   - Draft/WIP: never merged (hard rule)
+   - Score gating: weighted score must be ≤ `merge.threshold`, or fallback to `approval_policy.threshold` if unset
+   - Branch allow‑list: `rules.branch_prefixes` limits eligible source branches (e.g., `feature/`, `bugfix/`)
+   - Merge strategy: `repo_default` | `merge` | `squash` | `rebase` (platform respected)
 
 ## Service Layer
 
@@ -38,6 +46,8 @@ All tool/API usage is routed through the Service Layer:
 - `mergebot/services/common.py`: Retry/backoff decorator, standardized ServiceError.
 - `mergebot/services/pr_service.py`: Platform-agnostic PR/MR retrieval (GitHub/GitLab) with retries.
 - `mergebot/services/approval_service.py`: Platform-agnostic posting (comments/reports) and approvals with retries.
+- `mergebot/services/merge_service.py`: Structured status retrieval (CI/mergeable/reviews/branches) and merge execution with retries.
+- `mergebot/services/decision_service.py`: End-to-end decision orchestration (posts report, approves when recommended, evaluates merge guardrails, merges when eligible, posts outcome comment).
 
 Benefits:
 - Eliminates recursive tool-call loops inside agents.

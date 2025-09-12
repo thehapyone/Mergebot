@@ -282,9 +282,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             mergeable_flag = None
             try:
                 status_val = (getattr(mr, "merge_status", "") or "").lower()
-                detailed_val = (
-                    (getattr(mr, "detailed_merge_status", "") or "").lower()
-                )
+                detailed_val = (getattr(mr, "detailed_merge_status", "") or "").lower()
                 if status_val:
                     mergeable_flag = status_val == "can_be_merged"
                 elif detailed_val:
@@ -300,14 +298,18 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             ci_passed = None
             try:
                 if mr.head_pipeline and mr.head_pipeline.get("status"):
-                    ci_passed = (mr.head_pipeline.get("status") or "").lower() == "success"
+                    ci_passed = (
+                        mr.head_pipeline.get("status") or ""
+                    ).lower() == "success"
             except Exception:
                 ci_passed = None
 
             # Approvals
             approval_state = None
             approved_count = 0
-            changes_requested = 0  # Best-effort; GitLab has no native "changes requested"
+            changes_requested = (
+                0  # Best-effort; GitLab has no native "changes requested"
+            )
             try:
                 approvals = mr.approvals.get()
                 approved_count = len(getattr(approvals, "approved_by", []) or [])

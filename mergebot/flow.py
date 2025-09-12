@@ -13,7 +13,7 @@ from mergebot.crews import (
     RiskAnalysis,
     TestAnalysis,
 )
-from mergebot.services import pr_service, decision_service
+from mergebot.services import decision_service, pr_service
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
@@ -269,7 +269,11 @@ class MergeBotFlow(Flow[MergeBotState]):
         Finalize by delegating to the decision service to post the assessment,
         approve if applicable, and auto-merge under configured guardrails.
         """
-        final_decision, analysis_link, approved_flag = await decision_service.process_decision(
+        (
+            final_decision,
+            analysis_link,
+            approved_flag,
+        ) = await decision_service.process_decision(
             self.state.pr_id, self.state.impact_assessment
         )
 

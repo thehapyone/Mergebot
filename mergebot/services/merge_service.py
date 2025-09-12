@@ -1,5 +1,5 @@
 import re
-from typing import Tuple, List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from mergebot.services.common import ServiceError, async_retry
 from mergebot.tools.common import (
@@ -70,16 +70,17 @@ def evaluate_rules(
     # Hard block: never merge Draft/WIP
     if enforce_never_merge_draft and status.get("draft") is True:
         reasons.append("Draft/WIP")
-        # Continue collecting other potential reasons for visibility
 
     if rules.get("mergeable", True) and status.get("mergeable") is not True:
         reasons.append("Not mergeable (conflicts or unknown)")
 
     if rules.get("ci_passed", True):
         ci = status.get("ci_passed")
+        ci_strict = bool(rules.get("ci_strict", False))
         if ci is False:
             reasons.append("CI failing")
-        elif ci is None:
+        elif ci is None and ci_strict:
+            # Only treat unknown/no CI as a blocker when ci_strict is enabled
             reasons.append("CI status unknown")
 
     if rules.get("approval_state", True) and status.get("approval_state") is not True:

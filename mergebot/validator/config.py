@@ -2,7 +2,7 @@
 
 import os
 import sys
-from typing import Dict, Optional, Literal, List
+from typing import Dict, List, Literal, Optional
 
 import yaml
 from dotenv import load_dotenv
@@ -190,8 +190,11 @@ class MergeRules(BaseModel):
     Gate conditions evaluated before performing an auto-merge.
     All set to True by default (strict/safe).
     """
-    ci_passed: bool = Field(
-        default=True, description="Require CI to be green/success"
+
+    ci_passed: bool = Field(default=True, description="Require CI to be green/success")
+    ci_strict: bool = Field(
+        default=False,
+        description="If true, treat unknown/no CI as failure. If false (default), allow projects with no CI configured.",
     )
     no_changes_requested: bool = Field(
         default=True, description="Block merge if any review has 'changes requested'"
@@ -217,6 +220,7 @@ class MergeConfig(BaseModel):
     - rules: Safety guardrails grouped under a single block.
     - allowed_source_branch_prefixes: (deprecated) Back-compat. Prefer rules.branch_prefixes.
     """
+
     enabled: bool = Field(default=False, description="Enable auto-merge capability")
     threshold: Optional[float] = Field(
         default=None,
@@ -242,7 +246,11 @@ class MergeConfig(BaseModel):
         """
         try:
             ap = getattr(self, "allowed_source_branch_prefixes", None)
-            if ap and self.rules and getattr(self.rules, "branch_prefixes", None) is None:
+            if (
+                ap
+                and self.rules
+                and getattr(self.rules, "branch_prefixes", None) is None
+            ):
                 self.rules.branch_prefixes = list(ap)
         except Exception:
             # Best-effort migration; ignore if anything goes wrong

@@ -29,9 +29,9 @@ from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.tools.prompts import (
     APPROVE_MERGE_REQUEST_PROMPT,
     GET_PULL_REQUEST_PROMPT,
-    POST_PULL_REQUEST_COMMENT_PROMPT,
-    MERGE_PULL_REQUEST_PROMPT,
     GET_PULL_REQUEST_STATUS_PROMPT,
+    MERGE_PULL_REQUEST_PROMPT,
+    POST_PULL_REQUEST_COMMENT_PROMPT,
 )
 from mergebot.utils import get_platform_type
 
