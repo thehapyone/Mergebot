@@ -285,8 +285,9 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 isinstance(result, dict) and result.get("merged") is True
             ):
                 return f"Merged PR #{pr_number}: {pr.html_url}"
-            # PyGithub may return dict; handle gracefully
-            return f"Merged PR #{pr_number}: {pr.html_url}"
+            else:
+                message = getattr(result, "message", None) or result.get("message")
+                return f"Failed to merge PR #{pr_number}: {message}"
         except Exception as e:
             return f"Failed to merge Pull Request {pr_number}: {str(e)}"
 

@@ -269,19 +269,13 @@ class MergeBotFlow(Flow[MergeBotState]):
         Finalize by delegating to the decision service to post the assessment,
         approve if applicable, and auto-merge under configured guardrails.
         """
-        (
-            final_decision,
-            analysis_link,
-            approved_flag,
-        ) = await decision_service.process_decision(
+        final_decision, analysis_link, approved_flag = await decision_service.process_decision(
             self.state.pr_id, self.state.impact_assessment
         )
 
         # Persist results to state
         self.state.analysis_link = analysis_link
         self.state.final_decision = final_decision
-        # Ensure approved flag is present (final_decision already includes it)
-        self.state.final_decision["approved"] = approved_flag
 
         # Store the crew usage metrics
         self.state.usage_metrics = {
