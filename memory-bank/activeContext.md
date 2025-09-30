@@ -1,83 +1,47 @@
 # Active Context
 
-## Current Work Focus
+## Core Project State (as of 2025-09-30)
 
-- Implemented a stateless, project-scoped “session lock” to prevent concurrent Mergebot runs against the same repository.
-- The lock is persisted inside the Dashboard issue under a single “Active Session” header and bounded by `<!-- marker:MERGEBOT_SESSION_LOCK -->` markers.
-- The session lock has a default TTL of 10 minutes and is refreshed by a heartbeat during active runs.
-- Integrated the lock in both ondemand and webhook flows so they mutually respect the same project session.
-- Fixed Dashboard layout/duplication issues so only one “Active Session” header renders; the lock updater only replaces content between markers.
+### Recent Changes: Auto-Merge, CI Robustness, Config Evolution
 
-## Recent Changes
+#### Auto-Merge Features
+- Auto-merge for GitHub and GitLab supported and fully configurable.
+- merge.enabled: Explicit opt-in required to enable auto-merge.
+- Smart merge threshold fallback: merge.threshold (if unset/null) uses approval_policy.threshold.
+- Guardrails in merge.rules:
+  - ci_passed: Failing CI blocks merges.
+  - ci_strict: If false (default), allows merging if no CI exists; if true, blocks when CI state is unknown (i.e., missing).
+  - no_changes_requested, mergeable, approval_state: True by default.
+  - branch_prefixes: Allow-list for source branch prefixes to restrict which branches are eligible. (E.g., only allow "feature/" or "bugfix/")
+- Draft/WIP PRs/MRs always hard-blocked regardless of config.
+- Backwards compatibility: allowed_source_branch_prefixes migrated to rules.branch_prefixes if present.
 
-### Code
-- mergebot/dashboard/dashboard_layout.md
-  - Added the “Active Session” section (header + markers + `{{ locks_section }}`).
-- mergebot/dashboard/dashboard_manager.py
-  - Added `SESSION_LOCK_MARKER`.
-  - `_generate_dashboard_body` now extracts the existing lock section from the current Dashboard and passes it to the template as `locks_section`, preserving lock content on re-renders.
-- mergebot/dashboard/session_lock.py (new)
-  - `SessionLockCoordinator`:
-    - `try_acquire()` performs optimistic acquire by write-then-verify (nonce check).
-    - `start_heartbeat()` / `stop_heartbeat()` refresh TTL while a run is active.
-    - `release()` removes the lock if owned.
-    - Replaces only content between markers; never inserts the section header to avoid duplication.
-    - Normalizes placement inside the main dashboard region before the Analytics header if needed.
-  - Defaults:
-    - TTL = 600s (10 minutes)
-    - Refresh interval = max(30s, TTL/3) ~ 200s
-    - Owner ID = `hostname-pid-uuid`
-- mergebot/ondemand_runner.py
-  - Acquires project session lock at the start of `run_once()`. If acquisition fails, logs and returns without running analysis; otherwise starts heartbeat and releases after update.
-- mergebot/webhook_server.py
-  - Wraps `run_flow` in `analyze_with_session_lock()` so webhook-triggered runs also respect the same project session lock.
+#### Onboarding & Example Config
+- Default .mergebot.yml on new repo onboarding includes comprehensive merge block with all new options and clear docs/links.
+- Onboarding PR/MR description includes illustrative quick-start example and notes:
+  - How to enable, threshold fallback, behavior of ci_passed/ci_strict.
+  - Default is robust: unknown/no CI is allowed, failing CI is not.
+  - Notes clarify behavior and conservative defaults.
 
-### Docs
-- docs/architecture/dashboard.md
-  - Added “Project-level Session Lock” section (storage, TTL, owner, behavior).
-- docs/architecture/ondemand_runner.md
-  - Added “Project Session Lock” section (scope, storage, TTL, crash safety).
-- docs/usage/running.md
-  - Added “Project Session Lock” runtime behavior and expectations for users.
-- docs/operations/docker_compose.md
-  - Added “Session Lock Notes” including log examples and env vars.
-- docs/capabilities.md
-  - Added capability: “Project-level session lock to prevent concurrent runs per repository.”
+#### Docs
+- config_schema, config_overview, onboarding and architecture docs all updated.
+- schema and example blocks now show ci_passed, ci_strict, branch_prefixes, and improved explanations about how they interact.
 
-## Important Decisions & Patterns
+### Implementation and Flow
+- Service Layer:
+  - merge_service.py: evaluate_rules now considers ci_passed and ci_strict in combination to allow non-CI projects but block failing CI (default: robust, safe for non-CI by default).
+  - decision_service.py: surface explicit reasons in merge comments; branch allow-list always enforced.
+- Orchestration Flow:
+  - All API calls and merge/approval orchestration centralized in service layer.
+  - Flow delegates all final actions to decision_service.
+  - Flow and config management ensure default merges are transparent, controlled, and cross-platform.
 
-- Project-level session lock (not per-MR):
-  - Prevents entire overlapping sessions (ondemand scans or webhook-driven runs) for the same project, which avoids duplicate dashboard writes and comments.
-- Dashboard-backed persistence:
-  - No external infra required (stateless). Lock lives in the project Dashboard body.
-  - Verify-after-write (nonce) removes ambiguity when multiple instances race to acquire.
-- One canonical header:
-  - The Dashboard template owns the header. The lock coordinator ONLY updates the content between markers to avoid header duplication.
-- Safe TTL handling:
-  - TTL ensures a crashed process won’t block future runs; heartbeat extends during long sessions.
+### Important Patterns and Decisions
+- Guardrails are now configuration-driven, extensible, and safe for both strict-CI and non-CI workflows.
+- Users can get safe auto-merge with simple enable, or make policy stricter (ci_strict: true, branch_prefixes, etc).
+- Onboarding is always up-to-date with latest robustness and safety recommendations.
 
-## Known Issues / Considerations
-
-- Platform rate limits & eventual consistency:
-  - Multiple quick successive updates to the issue body could race or be throttled. The current approach re-reads after updates for verification and places the lock in a canonical position.
-- Layout drift on legacy dashboards:
-  - The lock updater now normalizes placement under the main dashboard region; if markers are missing, it inserts a markers-only block and relies on the template header.
-- Observability:
-- Config knobs:
-  - TTL and refresh interval are coded defaults (10m, ~200s). If needed, future work could add config fields and validation.
-
-## Next Steps
-
-- Add tests for SessionLockCoordinator:
-  - Acquire/release/heartbeat flows, race scenarios, expired lock takeover, and normalization behavior.
-- Optional configuration:
-  - Expose `lock.ttl_seconds` and `lock.refresh_interval_seconds` in the config schema if users request tunables.
-- Operational hardening:
-  - Backoff and retry strategies around dashboard update failures (rate limits, transient network issues).
-- Telemetry / Analytics:
-  - Emit simple metrics/logs for lock lifecycle events to aid in troubleshooting.
-
-## Project Insights
-
-- The dashboard-embedded session lock strikes a balance between “no external dependencies” and “safe concurrency”.
-- A per-MR lock could be added later if we converge on a use case where multiple MRs must be processed concurrently across instances; for now, one project session is the right granularity to avoid duplicate comments/analytics.
+### Next Steps for Project
+- [ ] Monitor usage/feedback for clarity or UI improvements on new CI behavior.
+- [ ] Consider adding branch regex rules or more granular strategy controls in future.
+- [ ] Additional unit and integration test coverage for new onboarding paths.

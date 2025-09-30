@@ -13,6 +13,17 @@
 
 ## What's Left to Build (Detailed TODO)
 
+### F) Auto-Merge Robustness, CI, and Onboarding
+
+- [x] Support auto-merge with fallback threshold, full guardrails, and cross-platform (GitHub + GitLab) support.
+- [x] Add rules.ci_strict option to distinguish “no CI” (allowed by default) from “failing CI” (blocked by default).
+- [x] Backwards compatibility: allowed_source_branch_prefixes → rules.branch_prefixes.
+- [x] Update onboarding PRs/MRs and default .mergebot.yml to show all new merge options with documented behavior/examples.
+- [x] Documentation: config_schema.md and config_overview.md show all merge options, default policies, and notes on CI, branch_prefixes.
+- [x] Decision logic: Always post reasoned merge summary (merged/skipped + reason), enforce branch allow-list, new CI rules.
+- [ ] Monitor for further config/UX improvements as new edge cases appear.
+
+
 ### A) Session Lock Hardening
 - [ ] Add unit/integration tests for `SessionLockCoordinator`:
   - Acquire vs. busy scenarios, verify-after-write (nonce) behavior, expired lock takeover.
