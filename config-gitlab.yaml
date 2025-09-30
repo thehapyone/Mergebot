@@ -30,6 +30,7 @@ merge:
     approval_state: true
     branch_prefixes:
       - "feature/"
+      - "renovate/"
       - "bugfix/"
 
 analysis:
