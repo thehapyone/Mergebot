@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 from mergebot.services import approval_service, merge_service
 from mergebot.utils import get_platform_type
