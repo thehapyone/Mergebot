@@ -63,7 +63,7 @@ def ensure_repo_config(project: str):
                 base_branch = onboarding.project.default_branch
                 default_mergebot_yml = (
                     "# Default Mergebot configuration\n"
-                    "# See https://github.com/thehapyone/mergebot for documentation\n"
+                    "# See docs for full configuration: https://github.com/thehapyone/Mergebot/tree/main/docs/configuration\n"
                     "repository:\n"
                     f"  type: {platform_type}\n"
                     f"  {platform_type}:\n"
@@ -77,6 +77,20 @@ def ensure_repo_config(project: str):
                     "    RiskAnalysis: 0.2\n"
                     "analysis:\n"
                     "  max_mrs: 10\n"
+                    "merge:\n"
+                    "  enabled: false\n"
+                    "  threshold: 2.5\n"
+                    "  strategy: repo_default\n"
+                    "  rules:\n"
+                    "    ci_passed: true\n"
+                    "    ci_strict: false\n"
+                    "    no_changes_requested: true\n"
+                    "    mergeable: true\n"
+                    "    approval_state: true\n"
+                    "    branch_prefixes:\n"
+                    '      - "feature/"\n'
+                    '      - "renovate/"\n'
+                    '      - "dependabot/"\n'
                 )
                 pr_url = onboarding.create_onboarding_pr(default_mergebot_yml)
                 logger.info(f"Onboarding PR created: <{pr_url}>")

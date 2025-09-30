@@ -7,6 +7,7 @@ from github import Github
 
 from mergebot.tools.api_base import PullRequestAPIBase
 from mergebot.validator.config import get_runtime_config
+from mergebot.validator.logging_config import logger
 
 
 def generate_github_app_jwt(app_id: str, private_key: str) -> str:
@@ -212,6 +213,190 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             return f"Approved PR #{pr_number}. Review: {review_url}"
         except Exception as e:
             return f"Failed to approve Pull Request {pr_number}: {str(e)}"
+
+    def _evaluate_ci_state(self, pr):
+        """
+        Evaluate CI state for PR head commit using the Checks APIs.
+        Returns tuple: (ci_passed, ci_state)
+        ci_state is one of: 'success' | 'failure' | 'pending' | 'unknown'
+        """
+        try:
+            head_sha = pr.head.sha
+
+            # Prefer the PR head repo to avoid 404 on fork PRs
+            head_repo = getattr(pr.head, "repo", None)
+            repo_for_commit = (
+                head_repo if head_repo is not None else self.github_repo_instance
+            )
+            commit = repo_for_commit.get_commit(head_sha)
+
+            # Prefer aggregating by check runs (more precise than suites)
+            checks_state = None
+            try:
+                runs = list(commit.get_check_runs())
+                if runs:
+                    failure_conclusions = {
+                        "failure",
+                        "cancelled",
+                        "timed_out",
+                        "action_required",
+                    }
+                    successish_conclusions = {"success", "neutral", "skipped"}
+
+                    # Any explicit failure from completed runs wins
+                    any_failure = any(
+                        (getattr(r, "conclusion", "") or "").lower()
+                        in failure_conclusions
+                        for r in runs
+                    )
+                    if any_failure:
+                        return False, "failure"
+
+                    # Only mark pending if any runs are actually queued or in-progress
+                    any_in_progress = any(
+                        (getattr(r, "status", "") or "").lower()
+                        in {"queued", "in_progress", "waiting"}
+                        for r in runs
+                    )
+
+                    if any_in_progress:
+                        checks_state = "pending"
+                    else:
+                        # All runs are completed; if they are success/neutral/skipped => success
+                        completed_conclusions = [
+                            (getattr(r, "conclusion", "") or "").lower() for r in runs
+                        ]
+                        if completed_conclusions and all(
+                            c in successish_conclusions or c == ""
+                            for c in completed_conclusions
+                        ):
+                            checks_state = "success"
+            except Exception as e:
+                logger.warning(f"Checks API (runs) query failed for {head_sha}: {e}")
+
+            # Fallback to legacy combined statuses if runs didn't yield a state
+            if not checks_state:
+                try:
+                    combined = commit.get_combined_status()
+                    statuses_state = (
+                        combined.state or ""
+                    ).lower()  # success | failure | pending
+                    if statuses_state == "failure":
+                        return False, "failure"
+                    if statuses_state == "pending":
+                        return False, "pending"
+                    if statuses_state == "success":
+                        return True, "success"
+                except Exception as e:
+                    logger.warning(f"Combined status query failed for {head_sha}: {e}")
+
+            # Decide final CI state from checks_state (failure > pending > success)
+            if checks_state == "failure":
+                return False, "failure"
+            if checks_state == "pending":
+                return False, "pending"
+            if checks_state == "success":
+                return True, "success"
+            return None, "unknown"
+        except Exception as e:
+            logger.error(
+                f"CI status evaluation failed for PR #{getattr(pr, 'number', '?')} sha {getattr(getattr(pr, 'head', None), 'sha', '?')}: {e}"
+            )
+            return None, "unknown"
+
+    def get_pull_request_status(self, pr_number: int) -> dict:
+        """
+        Return structured PR status used for merge guardrails.
+        """
+        try:
+            pr = self.github_repo_instance.get_pull(pr_number)
+            # Draft status
+            draft = bool(getattr(pr, "draft", False))
+            # Mergeable state
+            mergeable = pr.mergeable
+
+            # Compute effective review summary by latest review per reviewer
+            reviews = list(pr.get_reviews())
+            latest_by_reviewer = {}
+
+            for r in reviews:
+                user = getattr(r, "user", None)
+                if not user:
+                    continue
+                # exclude self-approval
+                if user.login == pr.user.login:
+                    continue
+
+                key = user.login
+                prev = latest_by_reviewer.get(key)
+                # Prefer the most recent submitted_at (fallback to updated_at)
+                curr_ts = getattr(r, "submitted_at", None) or getattr(
+                    r, "updated_at", None
+                )
+                prev_ts = getattr(prev, "submitted_at", None) or getattr(
+                    prev, "updated_at", None
+                )
+                if prev is None or (curr_ts and prev_ts and curr_ts > prev_ts):
+                    latest_by_reviewer[key] = r
+
+            # Reviews summary
+            approved = sum(
+                1
+                for r in latest_by_reviewer.values()
+                if (r.state or "").upper() == "APPROVED"
+            )
+            changes_requested = sum(
+                1
+                for r in latest_by_reviewer.values()
+                if (r.state or "").upper() == "CHANGES_REQUESTED"
+            )
+            approval_state = approved > 0 and changes_requested == 0
+
+            # CI state
+            ci_passed, ci_state = self._evaluate_ci_state(pr)
+
+            return {
+                "state": pr.state,
+                "draft": draft,
+                "mergeable": bool(mergeable) if mergeable is not None else None,
+                "ci_passed": ci_passed,
+                "ci_state": ci_state,
+                "approval_state": approval_state,
+                "source_branch": getattr(pr.head, "ref", None),
+                "target_branch": getattr(pr.base, "ref", None),
+                "reviews": {
+                    "changes_requested": changes_requested,
+                    "approved": approved,
+                },
+            }
+        except Exception as e:
+            return {
+                "error": f"Failed to retrieve pull request status for ID {pr_number}: {str(e)}"
+            }
+
+    def merge_pull_request(self, pr_number: int, strategy: str = "repo_default") -> str:
+        """
+        Merge the pull request using the preferred strategy.
+        strategy: repo_default | merge | squash | rebase
+        """
+        try:
+            pr = self.github_repo_instance.get_pull(pr_number)
+            if strategy == "repo_default":
+                result = pr.merge()  # respect repo defaults if possible
+            else:
+                method = (
+                    strategy if strategy in {"merge", "squash", "rebase"} else "merge"
+                )
+                result = pr.merge(merge_method=method)
+            if getattr(result, "merged", False) or (
+                isinstance(result, dict) and result.get("merged") is True
+            ):
+                return f"Merged PR #{pr_number}: {pr.html_url}"
+            else:
+                message = getattr(result, "message", None) or result.get("message")
+                return f"Failed to merge PR #{pr_number}: {message}"
+        except Exception as e:
+            return f"Failed to merge Pull Request {pr_number}: {str(e)}"
 
     def create_file(
         self, branch_name: str, file_path: str, file_contents: str, commit_message: str

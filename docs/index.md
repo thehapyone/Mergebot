@@ -80,7 +80,8 @@ A fintech company with a rapidly growing engineering team struggles to keep up w
 - The Test Analysis Crew notes missing test coverage and recommends additional tests.
 - The Approval Policy Crew enforces the company’s compliance rules, requiring a second review for high-risk changes.
 - All feedback is posted directly to the PR/MR, with clear explanations and links to documentation.
-- Once all checks pass, Mergebot merges the PR/MR and logs the decision for audit purposes.
+- Once all guardrails pass (impact score ≤ threshold, CI/approvals satisfied), Mergebot merges the PR/MR and logs the decision for audit purposes.
+- If a merge is blocked, Mergebot now posts a detailed comment outlining the score, thresholds, and guardrail reason so teams can fix issues quickly.
 
 **Result:**  
 The team ships code faster, maintains high quality, and meets compliance requirements—without burning out reviewers.

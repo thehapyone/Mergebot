@@ -10,6 +10,11 @@ repository:
   github:
     base_branch: "main"
 
+crews:
+  ImpactEvaluator:
+    llm:
+      model: "azure/gpt-4.1"
+
 approval_policy:
   threshold: 3.0
   weights:
@@ -17,6 +22,21 @@ approval_policy:
     ComplexityAnalysis: 0.2
     TestAnalysis: 0.2
     RiskAnalysis: 0.2
+
+merge:
+  enabled: true
+  threshold: 3.0
+  strategy: repo_default
+  rules:
+    ci_passed: true
+    ci_strict: false
+    no_changes_requested: true
+    mergeable: true
+    approval_state: true
+    branch_prefixes:
+      - "feature/"
+      - "renovate/"
+      - "dependabot/"
 
 analysis:
   max_mrs: 10 # 0 or missing means unlimited

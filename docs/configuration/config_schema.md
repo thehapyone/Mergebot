@@ -23,6 +23,7 @@ This page documents the fields and structure of the Mergebot configuration file 
 | approval_policy | object | Approval policy configuration (optional)      |
 | analysis        | object | Analysis options (optional, e.g. MR limits)   |
 | telemetry       | object | Telemetry/analytics toggle (optional, see below) |
+| merge           | object | Auto-merge configuration (optional)              |
 
 ---
 
@@ -176,6 +177,34 @@ approval_policy:
     TestAnalysis: 0.2
     RiskAnalysis: 0.2
 ```
+
+---
+
+## Merge Configuration
+
+Configure auto-merge behavior. Draft/WIP requests are never merged.
+
+merge:
+  enabled: false              # Explicit opt-in for auto-merge (default off)
+  threshold: null             # If null, falls back to approval_policy.threshold
+  strategy: repo_default      # 'repo_default' | 'merge' | 'squash' | 'rebase' (platform support varies)
+  rules:
+    ci_passed: true               # Require CI to be green
+    ci_strict: false              # If true, treat unknown/no CI as failure (default false allows projects without CI)
+    no_changes_requested: true    # Block if any review has "changes requested"
+    mergeable: true               # Require platform to report mergeable (no conflicts)
+    approval_state: true          # Require platform approval state (e.g., required approvals met)
+    branch_prefixes:              # Optional allow-list for source branches
+      - "feature/"
+      - "bugfix/"
+
+Notes:
+- Threshold requirement: Mergebot only merges when it can evaluate a threshold. Provide `merge.threshold` or rely on `approval_policy.threshold`; if neither is set (or the score can’t be parsed) the merge is skipped with a comment explaining why.
+- Draft/WIP: Mergebot will never merge Draft/WIP PRs/MRs (hard rule).
+- Threshold fallback: If merge.threshold is not set, Mergebot uses approval_policy.threshold for merge gating.
+- Branch allow-list: If rules.branch_prefixes is set, Mergebot only auto-merges when the source branch starts with one of the listed prefixes (e.g., feature/, bugfix/). If unset, all source branches are eligible (subject to other rules).
+- CI behavior: With rules.ci_passed: true, failing CI blocks. If no pipelines/checks are configured, CI is treated as unknown and allowed by default. Set rules.ci_strict: true to block when CI is unknown/not configured.
+- Comments: Mergebot posts a concise comment whenever it merges or skips, including the impact score, thresholds, and guardrail reasons.
 
 ---
 

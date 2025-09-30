@@ -137,6 +137,17 @@ approval_policy:
 - Review and adjust after running Mergebot for a while.
 
 ---
+ 
+## Relationship to Auto‑Merge
+
+If merge auto-merge is enabled in your config, the merge decision uses a threshold that falls back to the approval policy threshold when not explicitly set:
+
+- merge.threshold: If provided, the weighted score must be <= this value to merge.
+- Fallback: If merge.threshold is null or omitted, Mergebot uses approval_policy.threshold for merge gating.
+
+Notes:
+- Draft/WIP pull/merge requests are never merged (hard rule).
+- In addition to thresholds, merge rules (e.g., CI passed, no changes requested, mergeable, approval state) must also be satisfied. See merge configuration for details.
 
 ## Troubleshooting & FAQ
 

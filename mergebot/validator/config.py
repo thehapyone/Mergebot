@@ -2,7 +2,7 @@
 
 import os
 import sys
-from typing import Dict, Optional
+from typing import Dict, List, Literal, Optional
 
 import yaml
 from dotenv import load_dotenv
@@ -185,6 +185,55 @@ class TelemetryConfig(BaseModel):
     )
 
 
+class MergeRules(BaseModel):
+    """
+    Gate conditions evaluated before performing an auto-merge.
+    All set to True by default (strict/safe).
+    """
+
+    ci_passed: bool = Field(default=True, description="Require CI to be green/success")
+    ci_strict: bool = Field(
+        default=False,
+        description="If true, treat unknown/no CI as failure. If false (default), allow projects with no CI configured.",
+    )
+    no_changes_requested: bool = Field(
+        default=True, description="Block merge if any review has 'changes requested'"
+    )
+    mergeable: bool = Field(
+        default=True, description="Require platform to report mergeable (no conflicts)"
+    )
+    approval_state: bool = Field(
+        default=True, description="Require platform approval state to be satisfied"
+    )
+    branch_prefixes: Optional[List[str]] = Field(
+        default=None,
+        description="Allow-list for source branches. If set, only auto-merge when source branch starts with any of these prefixes.",
+    )
+
+
+class MergeConfig(BaseModel):
+    """
+    Auto-merge configuration.
+    - enabled: Explicit opt-in to allow Mergebot to merge.
+    - threshold: If None, falls back to approval_policy.threshold for merge gating.
+    - strategy: Preferred merge strategy; platform support may vary.
+    - rules: Safety guardrails grouped under a single block.
+    """
+
+    enabled: bool = Field(default=False, description="Enable auto-merge capability")
+    threshold: Optional[float] = Field(
+        default=None,
+        description="Merge threshold; if None, fallback to approval_policy.threshold",
+    )
+    strategy: Literal["repo_default", "merge", "squash", "rebase"] = Field(
+        default="repo_default",
+        description="Merge strategy to apply (platform-respected)",
+    )
+    rules: MergeRules = Field(
+        default_factory=MergeRules, description="Pre-merge guardrail conditions"
+    )
+
+
 class Config(BaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")
     repository: RepositoryConfig = Field(..., description="Repository configuration")
@@ -194,6 +243,7 @@ class Config(BaseModel):
     approval_policy: Optional[ApprovalPolicy] = None
     analysis: Optional[AnalysisConfig] = None
     telemetry: Optional[TelemetryConfig] = None
+    merge: Optional[MergeConfig] = None
 
     def get_llm_model_for_crew(self, crew_name: str) -> str:
         """Get LLM model for the crew"""

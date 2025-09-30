@@ -13,7 +13,7 @@ from mergebot.crews import (
     RiskAnalysis,
     TestAnalysis,
 )
-from mergebot.services import approval_service, pr_service
+from mergebot.services import decision_service, pr_service
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
@@ -164,7 +164,6 @@ class MergeBotState(BaseModel):
         "recommendation": "",
         "report": "",
     }
-    analysis_link: str = ""
     final_decision: dict = Field(
         default_factory=dict, description="Final decision summary and metadata."
     )
@@ -265,77 +264,13 @@ class MergeBotFlow(Flow[MergeBotState]):
 
     @listen(impact_evaluator)
     async def pr_decision(self):
-        """Finalize by posting impact report and taking approval action via service layer."""
-        rec = self.state.impact_assessment.get("recommendation", "").strip().lower()
-        report = self.state.impact_assessment.get("report") or ""
-
-        pr_style = "MR" if get_platform_type() == "gitlab" else "PR"
-        approval_message = (
-            f"✅ {pr_style} has been auto-approved as recommended in the Impact Assessment Report (see assessment report).\n"
-            "This action has been automated as per the established policy.\n"
-            "If CI or downstream issues arise, please review the report or raise an issue manually."
+        """
+        Finalize by delegating to the decision service to post the assessment,
+        approve if applicable, and auto-merge under configured guardrails.
+        """
+        self.state.final_decision = await decision_service.process_decision(
+            self.state.pr_id, self.state.impact_assessment
         )
-        not_approved_message = (
-            f"❌ {pr_style} has not been auto-approved as per the Impact Assessment Report.\n"
-            "Please review the report and take necessary actions manually."
-        )
-        inconclusive_message = (
-            "⚠️ Impact Assessment result appears inconclusive or not in the expected format.\n\n"
-            "Recommended next steps:\n"
-            "- Consider using a more capable AI model for the Impact Evaluator crew.\n"
-            "- Review your approval configuration (docs/configuration/approval_policy.md).\n"
-            "- Review the Mergebot logs for potential errors or truncation.\n\n"
-            "This review will be held for human attention. No auto-approval has been performed."
-        )
-
-        approved_flag = False
-
-        # If required fields weren't extracted, post guidance and require human review
-        if not is_conclusive_impact_assessment(self.state.impact_assessment):
-            self.state.analysis_link = await approval_service.post_comment(
-                self.state.pr_id, inconclusive_message
-            )
-            action_note = "Human review required (inconclusive)"
-            final_recommendation = action_note
-        else:
-            # Post the impact assessment report first
-            self.state.analysis_link = await approval_service.post_comment(
-                self.state.pr_id, report
-            )
-            # Take action based on recommendation
-            if "approve" in rec:
-                try:
-                    await approval_service.approve_change(self.state.pr_id)
-                    await approval_service.post_comment(
-                        self.state.pr_id,
-                        approval_message,
-                    )
-                    action_note = "Approved"
-                    approved_flag = True
-                except Exception as e:
-                    logger.error(f"Approval action failed: {e}")
-                    action_note = f"Approval failed: {e}"
-            else:
-                try:
-                    await approval_service.post_comment(
-                        self.state.pr_id,
-                        not_approved_message,
-                    )
-                    action_note = "Not approved"
-                except Exception as e:
-                    logger.error(f"Failed to post 'not approved' comment: {e}")
-                    action_note = f"Failed to post comment: {e}"
-
-            final_recommendation = self.state.impact_assessment.get("recommendation")
-
-        # Store deterministic, structured final decision data
-        self.state.final_decision = {
-            "recommendation": final_recommendation,
-            "impact_score": self.state.impact_assessment.get("score"),
-            "action_taken": action_note,
-            "analysis_link": self.state.analysis_link,
-            "approved": approved_flag,
-        }
 
         # Store the crew usage metrics
         self.state.usage_metrics = {
@@ -391,7 +326,7 @@ async def run_flow(
             impact_score=mergebot.state.final_decision.get("impact_score"),
             recommendation=mergebot.state.final_decision.get("recommendation"),
             last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
-            analysis_link=mergebot.state.analysis_link,
+            analysis_link=mergebot.state.final_decision.get("analysis_link"),
             approved=mergebot.state.final_decision.get("approved", False),
             action_taken=mergebot.state.final_decision.get("action_taken", ""),
         )

@@ -7,6 +7,7 @@ import gitlab
 
 from mergebot.tools.api_base import PullRequestAPIBase
 from mergebot.validator.config import get_runtime_config
+from mergebot.validator.logging_config import logger
 
 
 def parse_diff_content(diff: str):
@@ -267,6 +268,123 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             return f"Successfully approved Merge Request {pr_number}."
         except Exception as e:
             return f"Failed to approve Merge Request {pr_number}: {str(e)}"
+
+    def _evaluate_ci_state(self, mr):
+        """
+        Evaluate CI state for MR head pipeline.
+        Returns tuple: (ci_passed, ci_state)
+        ci_state: 'success' | 'failure' | 'pending' | 'unknown'
+        """
+        try:
+            hp = getattr(mr, "head_pipeline", None)
+            status = ((hp or {}).get("status") or "").lower() if hp else ""
+            if status == "success":
+                return True, "success"
+            if status in {"failed", "canceled"}:
+                return False, "failure"
+            if status in {"running", "pending", "created", "waiting_for_resource"}:
+                return False, "pending"
+            return None, "unknown"
+        except Exception as e:
+            logger.warning(
+                f"CI state evaluation failed for MR !{getattr(mr, 'iid', '?')}: {e}"
+            )
+            return None, "unknown"
+
+    def get_pull_request_status(self, pr_number: int) -> dict:
+        """
+        Return structured MR status used for merge guardrails.
+        """
+        try:
+            mr = self.gitlab_repo_instance.mergerequests.get(pr_number)
+
+            # Draft/WIP
+            draft = bool(getattr(mr, "work_in_progress", False))
+
+            # Mergeable state (GitLab uses merge_status / detailed_merge_status)
+            mergeable_flag = None
+            try:
+                status_val = (getattr(mr, "merge_status", "") or "").lower()
+                detailed_val = (getattr(mr, "detailed_merge_status", "") or "").lower()
+                if status_val:
+                    mergeable_flag = status_val == "can_be_merged"
+                elif detailed_val:
+                    # Treat obviously mergeable states as True
+                    mergeable_flag = detailed_val in {
+                        "mergeable",
+                        "can_be_merged",
+                    }
+            except Exception:
+                mergeable_flag = None
+
+            ci_passed, ci_state = self._evaluate_ci_state(mr)
+
+            # Approvals
+            approval_state = None
+            approved_count = 0
+            changes_requested = (
+                0  # Best-effort; GitLab has no native "changes requested"
+            )
+            try:
+                approvals = mr.approvals.get()
+                approved_count = len(getattr(approvals, "approved_by", []) or [])
+                approvals_required = getattr(approvals, "approvals_required", 0) or 0
+                approvals_left = getattr(approvals, "approvals_left", None)
+                if approvals_left is not None:
+                    approval_state = approvals_left == 0
+                else:
+                    approval_state = approved_count >= approvals_required
+            except Exception:
+                approval_state = None
+
+            # Attempt to infer "changes requested" via unresolved discussions (best-effort)
+            try:
+                discussions = mr.discussions.list(all=True)
+                for d in discussions:
+                    # discussion objects may expose .resolved or via attributes
+                    resolved = getattr(d, "resolved", None)
+                    if resolved is None:
+                        resolved = bool(d.attributes.get("resolved", True))
+                    if resolved is False:
+                        changes_requested += 1
+            except Exception:
+                # If not accessible, leave as 0 (unknown -> treated as no explicit blocks)
+                pass
+
+            return {
+                "state": mr.state,
+                "draft": draft,
+                "mergeable": mergeable_flag,
+                "ci_passed": ci_passed,
+                "ci_state": ci_state,
+                "approval_state": approval_state,
+                "source_branch": getattr(mr, "source_branch", None),
+                "target_branch": getattr(mr, "target_branch", None),
+                "reviews": {
+                    "changes_requested": changes_requested,
+                    "approved": approved_count,
+                },
+            }
+        except Exception as e:
+            return {
+                "error": f"Failed to retrieve merge request status for MR IID {pr_number}: {str(e)}"
+            }
+
+    def merge_pull_request(self, pr_number: int, strategy: str = "repo_default") -> str:
+        """
+        Merge the merge request using the preferred strategy.
+        strategy: repo_default | merge | squash | rebase (GitLab supports squash option; rebase maps to default merge)
+        """
+        try:
+            mr = self.gitlab_repo_instance.mergerequests.get(pr_number)
+            if strategy == "squash":
+                mr.merge(squash=True)
+            else:
+                # repo_default, merge, rebase -> perform default merge
+                mr.merge()
+            return f"Merged Merge Request !{pr_number}: {mr.web_url}"
+        except Exception as e:
+            return f"Failed to merge Merge Request {pr_number}: {str(e)}"
 
     def get_pipeline_job(self, job_id: int) -> dict:
         """Gets the job information"""
