@@ -41,9 +41,10 @@ merge:
 ```
 
 Notes:
+- Threshold requirement: Auto-merge only runs when a merge threshold is available. Set `merge.threshold`, or rely on `approval_policy.threshold`. If neither is defined (or the impact score is unavailable), Mergebot will skip the merge and explain why in a comment.
 - Draft/WIP PRs/MRs are never auto‑merged (hard rule).
 - CI behavior: With `ci_passed: true`, failing CI blocks. If no pipelines/checks are configured, CI is treated as unknown and allowed by default; set `ci_strict: true` to block when CI is unknown/not configured.
 - If `branch_prefixes` is set, only source branches starting with one of the listed prefixes are eligible for auto‑merge.
-- Mergebot always posts a concise comment explaining whether it merged or skipped, with reasons.
+- Mergebot always posts a concise comment explaining whether it merged or skipped, including the impact score, thresholds, and guardrail reasons.
 
 > **Tip:** For onboarding and setup, see [Onboarding](../usage/onboarding.md).

@@ -199,11 +199,12 @@ merge:
       - "bugfix/"
 
 Notes:
+- Threshold requirement: Mergebot only merges when it can evaluate a threshold. Provide `merge.threshold` or rely on `approval_policy.threshold`; if neither is set (or the score can’t be parsed) the merge is skipped with a comment explaining why.
 - Draft/WIP: Mergebot will never merge Draft/WIP PRs/MRs (hard rule).
 - Threshold fallback: If merge.threshold is not set, Mergebot uses approval_policy.threshold for merge gating.
 - Branch allow-list: If rules.branch_prefixes is set, Mergebot only auto-merges when the source branch starts with one of the listed prefixes (e.g., feature/, bugfix/). If unset, all source branches are eligible (subject to other rules).
 - CI behavior: With rules.ci_passed: true, failing CI blocks. If no pipelines/checks are configured, CI is treated as unknown and allowed by default. Set rules.ci_strict: true to block when CI is unknown/not configured.
-- Comments: Mergebot posts a concise comment explaining merge performed/skipped and reasons.
+- Comments: Mergebot posts a concise comment whenever it merges or skips, including the impact score, thresholds, and guardrail reasons.
 
 ---
 
