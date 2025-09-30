@@ -10,6 +10,11 @@ repository:
   github:
     base_branch: "main"
 
+crews:
+  ImpactEvaluator:
+    llm:
+      model: "azure/gpt-4.1"
+
 approval_policy:
   threshold: 3.0
   weights:

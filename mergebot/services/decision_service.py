@@ -100,7 +100,6 @@ async def process_decision(
             approved_flag,
             action_note,
             analysis_link,
-            recommendation=action_note,
         )
         final_decision["recommendation"] = (
             action_note  # Override recommendation for inconclusive case
