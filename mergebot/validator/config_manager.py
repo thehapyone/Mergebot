@@ -90,6 +90,7 @@ def ensure_repo_config(project: str):
                     "    branch_prefixes:\n"
                     '      - "feature/"\n'
                     '      - "renovate/"\n'
+                    '      - "dependabot/"\n'
                 )
                 pr_url = onboarding.create_onboarding_pr(default_mergebot_yml)
                 logger.info(f"Onboarding PR created: <{pr_url}>")

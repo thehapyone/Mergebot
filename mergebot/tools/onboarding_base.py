@@ -49,6 +49,7 @@ class OnboardingManagerBase(BaseModel):
             "    branch_prefixes:\n"
             '      - "bugfix/"\n'
             '      - "renovate/"\n'
+            '      - "dependabot/"\n'
             "```\n\n"
             "Notes:\n"
             "- If `threshold` is null, Mergebot uses `approval_policy.threshold` for merge gating.\n"
