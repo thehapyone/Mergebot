@@ -158,7 +158,7 @@ async def process_decision(
                 final_decision = generate_final_decision(
                     impact_assessment, approved_flag, action_note, analysis_link
                 )
-                return final_decision, analysis_link, approved_flag
+                return final_decision
 
             # Pre-merge guardrails
             status = await merge_service.get_status(pr_id)
@@ -193,7 +193,7 @@ async def process_decision(
                 final_decision = generate_final_decision(
                     impact_assessment, approved_flag, action_note, analysis_link
                 )
-                return final_decision, analysis_link, approved_flag
+                return final_decision
 
             # Perform merge
             try:

@@ -7,6 +7,7 @@ from github import Github
 
 from mergebot.tools.api_base import PullRequestAPIBase
 from mergebot.validator.config import get_runtime_config
+from mergebot.validator.logging_config import logger
 
 
 def generate_github_app_jwt(app_id: str, private_key: str) -> str:
@@ -213,6 +214,74 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         except Exception as e:
             return f"Failed to approve Pull Request {pr_number}: {str(e)}"
 
+    def _evaluate_ci_state(self, pr):
+        """
+        Evaluate CI state for PR head commit using the Checks APIs.
+        Returns tuple: (ci_passed, ci_state)
+        ci_state is one of: 'success' | 'failure' | 'pending' | 'unknown'
+        """
+        try:
+            head_sha = pr.head.sha
+
+            # Prefer the PR head repo to avoid 404 on fork PRs
+            head_repo = getattr(pr.head, "repo", None)
+            repo_for_commit = (
+                head_repo if head_repo is not None else self.github_repo_instance
+            )
+            commit = repo_for_commit.get_commit(head_sha)
+
+            # Checks API aggregate state
+            checks_state = None
+            try:
+                suites = list(commit.get_check_suites())
+                if suites:
+                    conclusions = []
+                    statuses = []
+                    any_in_progress = False
+                    for s in suites:
+                        status = (
+                            getattr(s, "status", None) or ""
+                        ).lower()  # queued | in_progress | completed
+                        statuses.append(status)
+                        conclusion = (
+                            getattr(s, "conclusion", None) or ""
+                        ).lower()  # success | failure | neutral | cancelled | timed_out | action_required | null
+                        if status != "completed":
+                            any_in_progress = True
+                        if conclusion:
+                            conclusions.append(conclusion)
+                    if any_in_progress:
+                        checks_state = "pending"
+                    elif conclusions:
+                        if any(
+                            c
+                            in {"failure", "cancelled", "timed_out", "action_required"}
+                            for c in conclusions
+                        ):
+                            checks_state = "failure"
+                        elif all(
+                            c in {"success", "neutral", "skipped"} for c in conclusions
+                        ):
+                            checks_state = "success"
+                        else:
+                            checks_state = "pending"
+            except Exception as e:
+                logger.warning(f"Checks API query failed for {head_sha}: {e}")
+
+            # Decide final CI state prioritizing available signals: failure > pending > success
+            if "failure" == checks_state:
+                return False, "failure"
+            if "pending" == checks_state:
+                return False, "pending"
+            if "success" == checks_state:
+                return True, "success"
+            return None, "unknown"
+        except Exception as e:
+            logger.error(
+                f"CI status evaluation failed for PR #{getattr(pr, 'number', '?')} sha {getattr(getattr(pr, 'head', None), 'sha', '?')}: {e}"
+            )
+            return None, "unknown"
+
     def get_pull_request_status(self, pr_number: int) -> dict:
         """
         Return structured PR status used for merge guardrails.
@@ -223,37 +292,53 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             draft = bool(getattr(pr, "draft", False))
             # Mergeable state
             mergeable = pr.mergeable
+
+            # Compute effective review summary by latest review per reviewer
+            reviews = list(pr.get_reviews())
+            latest_by_reviewer = {}
+
+            for r in reviews:
+                user = getattr(r, "user", None)
+                if not user:
+                    continue
+                # exclude self-approval
+                if user.login == pr.user.login:
+                    continue
+
+                key = user.login
+                prev = latest_by_reviewer.get(key)
+                # Prefer the most recent submitted_at (fallback to updated_at)
+                curr_ts = getattr(r, "submitted_at", None) or getattr(
+                    r, "updated_at", None
+                )
+                prev_ts = getattr(prev, "submitted_at", None) or getattr(
+                    prev, "updated_at", None
+                )
+                if prev is None or (curr_ts and prev_ts and curr_ts > prev_ts):
+                    latest_by_reviewer[key] = r
+
             # Reviews summary
-            approved = 0
-            changes_requested = 0
-            try:
-                for review in pr.get_reviews():
-                    state = (review.state or "").upper()
-                    if state == "APPROVED":
-                        approved += 1
-                    elif state == "CHANGES_REQUESTED":
-                        changes_requested += 1
-            except Exception:
-                # If reviews API fails for any reason, leave counts at 0
-                pass
+            approved = sum(
+                1
+                for r in latest_by_reviewer.values()
+                if (r.state or "").upper() == "APPROVED"
+            )
+            changes_requested = sum(
+                1
+                for r in latest_by_reviewer.values()
+                if (r.state or "").upper() == "CHANGES_REQUESTED"
+            )
             approval_state = approved > 0 and changes_requested == 0
 
-            # CI status via combined status on HEAD commit
-            ci_passed = None
-            try:
-                head_sha = pr.head.sha
-                commit = self.github_repo_instance.get_commit(head_sha)
-                combined = commit.get_combined_status()
-                # success | failure | pending
-                ci_passed = (combined.state or "").lower() == "success"
-            except Exception:
-                ci_passed = None
+            # CI state
+            ci_passed, ci_state = self._evaluate_ci_state(pr)
 
             return {
                 "state": pr.state,
                 "draft": draft,
                 "mergeable": bool(mergeable) if mergeable is not None else None,
                 "ci_passed": ci_passed,
+                "ci_state": ci_state,
                 "approval_state": approval_state,
                 "source_branch": getattr(pr.head, "ref", None),
                 "target_branch": getattr(pr.base, "ref", None),

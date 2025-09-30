@@ -7,6 +7,7 @@ import gitlab
 
 from mergebot.tools.api_base import PullRequestAPIBase
 from mergebot.validator.config import get_runtime_config
+from mergebot.validator.logging_config import logger
 
 
 def parse_diff_content(diff: str):
@@ -268,6 +269,28 @@ class GitlabAPIWrapper(PullRequestAPIBase):
         except Exception as e:
             return f"Failed to approve Merge Request {pr_number}: {str(e)}"
 
+    def _evaluate_ci_state(self, mr):
+        """
+        Evaluate CI state for MR head pipeline.
+        Returns tuple: (ci_passed, ci_state)
+        ci_state: 'success' | 'failure' | 'pending' | 'unknown'
+        """
+        try:
+            hp = getattr(mr, "head_pipeline", None)
+            status = ((hp or {}).get("status") or "").lower() if hp else ""
+            if status == "success":
+                return True, "success"
+            if status in {"failed", "canceled"}:
+                return False, "failure"
+            if status in {"running", "pending", "created", "waiting_for_resource"}:
+                return False, "pending"
+            return None, "unknown"
+        except Exception as e:
+            logger.warning(
+                f"CI state evaluation failed for MR !{getattr(mr, 'iid', '?')}: {e}"
+            )
+            return None, "unknown"
+
     def get_pull_request_status(self, pr_number: int) -> dict:
         """
         Return structured MR status used for merge guardrails.
@@ -294,15 +317,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             except Exception:
                 mergeable_flag = None
 
-            # CI status: success if head_pipeline exists and is green
-            ci_passed = None
-            try:
-                if mr.head_pipeline and mr.head_pipeline.get("status"):
-                    ci_passed = (
-                        mr.head_pipeline.get("status") or ""
-                    ).lower() == "success"
-            except Exception:
-                ci_passed = None
+            ci_passed, ci_state = self._evaluate_ci_state(mr)
 
             # Approvals
             approval_state = None
@@ -341,6 +356,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
                 "draft": draft,
                 "mergeable": mergeable_flag,
                 "ci_passed": ci_passed,
+                "ci_state": ci_state,
                 "approval_state": approval_state,
                 "source_branch": getattr(mr, "source_branch", None),
                 "target_branch": getattr(mr, "target_branch", None),

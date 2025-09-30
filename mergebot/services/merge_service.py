@@ -75,13 +75,17 @@ def evaluate_rules(
         reasons.append("Not mergeable (conflicts or unknown)")
 
     if rules.get("ci_passed", True):
-        ci = status.get("ci_passed")
+        ci_passed = status.get("ci_passed")
+        ci_state = status.get("ci_state", "").lower()
         ci_strict = bool(rules.get("ci_strict", False))
-        if ci is False:
-            reasons.append("CI failing")
-        elif ci is None and ci_strict:
+        if ci_passed is False:
+            if ci_state == "pending":
+                reasons.append("CI pending")
+            else:
+                reasons.append("CI failing")
+        elif ci_passed is None and ci_strict:
             # Only treat unknown/no CI as a blocker when ci_strict is enabled
-            reasons.append("CI status unknown")
+            reasons.append(f"CI state: {ci_state}")
 
     if rules.get("approval_state", True) and status.get("approval_state") is not True:
         reasons.append("Approval state not satisfied")
