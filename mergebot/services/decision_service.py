@@ -46,6 +46,30 @@ def _build_messages() -> Dict[str, str]:
     }
 
 
+async def post_merge_failed_reason(pr_id, score_val, merge_threshold, reasons):
+    reasons_text = ", ".join(reasons) if reasons else "Unknown reason"
+    msg = (
+        "⚠️ Merge skipped\n"
+        f"- Reason(s): {reasons_text}\n"
+        f"- Weighted score: {score_val if score_val else 'Unavailable'} (merge threshold: {merge_threshold if merge_threshold else 'Unavailable'})\n"
+    )
+    await approval_service.post_comment(pr_id, msg)
+
+
+def generate_final_decision(
+    impact_assessment, approved_flag, action_note, analysis_link
+):
+    final_decision = {
+        "recommendation": impact_assessment.get("recommendation"),
+        "impact_score": impact_assessment.get("score"),
+        "action_taken": action_note,
+        "analysis_link": analysis_link,
+        "approved": approved_flag,
+    }
+
+    return final_decision
+
+
 async def process_decision(
     pr_id: int, impact_assessment: Dict[str, Any]
 ) -> Tuple[Dict[str, Any], str, bool]:
@@ -106,18 +130,37 @@ async def process_decision(
             raw_score = impact_assessment.get("score")
             score_val = merge_service.parse_first_float(raw_score)
 
-            # Threshold fallback: merge.threshold -> approval_policy.threshold -> 3.0
+            # Threshold fallback: merge.threshold -> approval_policy.threshold
             approval_threshold = (
-                cfg.approval_policy.threshold if cfg.approval_policy else 3.0
+                cfg.approval_policy.threshold if cfg.approval_policy else None
             )
             merge_threshold = (
                 merge_cfg.threshold
                 if merge_cfg.threshold is not None
                 else approval_threshold
             )
-            score_ok_for_merge = (score_val is not None) and (
-                score_val <= merge_threshold
+            score_ok_for_merge = (
+                (score_val is not None)
+                and (merge_threshold is not None)
+                and (score_val <= merge_threshold)
             )
+
+            # Early exit if score disqualifies merge
+            if not score_ok_for_merge:
+                reasons = [
+                    (
+                        "Impact score above merge threshold"
+                        if score_val is not None
+                        else "Impact score unavailable"
+                    )
+                ]
+                await post_merge_failed_reason(
+                    pr_id, score_val, merge_threshold, reasons
+                )
+                final_decision = generate_final_decision(
+                    impact_assessment, approved_flag, action_note, analysis_link
+                )
+                return final_decision, analysis_link, approved_flag
 
             # Pre-merge guardrails
             status = await merge_service.get_status(pr_id)
@@ -131,12 +174,9 @@ async def process_decision(
             )
 
             # Source branch prefix rule (allow-list).
-            # Prefer rules.branch_prefixes; fall back to deprecated allowed_source_branch_prefixes for back-compat.
             prefixes = getattr(
                 getattr(merge_cfg, "rules", None), "branch_prefixes", None
             )
-            if prefixes is None:
-                prefixes = getattr(merge_cfg, "allowed_source_branch_prefixes", None)
             if prefixes:
                 source_branch = (status.get("source_branch") or "").strip()
                 if not any(
@@ -147,50 +187,43 @@ async def process_decision(
                         f"Source branch '{source_branch or '?'}' not allowed by prefix rules"
                     )
 
-            if not score_ok_for_merge:
-                reasons.append(
-                    "Impact score above merge threshold"
-                    if score_val is not None
-                    else "Impact score unavailable"
+            # Early exit if rules disallow merge
+            if not allowed_by_rules:
+                await post_merge_failed_reason(
+                    pr_id, score_val, merge_threshold, reasons
                 )
+                final_decision = generate_final_decision(
+                    impact_assessment, approved_flag, action_note, analysis_link
+                )
+                return final_decision, analysis_link, approved_flag
 
-            if allowed_by_rules and score_ok_for_merge:
-                # Perform merge
-                try:
-                    result = await merge_service.merge_change(
-                        pr_id, strategy=merge_cfg.strategy
-                    )
-                    summary = (
-                        f"✅ Auto-merged using strategy: {merge_cfg.strategy}\n"
-                        f"- Weighted score: {score_val} (threshold: {merge_threshold})\n"
-                        f"- CI: {status.get('ci_passed')}, "
-                        f"Reviews: approved={status.get('reviews', {}).get('approved')}, "
-                        f"changes_requested={status.get('reviews', {}).get('changes_requested')}, "
-                        f"Mergeable: {status.get('mergeable')}, "
-                        f"Approval state: {status.get('approval_state')}\n"
-                        f"- Result: {result}"
-                    )
-                    await approval_service.post_comment(pr_id, summary)
-                    action_note = "Approved and merged"
-                except Exception as e:
-                    logger.error(f"Merge action failed: {e}")
-                    # Surface error to users
-                    await approval_service.post_comment(pr_id, f"⚠️ Merge failed: {e}")
-            else:
-                reasons_text = ", ".join(reasons) if reasons else "Unknown reason"
-                msg = (
-                    "⚠️ Merge skipped\n"
-                    f"- Reason(s): {reasons_text}\n"
-                    f"- Weighted score: {score_val} (merge threshold: {merge_threshold})"
+            # Perform merge
+            try:
+                result = await merge_service.merge_change(
+                    pr_id, strategy=merge_cfg.strategy
                 )
-                await approval_service.post_comment(pr_id, msg)
+                summary = (
+                    f"✅ Auto-merged using strategy: {merge_cfg.strategy}\n"
+                    f"- Weighted score: {score_val} (threshold: {merge_threshold})\n"
+                    f"- CI: {status.get('ci_passed')}, "
+                    f"Reviews: approved={status.get('reviews', {}).get('approved')}, "
+                    f"changes_requested={status.get('reviews', {}).get('changes_requested')}, "
+                    f"Mergeable: {status.get('mergeable')}, "
+                    f"Approval state: {status.get('approval_state')}\n"
+                    f"- Result: {result}"
+                )
+                await approval_service.post_comment(pr_id, summary)
+                action_note = "Approved and merged"
+            except Exception as e:
+                logger.error(f"Merge action failed: {e}")
+                await approval_service.post_comment(pr_id, f"⚠️ Merge failed: {e}")
+
         elif approved_flag:
             # Inform that merge is disabled
             await approval_service.post_comment(
-                pr_id, "ℹ️ Auto-merge is disabled by configuration. PR approved."
+                pr_id, "Auto-merge is disabled by configuration. PR approved."
             )
 
-        final_recommendation = impact_assessment.get("recommendation")
     else:
         # Not recommended to approve
         try:
@@ -199,13 +232,8 @@ async def process_decision(
         except Exception as e:
             logger.error(f"Failed to post 'not approved' comment: {e}")
             action_note = f"Failed to post comment: {e}"
-        final_recommendation = impact_assessment.get("recommendation")
 
-    final_decision = {
-        "recommendation": final_recommendation,
-        "impact_score": impact_assessment.get("score"),
-        "action_taken": action_note,
-        "analysis_link": analysis_link,
-        "approved": approved_flag,
-    }
+    final_decision = generate_final_decision(
+        impact_assessment, approved_flag, action_note, analysis_link
+    )
     return final_decision, analysis_link, approved_flag

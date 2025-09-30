@@ -218,7 +218,6 @@ class MergeConfig(BaseModel):
     - threshold: If None, falls back to approval_policy.threshold for merge gating.
     - strategy: Preferred merge strategy; platform support may vary.
     - rules: Safety guardrails grouped under a single block.
-    - allowed_source_branch_prefixes: (deprecated) Back-compat. Prefer rules.branch_prefixes.
     """
 
     enabled: bool = Field(default=False, description="Enable auto-merge capability")
@@ -233,29 +232,6 @@ class MergeConfig(BaseModel):
     rules: MergeRules = Field(
         default_factory=MergeRules, description="Pre-merge guardrail conditions"
     )
-    allowed_source_branch_prefixes: Optional[List[str]] = Field(
-        default=None,
-        description="(Deprecated) Use rules.branch_prefixes. If set, will be migrated to rules.branch_prefixes.",
-    )
-
-    @model_validator(mode="after")
-    def migrate_branch_prefixes(self):
-        """
-        Backward compatibility: if allowed_source_branch_prefixes is provided and
-        rules.branch_prefixes is unset, move the value under rules.branch_prefixes.
-        """
-        try:
-            ap = getattr(self, "allowed_source_branch_prefixes", None)
-            if (
-                ap
-                and self.rules
-                and getattr(self.rules, "branch_prefixes", None) is None
-            ):
-                self.rules.branch_prefixes = list(ap)
-        except Exception:
-            # Best-effort migration; ignore if anything goes wrong
-            pass
-        return self
 
 
 class Config(BaseModel):
