@@ -230,50 +230,72 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             )
             commit = repo_for_commit.get_commit(head_sha)
 
-            # Checks API aggregate state
+            # Prefer aggregating by check runs (more precise than suites)
             checks_state = None
             try:
-                suites = list(commit.get_check_suites())
-                if suites:
-                    conclusions = []
-                    statuses = []
-                    any_in_progress = False
-                    for s in suites:
-                        status = (
-                            getattr(s, "status", None) or ""
-                        ).lower()  # queued | in_progress | completed
-                        statuses.append(status)
-                        conclusion = (
-                            getattr(s, "conclusion", None) or ""
-                        ).lower()  # success | failure | neutral | cancelled | timed_out | action_required | null
-                        if status != "completed":
-                            any_in_progress = True
-                        if conclusion:
-                            conclusions.append(conclusion)
+                runs = list(commit.get_check_runs())
+                if runs:
+                    failure_conclusions = {
+                        "failure",
+                        "cancelled",
+                        "timed_out",
+                        "action_required",
+                    }
+                    successish_conclusions = {"success", "neutral", "skipped"}
+
+                    # Any explicit failure from completed runs wins
+                    any_failure = any(
+                        (getattr(r, "conclusion", "") or "").lower()
+                        in failure_conclusions
+                        for r in runs
+                    )
+                    if any_failure:
+                        return False, "failure"
+
+                    # Only mark pending if any runs are actually queued or in-progress
+                    any_in_progress = any(
+                        (getattr(r, "status", "") or "").lower()
+                        in {"queued", "in_progress", "waiting"}
+                        for r in runs
+                    )
+
                     if any_in_progress:
                         checks_state = "pending"
-                    elif conclusions:
-                        if any(
-                            c
-                            in {"failure", "cancelled", "timed_out", "action_required"}
-                            for c in conclusions
-                        ):
-                            checks_state = "failure"
-                        elif all(
-                            c in {"success", "neutral", "skipped"} for c in conclusions
+                    else:
+                        # All runs are completed; if they are success/neutral/skipped => success
+                        completed_conclusions = [
+                            (getattr(r, "conclusion", "") or "").lower() for r in runs
+                        ]
+                        if completed_conclusions and all(
+                            c in successish_conclusions or c == ""
+                            for c in completed_conclusions
                         ):
                             checks_state = "success"
-                        else:
-                            checks_state = "pending"
             except Exception as e:
-                logger.warning(f"Checks API query failed for {head_sha}: {e}")
+                logger.warning(f"Checks API (runs) query failed for {head_sha}: {e}")
 
-            # Decide final CI state prioritizing available signals: failure > pending > success
-            if "failure" == checks_state:
+            # Fallback to legacy combined statuses if runs didn't yield a state
+            if not checks_state:
+                try:
+                    combined = commit.get_combined_status()
+                    statuses_state = (
+                        combined.state or ""
+                    ).lower()  # success | failure | pending
+                    if statuses_state == "failure":
+                        return False, "failure"
+                    if statuses_state == "pending":
+                        return False, "pending"
+                    if statuses_state == "success":
+                        return True, "success"
+                except Exception as e:
+                    logger.warning(f"Combined status query failed for {head_sha}: {e}")
+
+            # Decide final CI state from checks_state (failure > pending > success)
+            if checks_state == "failure":
                 return False, "failure"
-            if "pending" == checks_state:
+            if checks_state == "pending":
                 return False, "pending"
-            if "success" == checks_state:
+            if checks_state == "success":
                 return True, "success"
             return None, "unknown"
         except Exception as e:
