@@ -72,7 +72,7 @@ def generate_final_decision(
 
 async def process_decision(
     pr_id: int, impact_assessment: Dict[str, Any]
-) -> Tuple[Dict[str, Any], str, bool]:
+) -> Dict[str, Any]:
     """
     Orchestrates posting the assessment, approving if applicable, and auto-merging under guardrails.
 
@@ -95,18 +95,17 @@ async def process_decision(
             pr_id, messages["inconclusive"]
         )
         action_note = "Human review required (inconclusive)"
-        final_recommendation = action_note
-        return (
-            {
-                "recommendation": final_recommendation,
-                "impact_score": impact_assessment.get("score"),
-                "action_taken": action_note,
-                "analysis_link": analysis_link,
-                "approved": approved_flag,
-            },
-            analysis_link,
+        final_decision = generate_final_decision(
+            impact_assessment,
             approved_flag,
+            action_note,
+            analysis_link,
+            recommendation=action_note,
         )
+        final_decision["recommendation"] = (
+            action_note  # Override recommendation for inconclusive case
+        )
+        return final_decision
 
     # Post the impact assessment report first
     analysis_link = await approval_service.post_comment(pr_id, report)
@@ -236,4 +235,4 @@ async def process_decision(
     final_decision = generate_final_decision(
         impact_assessment, approved_flag, action_note, analysis_link
     )
-    return final_decision, analysis_link, approved_flag
+    return final_decision

@@ -164,7 +164,6 @@ class MergeBotState(BaseModel):
         "recommendation": "",
         "report": "",
     }
-    analysis_link: str = ""
     final_decision: dict = Field(
         default_factory=dict, description="Final decision summary and metadata."
     )
@@ -269,13 +268,9 @@ class MergeBotFlow(Flow[MergeBotState]):
         Finalize by delegating to the decision service to post the assessment,
         approve if applicable, and auto-merge under configured guardrails.
         """
-        final_decision, analysis_link, approved_flag = await decision_service.process_decision(
+        self.state.final_decision = await decision_service.process_decision(
             self.state.pr_id, self.state.impact_assessment
         )
-
-        # Persist results to state
-        self.state.analysis_link = analysis_link
-        self.state.final_decision = final_decision
 
         # Store the crew usage metrics
         self.state.usage_metrics = {
@@ -331,7 +326,7 @@ async def run_flow(
             impact_score=mergebot.state.final_decision.get("impact_score"),
             recommendation=mergebot.state.final_decision.get("recommendation"),
             last_reviewed=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
-            analysis_link=mergebot.state.analysis_link,
+            analysis_link=mergebot.state.final_decision.get("analysis_link"),
             approved=mergebot.state.final_decision.get("approved", False),
             action_taken=mergebot.state.final_decision.get("action_taken", ""),
         )
