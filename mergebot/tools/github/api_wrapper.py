@@ -1,6 +1,6 @@
 import os
 import time
-
+import json
 import jwt
 import requests
 from github import Github
@@ -150,6 +150,133 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             jwt_token, self.github_installation_id
         )
 
+    def _gh_headers(self):
+        """
+        Returns the correct headers for authenticating GitHub API REST calls using either PAT or App token.
+        """
+        token = self.github_app_access_token or self.github_personal_access_token
+        return {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+        }
+
+    def _owner_repo(self):
+        """
+        Returns (owner, repo) tuple from self.github_repository (format: 'owner/repo').
+        """
+        try:
+            owner, repo = self.github_repository.split("/", 1)
+            return owner, repo
+        except Exception:
+            raise ValueError("github_repository must be in 'owner/repo' format.")
+
+    def _find_run_id_for_pr(self, pr) -> int | None:
+        """
+        Try to find the Actions workflow run_id for the PR's head commit SHA. Fallback to PR/branch search.
+        """
+        import requests
+
+        owner, repo = self._owner_repo()
+        headers = self._gh_headers()
+        # Try: Use head_sha directly (most accurate, quickest)
+        url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs"
+        params = {"head_sha": pr.head.sha, "per_page": 2}
+        resp = requests.get(url, headers=headers, params=params)
+        if resp.status_code == 200:
+            runs = resp.json().get("workflow_runs", [])
+            if runs:
+                return runs[0].get("id")
+        # Fallback: search for PR-number-linked runs by branch & pull_request event
+        url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs"
+        params = {"event": "pull_request", "branch": pr.head.ref, "per_page": 20}
+        resp = requests.get(url, headers=headers, params=params)
+        if resp.status_code == 200:
+            for run in resp.json().get("workflow_runs", []):
+                if any(
+                    (pr.number == pr_obj.get("number"))
+                    for pr_obj in run.get("pull_requests", [])
+                ):
+                    return run.get("id")
+        return None
+
+    def get_pipeline_details(self, pipeline_id: int) -> str:
+        """
+        Retrieves detailed, human-readable Actions run info (pipeline_id = workflow run id), including jobs summary.
+        Mirrors get_pipeline_details from GitLab adapter.
+        Uses PyGithub for run and jobs if possible; falls back to REST only if required.
+        """
+        try:
+            # Fetch the workflow run using PyGithub
+            run = self.github_repo_instance.get_workflow_run(pipeline_id)
+        except Exception as e:
+            return f"Failed to retrieve pipeline details for Pipeline ID {pipeline_id} via PyGithub: {e}"
+
+        # PyGithub exposes run fields directly
+        run_data = run.raw_data
+        # Fetch jobs using the GitHub REST API (PyGithub currently does not support this endpoint directly)
+        jobs = []
+        owner, repo = self._owner_repo()
+        headers = self._gh_headers()
+        job_url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs/{pipeline_id}/jobs?per_page=100"
+        job_resp = requests.get(job_url, headers=headers)
+        if job_resp.status_code == 200:
+            jobs = job_resp.json().get("jobs", [])
+        else:
+            return f"Failed to retrieve pipeline job details for Pipeline ID {pipeline_id}: {job_resp.status_code} {job_resp.text}"
+
+        total_warnings = 0
+        total_errors = 0
+        job_lines = ["  Jobs:"]
+        for job in jobs:
+            job_errors = 0
+            job_warnings = 0  # Warnings not extracted without log parsing
+            conclusion = (job.get("conclusion") or "").lower()
+            if conclusion in {"failure", "cancelled", "timed_out", "action_required"}:
+                job_errors += 1
+            steps = job.get("steps", []) or []
+            job_errors += sum(
+                1
+                for s in steps
+                if (s.get("conclusion") or "").lower()
+                in {"failure", "cancelled", "timed_out", "action_required"}
+            )
+            job_lines.append(
+                json.dumps(
+                    {
+                        "id": job.get("id"),
+                        "name": job.get("name"),
+                        "status": job.get("status"),
+                        "conclusion": job.get("conclusion"),
+                        "started_at": job.get("started_at"),
+                        "completed_at": job.get("completed_at"),
+                        "html_url": job.get("html_url"),
+                        "errors_count": job_errors,
+                        "warnings_count": job_warnings,
+                    },
+                    indent=2,
+                    default=str,
+                )
+            )
+            total_warnings += job_warnings
+            total_errors += job_errors
+
+        info = [
+            "## Pipeline Information:",
+            f"  Pipeline ID : {run_data.get('id')}",
+            f"  Status      : {run_data.get('status')}",
+            f"  Conclusion  : {run_data.get('conclusion')}",
+            f"  Ref         : {run_data.get('head_branch')}",
+            f"  Head SHA    : {run_data.get('head_sha')}",
+            f"  Created At  : {run_data.get('created_at')}",
+            f"  Updated At  : {run_data.get('updated_at')}",
+            f"  Web URL     : {run_data.get('html_url')}",
+            f"  Total Jobs      : {len(jobs)}",
+            f"  Total Warnings  : {total_warnings}",
+            f"  Total Errors    : {total_errors}",
+        ]
+        info.extend(job_lines)
+        return "\n".join(info)
+
     def get_pull_request(self, pr_number: int) -> str:
         try:
             pr = self.github_repo_instance.get_pull(pr_number)
@@ -190,6 +317,12 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 "review_comments": [c.body for c in pr.get_review_comments()],
                 "comments": [c.body for c in pr.get_issue_comments()],
             }
+            # Try to find relevant Actions run and include pipeline summary
+            run_id = self._find_run_id_for_pr(pr)
+            if run_id:
+                pr_details["pipeline"] = self.get_pipeline_details(run_id)
+            else:
+                pr_details["pipeline"] = ""
             return self.pretty_print_pull_request(pr_details)
         except Exception as e:
             return {

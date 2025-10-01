@@ -2,6 +2,10 @@
 
 ## What Works
 
+- Detailed pipeline (CI) summaries for both GitHub (Actions workflow runs) and GitLab pipelines, unified in formatting and available in both PR output and as tool calls.
+  - GitHub: For each PR, finds the best matching workflow run, fetches metadata, jobs, errors.
+  - Cross-platform: All public and tool interfaces now present pipeline output identically.
+  - Docs, Memory Bank, config, and CLI reference all updated for users and integrators.
 - Project-level session lock implemented and integrated:
   - Stateless, dashboard-backed lock persisted under the single “Active Session” section between `<!-- marker:MERGEBOT_SESSION_LOCK -->` markers.
   - Default TTL is 10 minutes (600s) with heartbeat refresh (~200s) while a run is active.
@@ -20,8 +24,9 @@
 - [x] Backwards compatibility: allowed_source_branch_prefixes → rules.branch_prefixes.
 - [x] Update onboarding PRs/MRs and default .mergebot.yml to show all new merge options with documented behavior/examples.
 - [x] Documentation: config_schema.md and config_overview.md show all merge options, default policies, and notes on CI, branch_prefixes.
+- [x] Pipeline integration: get_pipeline_details for both providers; PR summaries and GetPipelineDetails tool now expose all job/run info, errors, and output in a single format.
 - [x] Decision logic: Always post reasoned merge summary (merged/skipped + reason), enforce branch allow-list, new CI rules.
-- [ ] Monitor for further config/UX improvements as new edge cases appear.
+- [ ] Monitor for further config/UX improvements as new edge cases appear (including pipeline/log analysis or UX feedback).
 
 
 ### A) Session Lock Hardening
@@ -56,7 +61,12 @@
 
 ## Current Status
 
+- GitHub Actions pipeline (workflow run) details are fully supported, documented, and integrated in all flows. This brings Mergebot’s PR diagnostics to parity across all major platforms.
 - Project session lock (10-minute TTL + heartbeat) is implemented and documented.
 - Ondemand and webhook flows both respect the session lock to avoid duplicate analysis/comments.
 - Documentation updated to reflect concurrency control, behavior on busy lock, and layout normalization.
-- Next phase focuses on tests, optional configuration knobs, and webhook hardening (HMAC, dedupe bursts), as well as PEM normalization for GitHub App private key handling.
+- Next phase focuses on:
+  - Tests and config for lock/session,
+  - Webhook hardening (HMAC, dedupe bursts),
+  - PEM normalization for GitHub App private key handling,
+  - **Potential future pipeline refinement:** parsing GitHub Actions logs for job warnings (current version: errors only), richer dashboard analytics, UI adjustments based on new data.

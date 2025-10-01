@@ -89,4 +89,4 @@ jobs:
 - Config file: `.mergebot.yml` or `config-github.yaml` ([config docs](../configuration/config_overview.md)).
 - For advanced usage, see [Mergebot on GitHub](https://github.com/thehapyone/Mergebot).
 
-Inspired by: [GitLab CI guide](./gitlab_ci.md)
+---

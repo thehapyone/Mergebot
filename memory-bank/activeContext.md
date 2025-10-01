@@ -2,7 +2,14 @@
 
 ## Core Project State (as of 2025-09-30)
 
-### Recent Changes: Auto-Merge, CI Robustness, Config Evolution
+### Recent Changes: Auto-Merge, CI Robustness, GitHub Actions Pipeline Support, Config Evolution
+
+#### GitHub Pipeline Analysis Integration
+- Mergebot now supports reading and displaying detailed pipeline (GitHub Actions workflow run) summaries for GitHub repositories, in addition to existing GitLab pipeline support.
+- For every analyzed pull request, Mergebot locates the most relevant Actions run matching the PR's head commit or branch.
+- Summaries show run status, conclusion, jobs (status, error/warning counts, web links), in a human-readable format harmonized with GitLab.
+- Unified code: Both GitHub and GitLab adapters now implement `get_pipeline_details` and surface this in PR output and via direct tool calls.
+- Documentation fully updated: user-facing docs now cover permissions, expected output, and troubleshooting.
 
 #### Auto-Merge Features
 - Auto-merge for GitHub and GitLab supported and fully configurable.
@@ -42,6 +49,7 @@
 - Onboarding is always up-to-date with latest robustness and safety recommendations.
 
 ### Next Steps for Project
-- [ ] Monitor usage/feedback for clarity or UI improvements on new CI behavior.
+- [ ] Monitor usage/feedback for clarity or UI improvements on new CI and pipeline details behavior (GitHub and GitLab).
+- [ ] Consider logs parsing for GitHub job warnings, and richer pipeline analytics.
 - [ ] Consider adding branch regex rules or more granular strategy controls in future.
-- [ ] Additional unit and integration test coverage for new onboarding paths.
+- [ ] Additional unit and integration test coverage for new onboarding paths and pipeline/path analysis.

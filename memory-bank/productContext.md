@@ -20,6 +20,7 @@ Modern software teams face increasing pressure to deliver high-quality code rapi
 
 ## How Mergebot Should Work
 - Integrates directly with GitHub, GitLab, and other VCS to monitor and process PRs/MRs
+- For each PR/MR, surfaces a detailed CI pipeline summary (GitHub Actions or GitLab), making job/runs output, failures, and errors visible and comparable across providers
 - Runs a series of automated "crews" (modular analysis components) on each PR/MR
 - Aggregates results and generates clear, actionable feedback
 - Recommends approval or further action based on analysis and approval policy
@@ -31,7 +32,7 @@ Modern software teams face increasing pressure to deliver high-quality code rapi
 - Seamless integration with existing GitHub, GitLab, and CI/CD workflows
 - Minimal manual intervention required from developers and reviewers
 - Fast, reliable feedback on every PR/MR
-- Clear, actionable recommendations and transparency in decision-making
+- Clear, actionable recommendations and transparency in decision-making, with unified CI pipeline/job summaries always displayed
 - Easy extensibility for new analysis modules, LLM providers, and workflows
 - Comprehensive, browsable documentation for onboarding and troubleshooting
 
