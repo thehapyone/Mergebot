@@ -4,6 +4,8 @@ import json
 import jwt
 import requests
 from github import Github
+import re
+from datetime import datetime, timedelta
 
 from mergebot.tools.api_base import PullRequestAPIBase
 from mergebot.validator.config import get_runtime_config
@@ -231,8 +233,8 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             job_errors = 0
             job_warnings = 0  # Warnings not extracted without log parsing
             conclusion = (job.get("conclusion") or "").lower()
-            if conclusion in {"failure", "cancelled", "timed_out", "action_required"}:
-                job_errors += 1
+            # if conclusion in {"failure", "cancelled", "timed_out", "action_required"}:
+            #    job_errors += 1
             steps = job.get("steps", []) or []
             job_errors += sum(
                 1
@@ -253,20 +255,97 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 "warnings_count": job_warnings,
             }
 
-            # Fetch and include job log tail for failed jobs (parity with GitLab)
+            # Fetch and include job log tail for failed jobs using step time window
             if job_errors > 0:
                 job_id = job.get("id")
                 if job_id:
                     log_url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/jobs/{job_id}/logs"
-                    log_resp = requests.get(log_url, headers=headers, allow_redirects=True)
+                    log_resp = requests.get(
+                        log_url, headers=headers, allow_redirects=True
+                    )
                     if log_resp.status_code == 200:
-                        # GitHub may return gzip, but requests handles decompression automatically
+
                         log_text = log_resp.text
-                        # Extract last N lines (ignore empty lines)
-                        tail_lines = [line for line in log_text.splitlines() if line.strip()]
-                        job_entry["log_tail"] = "\n".join(tail_lines[-30:])
+                        log_lines = [
+                            line for line in log_text.splitlines() if line.strip()
+                        ]
+
+                        # Find the failed step (last step with conclusion == failure/timed_out/cancelled/action_required)
+                        step_failure_states = {
+                            "failure",
+                            "timed_out",
+                            "cancelled",
+                            "action_required",
+                        }
+                        step = None
+                        for s in reversed(job.get("steps", [])):
+                            if (
+                                s.get("conclusion") or ""
+                            ).lower() in step_failure_states:
+                                step = s
+                                break
+                        if step and step.get("started_at") and step.get("completed_at"):
+                            start = step["started_at"].rstrip("Z")  # removes Z
+                            end = step["completed_at"].rstrip("Z")
+
+                            # Parse with/without fractional seconds
+                            def parse_t(s):
+                                # Robust to fractional seconds (microseconds)
+                                if "." in s:
+                                    base, frac = s.split(".", 1)
+                                    # Truncate to maximum 6 decimals (microseconds)
+                                    frac = (frac + "000000")[:6]
+                                    clean = f"{base}.{frac}"
+                                    return datetime.strptime(
+                                        clean, "%Y-%m-%dT%H:%M:%S.%f"
+                                    )
+                                else:
+                                    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
+
+                            started = parse_t(start)
+                            ended = parse_t(end)
+                            snippet = []
+                            timestamp_re = re.compile(
+                                r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z"
+                            )
+                            for line in log_lines:
+                                m = timestamp_re.match(line)
+                                if m:
+                                    t_str = m.group(1)
+                                    try:
+                                        t = parse_t(t_str)
+                                        if started <= t <= ended:
+                                            snippet.append(line)
+                                    except Exception as error:
+                                        logger.debug(
+                                            f"Failed to parse log line timestamp '{t_str}': {error}"
+                                        )
+                                        continue
+                            if snippet:
+                                job_entry["log_tail"] = "\n".join(snippet[-30:])
+                                job_entry["failed_step"] = {
+                                    "name": step.get("name"),
+                                    "started_at": step["started_at"],
+                                    "completed_at": step["completed_at"],
+                                }
+                            else:
+                                # Fallback for rare clock mismatch: last 30 lines of run group
+                                tail_lines = [
+                                    line
+                                    for line in log_lines
+                                    if line
+                                    and not line.startswith("##[group]")
+                                    and not line.startswith("##[endgroup]")
+                                ][-30:]
+                                job_entry["log_tail"] = "\n".join(tail_lines)
+                        else:
+                            # Fallback: last 30 lines overall if step metadata missing
+                            tail_lines = [line for line in log_lines if line][-30:]
+                            job_entry["log_tail"] = "\n".join(tail_lines)
                     else:
-                        job_entry["log_tail"] = f"[Failed to retrieve job log: {log_resp.status_code}]"
+                        job_entry["log_tail"] = (
+                            f"[Failed to retrieve job log: {log_resp.status_code}]"
+                        )
 
             job_lines.append(
                 json.dumps(
