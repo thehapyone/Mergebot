@@ -240,19 +240,37 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 if (s.get("conclusion") or "").lower()
                 in {"failure", "cancelled", "timed_out", "action_required"}
             )
+
+            job_entry = {
+                "id": job.get("id"),
+                "name": job.get("name"),
+                "status": job.get("status"),
+                "conclusion": job.get("conclusion"),
+                "started_at": job.get("started_at"),
+                "completed_at": job.get("completed_at"),
+                "html_url": job.get("html_url"),
+                "errors_count": job_errors,
+                "warnings_count": job_warnings,
+            }
+
+            # Fetch and include job log tail for failed jobs (parity with GitLab)
+            if job_errors > 0:
+                job_id = job.get("id")
+                if job_id:
+                    log_url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/jobs/{job_id}/logs"
+                    log_resp = requests.get(log_url, headers=headers, allow_redirects=True)
+                    if log_resp.status_code == 200:
+                        # GitHub may return gzip, but requests handles decompression automatically
+                        log_text = log_resp.text
+                        # Extract last N lines (ignore empty lines)
+                        tail_lines = [line for line in log_text.splitlines() if line.strip()]
+                        job_entry["log_tail"] = "\n".join(tail_lines[-30:])
+                    else:
+                        job_entry["log_tail"] = f"[Failed to retrieve job log: {log_resp.status_code}]"
+
             job_lines.append(
                 json.dumps(
-                    {
-                        "id": job.get("id"),
-                        "name": job.get("name"),
-                        "status": job.get("status"),
-                        "conclusion": job.get("conclusion"),
-                        "started_at": job.get("started_at"),
-                        "completed_at": job.get("completed_at"),
-                        "html_url": job.get("html_url"),
-                        "errors_count": job_errors,
-                        "warnings_count": job_warnings,
-                    },
+                    job_entry,
                     indent=2,
                     default=str,
                 )
