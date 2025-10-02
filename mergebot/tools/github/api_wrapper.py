@@ -1,11 +1,12 @@
-import os
-import time
 import json
+import os
+import re
+import time
+from datetime import datetime
+
 import jwt
 import requests
 from github import Github
-import re
-from datetime import datetime, timedelta
 
 from mergebot.tools.api_base import PullRequestAPIBase
 from mergebot.validator.config import get_runtime_config
@@ -203,159 +204,24 @@ class GitHubAPIWrapper(PullRequestAPIBase):
 
     def get_pipeline_details(self, pipeline_id: int) -> str:
         """
-        Retrieves detailed, human-readable Actions run info (pipeline_id = workflow run id), including jobs summary.
-        Mirrors get_pipeline_details from GitLab adapter.
-        Uses PyGithub for run and jobs if possible; falls back to REST only if required.
+        Retrieves and summarizes a GitHub Actions workflow run, including filtered logs for failed steps.
         """
         try:
-            # Fetch the workflow run using PyGithub
             run = self.github_repo_instance.get_workflow_run(pipeline_id)
+            run_data = run.raw_data
         except Exception as e:
             return f"Failed to retrieve pipeline details for Pipeline ID {pipeline_id} via PyGithub: {e}"
 
-        # PyGithub exposes run fields directly
-        run_data = run.raw_data
-        # Fetch jobs using the GitHub REST API (PyGithub currently does not support this endpoint directly)
-        jobs = []
-        owner, repo = self._owner_repo()
-        headers = self._gh_headers()
-        job_url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs/{pipeline_id}/jobs?per_page=100"
-        job_resp = requests.get(job_url, headers=headers)
-        if job_resp.status_code == 200:
-            jobs = job_resp.json().get("jobs", [])
-        else:
-            return f"Failed to retrieve pipeline job details for Pipeline ID {pipeline_id}: {job_resp.status_code} {job_resp.text}"
-
+        jobs = self._fetch_action_jobs(pipeline_id)
+        job_lines = ["  Jobs:"]
         total_warnings = 0
         total_errors = 0
-        job_lines = ["  Jobs:"]
+
         for job in jobs:
-            job_errors = 0
-            job_warnings = 0  # Warnings not extracted without log parsing
-            conclusion = (job.get("conclusion") or "").lower()
-            # if conclusion in {"failure", "cancelled", "timed_out", "action_required"}:
-            #    job_errors += 1
-            steps = job.get("steps", []) or []
-            job_errors += sum(
-                1
-                for s in steps
-                if (s.get("conclusion") or "").lower()
-                in {"failure", "cancelled", "timed_out", "action_required"}
-            )
-
-            job_entry = {
-                "id": job.get("id"),
-                "name": job.get("name"),
-                "status": job.get("status"),
-                "conclusion": job.get("conclusion"),
-                "started_at": job.get("started_at"),
-                "completed_at": job.get("completed_at"),
-                "html_url": job.get("html_url"),
-                "errors_count": job_errors,
-                "warnings_count": job_warnings,
-            }
-
-            # Fetch and include job log tail for failed jobs using step time window
-            if job_errors > 0:
-                job_id = job.get("id")
-                if job_id:
-                    log_url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/jobs/{job_id}/logs"
-                    log_resp = requests.get(
-                        log_url, headers=headers, allow_redirects=True
-                    )
-                    if log_resp.status_code == 200:
-
-                        log_text = log_resp.text
-                        log_lines = [
-                            line for line in log_text.splitlines() if line.strip()
-                        ]
-
-                        # Find the failed step (last step with conclusion == failure/timed_out/cancelled/action_required)
-                        step_failure_states = {
-                            "failure",
-                            "timed_out",
-                            "cancelled",
-                            "action_required",
-                        }
-                        step = None
-                        for s in reversed(job.get("steps", [])):
-                            if (
-                                s.get("conclusion") or ""
-                            ).lower() in step_failure_states:
-                                step = s
-                                break
-                        if step and step.get("started_at") and step.get("completed_at"):
-                            start = step["started_at"].rstrip("Z")  # removes Z
-                            end = step["completed_at"].rstrip("Z")
-
-                            # Parse with/without fractional seconds
-                            def parse_t(s):
-                                # Robust to fractional seconds (microseconds)
-                                if "." in s:
-                                    base, frac = s.split(".", 1)
-                                    # Truncate to maximum 6 decimals (microseconds)
-                                    frac = (frac + "000000")[:6]
-                                    clean = f"{base}.{frac}"
-                                    return datetime.strptime(
-                                        clean, "%Y-%m-%dT%H:%M:%S.%f"
-                                    )
-                                else:
-                                    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
-
-                            started = parse_t(start)
-                            ended = parse_t(end)
-                            snippet = []
-                            timestamp_re = re.compile(
-                                r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z"
-                            )
-                            for line in log_lines:
-                                m = timestamp_re.match(line)
-                                if m:
-                                    t_str = m.group(1)
-                                    try:
-                                        t = parse_t(t_str)
-                                        if started <= t <= ended:
-                                            snippet.append(line)
-                                    except Exception as error:
-                                        logger.debug(
-                                            f"Failed to parse log line timestamp '{t_str}': {error}"
-                                        )
-                                        continue
-                            if snippet:
-                                job_entry["log_tail"] = "\n".join(snippet[-30:])
-                                job_entry["failed_step"] = {
-                                    "name": step.get("name"),
-                                    "started_at": step["started_at"],
-                                    "completed_at": step["completed_at"],
-                                }
-                            else:
-                                # Fallback for rare clock mismatch: last 30 lines of run group
-                                tail_lines = [
-                                    line
-                                    for line in log_lines
-                                    if line
-                                    and not line.startswith("##[group]")
-                                    and not line.startswith("##[endgroup]")
-                                ][-30:]
-                                job_entry["log_tail"] = "\n".join(tail_lines)
-                        else:
-                            # Fallback: last 30 lines overall if step metadata missing
-                            tail_lines = [line for line in log_lines if line][-30:]
-                            job_entry["log_tail"] = "\n".join(tail_lines)
-                    else:
-                        job_entry["log_tail"] = (
-                            f"[Failed to retrieve job log: {log_resp.status_code}]"
-                        )
-
-            job_lines.append(
-                json.dumps(
-                    job_entry,
-                    indent=2,
-                    default=str,
-                )
-            )
-            total_warnings += job_warnings
-            total_errors += job_errors
+            job_info = self._summarize_job(job)
+            job_lines.append(json.dumps(job_info, indent=2, default=str))
+            total_warnings += job_info.get("warnings_count", 0)
+            total_errors += job_info.get("errors_count", 0)
 
         info = [
             "## Pipeline Information:",
@@ -373,6 +239,110 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         ]
         info.extend(job_lines)
         return "\n".join(info)
+
+    def _fetch_action_jobs(self, pipeline_id: int):
+        """Fetch job metadata for a workflow run via REST (PyGithub lacks support)."""
+        owner, repo = self._owner_repo()
+        headers = self._gh_headers()
+        job_url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs/{pipeline_id}/jobs?per_page=100"
+        resp = requests.get(job_url, headers=headers)
+        if resp.status_code == 200:
+            return resp.json().get("jobs", [])
+        return []
+
+    def _summarize_job(self, job: dict) -> dict:
+        job_errors = sum(
+            1
+            for s in job.get("steps", []) or []
+            if (s.get("conclusion") or "").lower()
+            in {"failure", "timed_out", "cancelled", "action_required"}
+        )
+        job_entry = {
+            "id": job.get("id"),
+            "name": job.get("name"),
+            "status": job.get("status"),
+            "conclusion": job.get("conclusion"),
+            "started_at": job.get("started_at"),
+            "completed_at": job.get("completed_at"),
+            "html_url": job.get("html_url"),
+            "errors_count": job_errors,
+            "warnings_count": 0,  # Not yet available; can implement parsing in future
+        }
+        # Fetch error log snippet if there's a failure
+        if job_errors > 0:
+            job_entry.update(self._extract_failed_step_log(job))
+        return job_entry
+
+    def _extract_failed_step_log(self, job: dict) -> dict:
+        """Extract step-level log snippet for failed jobs using started/completed time window."""
+        job_id = job.get("id")
+        if not job_id:
+            return {}
+        log_url = f"{self.github_api_url}/repos/{self._owner_repo()[0]}/{self._owner_repo()[1]}/actions/jobs/{job_id}/logs"
+        log_resp = requests.get(
+            log_url, headers=self._gh_headers(), allow_redirects=True
+        )
+        if log_resp.status_code != 200:
+            return {"log_tail": f"[Failed to retrieve job log: {log_resp.status_code}]"}
+
+        log_lines = [line for line in log_resp.text.splitlines() if line.strip()]
+
+        step_failure_states = {"failure", "timed_out", "cancelled", "action_required"}
+        step = None
+        for s in reversed(job.get("steps", []) or []):
+            if (s.get("conclusion") or "").lower() in step_failure_states:
+                step = s
+                break
+        if step and step.get("started_at") and step.get("completed_at"):
+            started = self._parse_iso_time(step["started_at"])
+            ended = self._parse_iso_time(step["completed_at"])
+            if started and ended:
+                timestamp_re = re.compile(
+                    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z"
+                )
+                snippet = []
+                for line in log_lines:
+                    m = timestamp_re.match(line)
+                    if m:
+                        t = self._parse_iso_time(m.group(1))
+                        if t and started <= t <= ended:
+                            snippet.append(line)
+                if snippet:
+                    return {
+                        "log_tail": "\n".join(snippet[-30:]),
+                        "failed_step": {
+                            "name": step.get("name"),
+                            "started_at": step["started_at"],
+                            "completed_at": step["completed_at"],
+                        },
+                    }
+        # fallback - last 30 lines stripping group markers
+        tail_lines = [
+            line
+            for line in log_lines
+            if line
+            and not line.startswith("##[group]")
+            and not line.startswith("##[endgroup]")
+        ][-30:]
+        return {"log_tail": "\n".join(tail_lines)}
+
+    @staticmethod
+    def _parse_iso_time(timestr: str):
+        """Parse ISO string with/without microseconds (truncates excess), returns UTC naive datetime."""
+        s = timestr.rstrip("Z")
+        if "." in s:
+            base, frac = s.split(".", 1)
+            frac = (frac + "000000")[:6]
+            clean = f"{base}.{frac}"
+            try:
+                return datetime.strptime(clean, "%Y-%m-%dT%H:%M:%S.%f")
+            except Exception:
+                return None
+        else:
+            try:
+                return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
+            except Exception:
+                return None
 
     def get_pull_request(self, pr_number: int) -> str:
         try:

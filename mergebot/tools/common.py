@@ -28,11 +28,11 @@ from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.tools.prompts import (
     APPROVE_MERGE_REQUEST_PROMPT,
+    FETCH_PIPELINE_DETAILS_PROMPT,
     GET_PULL_REQUEST_PROMPT,
     GET_PULL_REQUEST_STATUS_PROMPT,
     MERGE_PULL_REQUEST_PROMPT,
     POST_PULL_REQUEST_COMMENT_PROMPT,
-    FETCH_PIPELINE_DETAILS_PROMPT,
 )
 from mergebot.utils import get_platform_type
 
@@ -145,6 +145,7 @@ class PipelineToolSchema(BaseModel):
 
 class GetPipelineDetailsTool(BaseVCSTool):
     """Fetches and summarizes pipeline/workflow details for a given pipeline_id (GitHub Actions run or GitLab pipeline)."""
+
     name: str = "GetPipelineDetails"
     description: str = FETCH_PIPELINE_DETAILS_PROMPT
     args_schema: Type[BaseModel] = PipelineToolSchema
@@ -157,6 +158,7 @@ class GetPipelineDetailsTool(BaseVCSTool):
             return self.api_wrapper.get_pipeline_details(int(pipeline_id))
         except Exception as e:
             return f"Pipeline details fetch failed: {str(e)}"
+
 
 class MergeToolSchema(BaseModel):
     pr_number: int = Field(..., description="The pull or merge request number")

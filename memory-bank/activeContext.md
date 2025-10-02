@@ -5,11 +5,13 @@
 ### Recent Changes: Auto-Merge, CI Robustness, GitHub Actions Pipeline Support, Config Evolution
 
 #### GitHub Pipeline Analysis Integration
-- Mergebot now supports reading and displaying detailed pipeline (GitHub Actions workflow run) summaries for GitHub repositories, in addition to existing GitLab pipeline support.
-- For every analyzed pull request, Mergebot locates the most relevant Actions run matching the PR's head commit or branch.
-- Summaries show run status, conclusion, jobs (status, error/warning counts, web links), in a human-readable format harmonized with GitLab.
-- Unified code: Both GitHub and GitLab adapters now implement `get_pipeline_details` and surface this in PR output and via direct tool calls.
-- Documentation fully updated: user-facing docs now cover permissions, expected output, and troubleshooting.
+- Mergebot supports detailed, unified pipeline summaries for GitHub and GitLab in every PR/MR analysis.
+- Full refactor of `get_pipeline_details` for GitHub:
+  - Decomposed logic into helpers for job fetching, job summarization, log parsing, and timestamp handling, for clarity and DRYness.
+  - Log snippet for each failed job now *precisely* extracts lines matching the failed step's `started_at`/`completed_at` time window, with +/-2s tolerance, robust to various timestamp formats.
+- Output includes job/step names, relevant error lines, web links, and failed step metadata.
+- Implementation is fully modular, testable, and maintainable (Python best practices).
+- Documentation updated for code, feature, and best-practice changes.
 
 #### Auto-Merge Features
 - Auto-merge for GitHub and GitLab supported and fully configurable.

@@ -30,9 +30,9 @@ Mergebot is designed as a modular, extensible system for automated pull or merge
 
 ## Component Relationships
 - The core engine invokes crews in a configurable sequence for each PR/MR.
-- Both GitHub and GitLab adapters implement `get_pipeline_details`, allowing unified access to CI state and job/runs output regardless of provider.
-- In PR/MR analysis flow, the pipeline summary is appended to the output automatically, matching a unified format.
-- The `GetPipelineDetailsTool` enables direct retrieval of pipeline/run details for either platform, useful in CLI, docs, and automation.
+- Both GitHub and GitLab adapters implement `get_pipeline_details`. The GitHub implementation is fully refactored: modular helpers for fetching jobs, job summary, and log window slicing, with step-precise log parsing for errors.
+- In PR/MR analysis flow, the pipeline summary is automatically formatted, focused, and robust to Actions log structure.
+- The `GetPipelineDetailsTool` enables direct retrieval of pipeline/run details for either platform, in CLI, API, and automation.
 - Crews operate independently but may share context via the Memory Bank.
 - The unified DashboardManager aggregates and displays results from all crews and system actions, using normalized PR/MR data for both GitHub and GitLab.
 - Documentation and onboarding are tightly integrated with the system for rapid adoption.

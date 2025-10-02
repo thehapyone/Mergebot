@@ -3,7 +3,9 @@
 ## What Works
 
 - Detailed pipeline (CI) summaries for both GitHub (Actions workflow runs) and GitLab pipelines, unified in formatting and available in both PR output and as tool calls.
-  - GitHub: For each PR, finds the best matching workflow run, fetches metadata, jobs, errors.
+  - GitHub: get_pipeline_details is now refactored, modular, and tests Python best practices.
+  - Job error log snippets are reliably step-focused: extract precisely via failed step started_at/completed_at window, robust to timestamp format.
+  - Architecture now DRY/modular: helpers for job fetching, summarizing, step log selection, and ISO8601 timestamp parsing.
   - Cross-platform: All public and tool interfaces now present pipeline output identically.
   - Docs, Memory Bank, config, and CLI reference all updated for users and integrators.
 - Project-level session lock implemented and integrated:
@@ -26,6 +28,7 @@
 - [x] Documentation: config_schema.md and config_overview.md show all merge options, default policies, and notes on CI, branch_prefixes.
 - [x] Pipeline integration: get_pipeline_details for both providers; PR summaries and GetPipelineDetails tool now expose all job/run info, errors, and output in a single format.
 - [x] Decision logic: Always post reasoned merge summary (merged/skipped + reason), enforce branch allow-list, new CI rules.
+- [x] Refactor/optimize pipeline aggregation and error log output to be maintainable, Pythonic, and robust to GitHub log quirks.
 - [ ] Monitor for further config/UX improvements as new edge cases appear (including pipeline/log analysis or UX feedback).
 
 
