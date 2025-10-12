@@ -2,8 +2,8 @@ import re
 from datetime import datetime
 
 from crewai import Crew
+from crewai.events.event_listener import EventListener
 from crewai.flow.flow import Flow, and_, listen, start
-from crewai.utilities.events.event_listener import EventListener
 from pydantic import BaseModel, Field, ValidationError
 
 from mergebot.crews import (
