@@ -293,12 +293,24 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             job_entry.update(self._extract_failed_step_log(job))
         return job_entry
 
-    def _extract_failed_step_log(self, job: dict) -> dict:
-        """Extract step-level log snippet for failed jobs using started/completed time window."""
+    def _extract_failed_step_log(self, job: dict) -> dict:  # noqa: PLR0912
+        """Extract step-level log snippet for failed jobs using started/completed time window.
+
+        Streams log data line-by-line to minimize memory usage for large CI logs.
+        Attempts to extract logs from the failed step's time window using timestamps.
+        Falls back to the last N lines if timestamp-based extraction fails.
+
+        Args:
+            job: GitHub Actions job dict containing job metadata and steps.
+
+        Returns:
+            Dict containing 'log_tail' with log snippet, and optionally 'failed_step'
+            with step metadata (name, started_at, completed_at) if found.
+        """
         job_id = job.get("id")
         if not job_id:
             return {}
-        log_url = f"{self.github_api_url}/repos/{self._owner_repo()[0]}/{self._owner_repo()[1]}/actions/jobs/{job_id}/logs"
+        log_url = f"{self.github_api_url}/repos/{self.github_repository}/actions/jobs/{job_id}/logs"
         try:
             log_resp = requests.get(
                 log_url,
@@ -312,25 +324,30 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             logger.warning(f"Failed to fetch logs for job {job_id}: {e}")
             return {"log_tail": f"[Error retrieving job log: {e}]"}
 
-        log_lines = [line for line in log_resp.text.splitlines() if line.strip()]
-
         step_failure_states = {"failure", "timed_out", "cancelled", "action_required"}
         step = None
         for s in reversed(job.get("steps", []) or []):
             if (s.get("conclusion") or "").lower() in step_failure_states:
                 step = s
                 break
+
+        # Process logs line by line to minimize memory usage
         if step and step.get("started_at") and step.get("completed_at"):
             started = self._parse_iso_time(step["started_at"])
             ended = self._parse_iso_time(step["completed_at"])
             if started and ended:
                 snippet = []
-                for line in log_lines:
+                for line in log_resp.iter_lines(decode_unicode=True):
+                    if not line.strip():
+                        continue
                     m = self.timestamp_pattern.match(line)
                     if m:
                         t = self._parse_iso_time(m.group(1))
                         if t and started <= t <= ended:
                             snippet.append(line)
+                            # Keep only the most recent lines to limit memory
+                            if len(snippet) > self.log_tail_lines * 10:
+                                snippet = snippet[-self.log_tail_lines * 5 :]
                 if snippet:
                     return {
                         "log_tail": "\n".join(snippet[-self.log_tail_lines :]),
@@ -340,13 +357,16 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                             "completed_at": step["completed_at"],
                         },
                     }
-        # fallback - last log_tail_lines lines stripping group markers
-        tail_lines = [
-            line
-            for line in log_lines
-            if line and not line.startswith("##[group]") and not line.startswith("##[endgroup]")
-        ][-self.log_tail_lines :]
-        return {"log_tail": "\n".join(tail_lines)}
+
+        # fallback - collect last log_tail_lines lines stripping group markers
+        tail_lines = []
+        for line in log_resp.iter_lines(decode_unicode=True):
+            if line and not line.startswith("##[group]") and not line.startswith("##[endgroup]"):
+                tail_lines.append(line)
+                # Keep only a sliding window to limit memory
+                if len(tail_lines) > self.log_tail_lines * 2:
+                    tail_lines = tail_lines[-self.log_tail_lines :]
+        return {"log_tail": "\n".join(tail_lines[-self.log_tail_lines :])}
 
     @staticmethod
     def _parse_iso_time(timestr: str):
