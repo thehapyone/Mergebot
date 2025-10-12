@@ -111,6 +111,7 @@ async def process_decision(pr_id: int, impact_assessment: dict[str, Any]) -> dic
         except Exception as e:
             logger.error(f"Approval action failed: {e}")
             action_note = f"Approval failed: {e}"
+            await approval_service.post_comment(pr_id, f"⚠️ Approval failed: {e}")
 
         # Auto-merge stage (if enabled)
         cfg = get_runtime_config(as_pydantic=True)

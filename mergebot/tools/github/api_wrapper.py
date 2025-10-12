@@ -3,6 +3,8 @@ import os
 import re
 import time
 from datetime import datetime
+from re import Pattern
+from typing import ClassVar
 
 import jwt
 import requests
@@ -37,10 +39,15 @@ class GitHubAPIWrapper(PullRequestAPIBase):
     github_app_access_token: str = None
 
     # Configuration for API operations
-    request_timeout = (5, 30)  # (connect timeout, read timeout) in seconds
-    max_jobs_per_page = 100
-    log_tail_lines = 30
-    timestamp_pattern = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z")
+    request_timeout: ClassVar[tuple[int, int]] = (
+        5,
+        30,
+    )  # (connect timeout, read timeout) in seconds
+    max_jobs_per_page: ClassVar[int] = 100
+    log_tail_lines: ClassVar[int] = 30
+    timestamp_pattern: ClassVar[Pattern] = re.compile(
+        r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z"
+    )
 
     def validate_github(self):
         cfg = get_runtime_config()["repository"]["github"]
@@ -448,6 +455,16 @@ class GitHubAPIWrapper(PullRequestAPIBase):
     def approve_pull_request(self, pr_number: int) -> str:
         try:
             pr = self.github_repo_instance.get_pull(pr_number)
+
+            # Check if already approved by the current user
+            current_user = self.github.get_user().login
+            reviews = list(pr.get_reviews())
+
+            # Find latest review by current user
+            for review in reversed(reviews):
+                if review.user.login == current_user and review.state == "APPROVED":
+                    return f"PR #{pr_number} is already approved by you."
+
             review = pr.create_review(event="APPROVE")
             review_url = f"{pr.html_url}#pullrequestreview-{review.id}"
             return f"Approved PR #{pr_number}. Review: {review_url}"

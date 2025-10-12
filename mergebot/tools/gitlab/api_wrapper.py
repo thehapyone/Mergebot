@@ -258,8 +258,27 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             return f"Failed to post comment to Merge Request {pr_number}: {e!s}"
 
     def approve_pull_request(self, pr_number: int) -> str:
+        """
+        Approves a Merge Request if not already approved by the authenticated user.
+        Avoids re-approving to prevent GitLab errors.
+        """
         try:
             mr = self.gitlab_repo_instance.mergerequests.get(pr_number)
+            # Get approvals info
+            approvals = mr.approvals.get()
+
+            # Fetch authenticated user ID
+            current_user = self.gitlab.user
+            current_user_id = getattr(current_user, "id", None)
+            # Check if already approved by this user
+            already_approved = any(
+                approver.get("user").get("id") == current_user_id
+                for approver in getattr(approvals, "approved_by", [])
+                if approver.get("user") and current_user_id is not None
+            )
+            if already_approved:
+                return f"Merge Request {pr_number} is already approved by the current user (user_id={current_user_id}). No action taken."
+
             mr.approve()
             return f"Successfully approved Merge Request {pr_number}."
         except Exception as e:
