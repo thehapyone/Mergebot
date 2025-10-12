@@ -74,7 +74,7 @@ class OndemandRunner:
         lock.start_heartbeat()
 
         dashboard = self.dashboard_manager.get_or_create_dashboard()
-        open_prs, open_pr_iids = self.dashboard_manager.get_open_prs()
+        _, open_pr_iids = self.dashboard_manager.get_open_prs()
 
         # Parse Dashboard
         dashboard_data = self.dashboard_manager.parse_dashboard(dashboard["body"])
