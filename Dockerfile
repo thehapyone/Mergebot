@@ -4,8 +4,13 @@ FROM python:3.12-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV POETRY_VERSION=2.1.2
+ENV POETRY_VERSION=2.2.1
 ENV REQUESTS_CA_BUNDLE="/etc/ssl/certs/ca-certificates.crt"
+
+# Install required packages for GitLab Runner compatibility
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    coreutils \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
 RUN adduser --disabled-password --gecos '' appuser
