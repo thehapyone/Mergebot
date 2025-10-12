@@ -4,7 +4,7 @@ from mergebot.tools.github.onboarding import GitHubOnboardingManager
 from mergebot.tools.gitlab.onboarding import (
     GitlabOnboardingManager,
 )
-from mergebot.tools.onboarding_base import InvalidMergebotYAML
+from mergebot.tools.onboarding_base import InvalidMergebotYAMLError
 from mergebot.utils import get_platform_type
 from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
@@ -57,9 +57,7 @@ def ensure_repo_config(project: str):
                 )
                 sys.exit(1)
             else:
-                logger.info(
-                    "No existing onboarding PR found. Creating onboarding PR..."
-                )
+                logger.info("No existing onboarding PR found. Creating onboarding PR...")
                 base_branch = onboarding.project.default_branch
                 default_mergebot_yml = (
                     "# Default Mergebot configuration\n"
@@ -94,11 +92,9 @@ def ensure_repo_config(project: str):
                 )
                 pr_url = onboarding.create_onboarding_pr(default_mergebot_yml)
                 logger.info(f"Onboarding PR created: <{pr_url}>")
-                logger.error(
-                    "Onboarding required. Please merge the PR to enable Mergebot."
-                )
+                logger.error("Onboarding required. Please merge the PR to enable Mergebot.")
                 sys.exit(1)
-    except InvalidMergebotYAML as e:
+    except InvalidMergebotYAMLError as e:
         logger.error(f"Invalid .mergebot.yml detected: {e}")
         sys.exit(1)
     except Exception as e:

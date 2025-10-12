@@ -19,7 +19,7 @@ Each tool uses the BaseVCSTool to interface with the proper API wrapper. The des
 tool are imported from mergebot.tools.prompts and each exposes a _run method for execution in a toolchain.
 """
 
-from typing import Any, Type
+from typing import Any
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -28,6 +28,7 @@ from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.tools.prompts import (
     APPROVE_MERGE_REQUEST_PROMPT,
+    FETCH_PIPELINE_DETAILS_PROMPT,
     GET_PULL_REQUEST_PROMPT,
     GET_PULL_REQUEST_STATUS_PROMPT,
     MERGE_PULL_REQUEST_PROMPT,
@@ -78,7 +79,7 @@ class GetPullOrMergeRequestTool(BaseVCSTool):
 
     name: str = "GetPullOrMergeRequest"
     description: str = GET_PULL_REQUEST_PROMPT
-    args_schema: Type[BaseModel] = PRToolSchema
+    args_schema: type[BaseModel] = PRToolSchema
 
     def _run(
         self,
@@ -92,9 +93,7 @@ class GetPullOrMergeRequestTool(BaseVCSTool):
 
 class PullRequestCommentToolSchema(BaseModel):
     pr_number: int = Field(..., description="The pull or merge request number")
-    message: str = Field(
-        ..., description="The comment to post to the pull or merge request"
-    )
+    message: str = Field(..., description="The comment to post to the pull or merge request")
 
 
 class PostCommentTool(BaseVCSTool):
@@ -102,7 +101,7 @@ class PostCommentTool(BaseVCSTool):
 
     name: str = "PostComment"
     description: str = POST_PULL_REQUEST_COMMENT_PROMPT
-    args_schema: Type[BaseModel] = PullRequestCommentToolSchema
+    args_schema: type[BaseModel] = PullRequestCommentToolSchema
 
     def _run(
         self,
@@ -124,7 +123,7 @@ class ApprovePullOrMergeRequestTool(BaseVCSTool):
 
     name: str = "ApprovePullOrMergeRequest"
     description: str = APPROVE_MERGE_REQUEST_PROMPT
-    args_schema: Type[BaseModel] = PullRequestApprovalToolSchema
+    args_schema: type[BaseModel] = PullRequestApprovalToolSchema
 
     def _run(
         self,
@@ -142,6 +141,23 @@ class PipelineToolSchema(BaseModel):
     pipeline_id: str = Field(..., description="The ID of the pipeline")
 
 
+class GetPipelineDetailsTool(BaseVCSTool):
+    """Fetches and summarizes pipeline/workflow details for a given pipeline_id (GitHub Actions run or GitLab pipeline)."""
+
+    name: str = "GetPipelineDetails"
+    description: str = FETCH_PIPELINE_DETAILS_PROMPT
+    args_schema: type[BaseModel] = PipelineToolSchema
+
+    def _run(self, **kwargs: Any) -> str:
+        pipeline_id = kwargs.get("pipeline_id")
+        if not pipeline_id:
+            return "Pipeline ID is required."
+        try:
+            return self.api_wrapper.get_pipeline_details(int(pipeline_id))
+        except Exception as e:
+            return f"Pipeline details fetch failed: {e!s}"
+
+
 class MergeToolSchema(BaseModel):
     pr_number: int = Field(..., description="The pull or merge request number")
     strategy: str | None = Field(
@@ -155,7 +171,7 @@ class MergePullOrMergeRequestTool(BaseVCSTool):
 
     name: str = "MergePullOrMergeRequest"
     description: str = MERGE_PULL_REQUEST_PROMPT
-    args_schema: Type[BaseModel] = MergeToolSchema
+    args_schema: type[BaseModel] = MergeToolSchema
 
     def _run(self, **kwargs: Any) -> str:
         pr_number = kwargs.get("pr_number")
@@ -174,7 +190,7 @@ class GetPullRequestStatusTool(BaseVCSTool):
 
     name: str = "GetPullRequestStatus"
     description: str = GET_PULL_REQUEST_STATUS_PROMPT
-    args_schema: Type[BaseModel] = GetPRStatusToolSchema
+    args_schema: type[BaseModel] = GetPRStatusToolSchema
 
     def _run(self, **kwargs: Any) -> dict | str:
         pr_number = kwargs.get("pr_number")

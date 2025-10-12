@@ -8,8 +8,8 @@ from mergebot.tools.common import (
 
 __all__ = [
     "ApprovePullOrMergeRequestTool",
-    "PostCommentTool",
     "GetPullOrMergeRequestTool",
-    "MergePullOrMergeRequestTool",
     "GetPullRequestStatusTool",
+    "MergePullOrMergeRequestTool",
+    "PostCommentTool",
 ]

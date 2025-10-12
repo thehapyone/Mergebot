@@ -17,9 +17,7 @@ def run_webhook_mode(port: int, project: str):
         port (int): The port number to run the webhook server on.
         project (str): The GitLab project/repository path.
     """
-    logger.info(
-        f"[Webhook] Running in webhook mode on port {port} (project: {project})"
-    )
+    logger.info(f"[Webhook] Running in webhook mode on port {port} (project: {project})")
     try:
         server = WebhookServer(port=port, project=project)
         server.run()
@@ -34,9 +32,7 @@ async def main():
     Main entry point for MergeBot. Parses command-line arguments and dispatches
     to the appropriate mode (CLI, webhook, or ondemand).
     """
-    parser = argparse.ArgumentParser(
-        description="Run MergeBot in CLI, webhook, or ondemand mode."
-    )
+    parser = argparse.ArgumentParser(description="Run MergeBot in CLI, webhook, or ondemand mode.")
     subparsers = parser.add_subparsers(dest="mode", required=True)
 
     # Webhook subcommand

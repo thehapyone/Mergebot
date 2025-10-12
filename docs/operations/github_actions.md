@@ -1,6 +1,6 @@
 # Using Mergebot with GitHub Actions
 
-> **Prerequisite:**  
+> **Prerequisite:**
 > See [Onboarding Guide](../usage/onboarding.md) for GitHub App and secrets setup.
 
 Quickly integrate Mergebot PR/code review automation into your repository with a simple GitHub Actions workflow:
@@ -89,4 +89,4 @@ jobs:
 - Config file: `.mergebot.yml` or `config-github.yaml` ([config docs](../configuration/config_overview.md)).
 - For advanced usage, see [Mergebot on GitHub](https://github.com/thehapyone/Mergebot).
 
-Inspired by: [GitLab CI guide](./gitlab_ci.md)
+---

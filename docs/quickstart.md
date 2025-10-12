@@ -4,15 +4,15 @@ Get Mergebot running in three steps—no fluff, just links to what you need.
 
 ---
 
-1. **Install Mergebot**  
+1. **Install Mergebot**
    - [Installation instructions](installation.md) for Docker or Python.
 
-2. **Configure Credentials**  
-   - Set up your GitHub App, PAT, or GitLab token.  
+2. **Configure Credentials**
+   - Set up your GitHub App, PAT, or GitLab token.
    - **See:** [Onboarding Guide](usage/onboarding.md)
 
-3. **Run and Use Mergebot**  
-   - See all supported ways (CI, CLI, cloud, more):  
+3. **Run and Use Mergebot**
+   - See all supported ways (CI, CLI, cloud, more):
    - **See:** [Running Mergebot](usage/running.md)
 
 ---

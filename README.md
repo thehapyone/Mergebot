@@ -25,8 +25,8 @@ This approach allows teams to automate the "low-hanging fruit"—routine, low-ri
 
 ---
 
-> **Full documentation:**  
-> 👉 [https://thehapyone.github.io/Mergebot/](https://thehapyone.github.io/Mergebot/)  
+> **Full documentation:**
+> 👉 [https://thehapyone.github.io/Mergebot/](https://thehapyone.github.io/Mergebot/)
 > (auto-published on every push to `main` via GitHub Actions)
 
 ---
@@ -46,7 +46,7 @@ docker pull thehapyone/mergebot:latest
 
 - **Cloud-Hosted** (coming soon): Activate via web UI (no infra required)
 - **Self-hosted (Docker/Python):** See [Quickstart](docs/quickstart.md) and [Docker usage](docs/operations/docker.md)
-- **CI Automation (GitHub/GitLab):**  
+- **CI Automation (GitHub/GitLab):**
   - [GitHub Actions](docs/operations/github_actions.md)
   - [GitLab CI](docs/operations/gitlab_ci.md)
 - **Direct CLI:** See [Running Mergebot](docs/usage/running.md)
@@ -57,5 +57,5 @@ See the [Quickstart guide](docs/quickstart.md) for setup and usage instructions.
 
 ---
 
-> Mergebot fully supports **GitHub** and **GitLab** workflows.  
+> Mergebot fully supports **GitHub** and **GitLab** workflows.
 > Other VCS platforms may be supported in the future.

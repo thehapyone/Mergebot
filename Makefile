@@ -1,4 +1,4 @@
-.PHONY: all format lint spell_check spell_fix build deploy help
+.PHONY: all format lint spell_check spell_fix pre-commit-install pre-commit-run build deploy help
 
 # Default target executed when no arguments are given to make.
 all: help
@@ -22,6 +22,12 @@ spell_check:
 spell_fix:
 	poetry run codespell --toml pyproject.toml -w
 
+pre-commit-install:
+	poetry run pre-commit install
+
+pre-commit-run:
+	poetry run pre-commit run --all-files
+
 ######################
 # BUILDING AND PUBLISHING
 ######################
@@ -39,10 +45,12 @@ deploy:
 
 help:
 	@echo '----'
-	@echo 'format        - run code formatters'
-	@echo 'lint          - run linters'
-	@echo 'spell_check   - run codespell for spelling errors'
-	@echo 'spell_fix     - auto-fix spelling errors with codespell'
-	@echo 'build         - build the Docker image'
-	@echo 'deploy        - push the Docker image to Docker Hub'
-	@echo 'help          - show this help message'
+	@echo 'format             - run code formatters'
+	@echo 'lint               - run linters'
+	@echo 'spell_check        - run codespell for spelling errors'
+	@echo 'spell_fix          - auto-fix spelling errors with codespell'
+	@echo 'pre-commit-install - install pre-commit hooks'
+	@echo 'pre-commit-run     - run pre-commit on all files'
+	@echo 'build              - build the Docker image'
+	@echo 'deploy             - push the Docker image to Docker Hub'
+	@echo 'help               - show this help message'

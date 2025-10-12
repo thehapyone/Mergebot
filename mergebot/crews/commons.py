@@ -26,9 +26,7 @@ class BotBaseCrew:
         # Get the LLM model for this crew
         crew_name = extract_class_name(self.__class__.__name__)
         llm_model = self.config.get_llm_model_for_crew(crew_name)
-        self.llm = LLM(
-            model=llm_model, drop_params=True, additional_drop_params=["stop"]
-        )
+        self.llm = LLM(model=llm_model, drop_params=True, additional_drop_params=["stop"])
 
     @crew
     def crew(self) -> Crew:

@@ -45,6 +45,4 @@ async def get_pull_or_merge_request_details(pr_number: int) -> str:
         raise
     except Exception as e:
         # Unknown errors: let retry decorator handle
-        raise ServiceError(
-            f"Unexpected error fetching PR/MR details: {e}", retryable=True
-        )
+        raise ServiceError(f"Unexpected error fetching PR/MR details: {e}", retryable=True) from e

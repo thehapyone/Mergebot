@@ -32,9 +32,7 @@ class GitlabOnboardingManager(OnboardingManagerBase):
 
         # Ensure the branch exists (create if not)
         if not self.branch_exists():
-            self.project.branches.create(
-                {"branch": self.onboarding_branch, "ref": default_branch}
-            )
+            self.project.branches.create({"branch": self.onboarding_branch, "ref": default_branch})
 
         # Write or update the file in the onboarding branch
         self.api_wrapper.update_file(

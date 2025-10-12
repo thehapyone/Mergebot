@@ -1,11 +1,10 @@
 import re
 from datetime import datetime
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Literal
 
 from jinja2 import Template
-from typing_extensions import Literal
 
 from mergebot.dashboard.dedupe import stats_quality_key
 from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
@@ -18,6 +17,15 @@ RERUNS_MARKER = "<!-- marker:MERGEBOT_RERUNS -->"
 ACTIONS_MARKER = "<!-- marker:MERGEBOT_ACTIONS -->"
 ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
 SESSION_LOCK_MARKER = "<!-- marker:MERGEBOT_SESSION_LOCK -->"
+
+
+@cache
+def _load_dashboard_template() -> str:
+    """Load the dashboard template from file (cached)."""
+    current_directory = Path(__file__).parent
+    template_path = current_directory / "dashboard_layout.md"
+    with template_path.open("r", encoding="utf-8") as f:
+        return f.read()
 
 
 class DashboardManager:
@@ -47,22 +55,18 @@ class DashboardManager:
         if self.platform_type == "gitlab":
             # Use all=True and iterator to reduce memory if large
             open_prs = list(
-                self.api.gitlab_repo_instance.mergerequests.list(
-                    state="opened", all=True
-                )
+                self.api.gitlab_repo_instance.mergerequests.list(state="opened", all=True)
             )
             get_id = lambda pr: str(pr.iid)  # noqa: E731
         elif self.platform_type == "github":
             open_prs = list(self.api.github_repo_instance.get_pulls(state="open"))
             get_id = lambda pr: str(pr.number)  # noqa: E731
         else:
-            raise NotImplementedError(
-                f"Platform '{self.platform_type}' is not supported."
-            )
+            raise NotImplementedError(f"Platform '{self.platform_type}' is not supported.")
         open_pr_iids = {get_id(pr): pr for pr in open_prs}
         return open_prs, open_pr_iids
 
-    def get_or_create_dashboard(self) -> Dict[str, Any]:
+    def get_or_create_dashboard(self) -> dict[str, Any]:
         """
         Retrieves the existing Mergebot dashboard issue for the current repository/project,
         identified by a unique title and marker in its body/description. If no such issue
@@ -85,7 +89,7 @@ class DashboardManager:
         issue = self.api.create_issue(self.dashboard_title, initial_body)
         return {"id": issue[id_key], "body": issue[body_key]}
 
-    def parse_dashboard(self, markdown: str) -> Dict[str, Any]:
+    def parse_dashboard(self, markdown: str) -> dict[str, Any]:
         """
         Extracts sections from the dashboard markdown using markers.
         Returns a dict with section contents and parsed data.
@@ -128,10 +132,10 @@ class DashboardManager:
 
     def update_dashboard(
         self,
-        mr_data: List[Dict[str, Any]],
-        rerun_requests: List[str],
-        action_log: List[str],
-        analytics: Dict[str, Any],
+        mr_data: list[dict[str, Any]],
+        rerun_requests: list[str],
+        action_log: list[str],
+        analytics: dict[str, Any],
         **kwargs,
     ) -> None:
         """
@@ -143,23 +147,16 @@ class DashboardManager:
         dashboard = self.get_or_create_dashboard()
         self.api.update_issue(dashboard["id"], dashboard_body)
 
-    @lru_cache(maxsize=None)
     def _initial_dashboard_body(self) -> str:
-        # Load the dashboard template from a file located in the same directory as this script
-
-        current_directory = Path(__file__).parent
-        template_path = current_directory / "dashboard_layout.md"
-
-        # Read and return the content of the template file
-        with template_path.open("r", encoding="utf-8") as f:
-            return f.read()
+        """Load the dashboard template (delegates to cached module function)."""
+        return _load_dashboard_template()
 
     def _generate_dashboard_body(
         self,
-        mr_data: List[Dict[str, Any]],
-        rerun_requests: List[str],
-        action_log: List[str],
-        analytics: Dict[str, Any],
+        mr_data: list[dict[str, Any]],
+        rerun_requests: list[str],
+        action_log: list[str],
+        analytics: dict[str, Any],
     ) -> str:
         # Load the dashboard template
         template_str = self._initial_dashboard_body()
@@ -204,7 +201,7 @@ class DashboardManager:
         return rendered
 
     def _render_active_mrs_table(
-        self, mr_data: List[Dict[str, Any]], previous_table: str = None
+        self, mr_data: list[dict[str, Any]], previous_table: str | None = None
     ) -> str:
         """
         Render the MR table, preserving Last Reviewed from previous_table unless MR was just analyzed.
@@ -252,7 +249,7 @@ class DashboardManager:
         return header + "\n" + "\n".join(rows)
 
     def _render_rerun_checklist(
-        self, mr_data: List[Dict[str, Any]], rerun_requests: List[str]
+        self, mr_data: list[dict[str, Any]], rerun_requests: list[str]
     ) -> str:
         if not mr_data:
             return "_No pull or merge requests available for rerun._"
@@ -264,12 +261,12 @@ class DashboardManager:
             )
         return "\n".join(lines)
 
-    def _render_action_log(self, action_log: List[str]) -> str:
+    def _render_action_log(self, action_log: list[str]) -> str:
         if not action_log:
             return "_No recent actions._"
         return "\n".join(f"- {entry}" for entry in action_log)
 
-    def _render_analytics_table(self, analytics: Dict[str, Any]) -> str:
+    def _render_analytics_table(self, analytics: dict[str, Any]) -> str:
         """
         Render the analytics summary table from a dict of metrics.
         """
@@ -279,7 +276,7 @@ class DashboardManager:
         rows = [f"| {k} | **{v}** |" for k, v in analytics.items()]
         return header + "\n" + "\n".join(rows)
 
-    def parse_active_prs_table(self, markdown: str) -> Dict[str, Dict[str, str]]:
+    def parse_active_prs_table(self, markdown: str) -> dict[str, dict[str, str]]:
         """
         Parse the 'Active Pull/Merge Requests' table and return a map:
         {
@@ -296,7 +293,7 @@ class DashboardManager:
             if not table_match:
                 return {}
             table_text = table_match.group(1)
-            result: Dict[str, Dict[str, str]] = {}
+            result: dict[str, dict[str, str]] = {}
 
             for line in table_text.splitlines():
                 m = re.match(

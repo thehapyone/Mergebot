@@ -13,6 +13,7 @@ Mergebot provides a comprehensive set of features for automated code review and 
 - Docker and CLI support
 - Supports both GitHub and GitLab workflows
 - Transparent auto-merge guardrails that explain skipped merges with score/threshold context
+- Cross-platform CI Pipeline Analysis: Mergebot surfaces detailed workflow/pipeline run summaries (status, jobs, errors, links) for both GitHub Actions and GitLab CI in every PR/MR analysis, and via dedicated tools ([full details](capabilities/pipeline_details.md))
 
 ## Planned Features
 

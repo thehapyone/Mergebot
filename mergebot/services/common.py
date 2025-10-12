@@ -1,7 +1,8 @@
 import asyncio
 import random
+from collections.abc import Callable, Coroutine
 from functools import wraps
-from typing import Any, Callable, Coroutine, Optional, TypeVar
+from typing import Any, TypeVar
 
 from mergebot.validator.logging_config import logger
 
@@ -18,9 +19,7 @@ class ServiceError(Exception):
         retryable: Whether this error should be retried by the caller/decorator
     """
 
-    def __init__(
-        self, message: str, status_code: Optional[int] = None, retryable: bool = True
-    ):
+    def __init__(self, message: str, status_code: int | None = None, retryable: bool = True):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
@@ -31,7 +30,7 @@ class ServiceError(Exception):
         return f"{self.message}{code} | retryable={self.retryable}"
 
 
-def is_retryable_status(status_code: Optional[int]) -> bool:
+def is_retryable_status(status_code: int | None) -> bool:
     """
     Decide if a status code is retryable based on common semantics.
     """
@@ -39,9 +38,7 @@ def is_retryable_status(status_code: Optional[int]) -> bool:
         return True
     if status_code in {408, 409, 423, 425, 429}:
         return True
-    if 500 <= status_code <= 599:
-        return True
-    return False
+    return 500 <= status_code <= 599
 
 
 def _compute_backoff_delay(
@@ -84,9 +81,7 @@ def async_retry(
                     if attempt >= max_attempts or not should_retry:
                         logger.error(f"ServiceError (final) in {func.__name__}: {e}")
                         raise
-                    delay = _compute_backoff_delay(
-                        base_delay, factor, attempt, max_delay, jitter
-                    )
+                    delay = _compute_backoff_delay(base_delay, factor, attempt, max_delay, jitter)
                     logger.warning(
                         f"ServiceError in {func.__name__} (attempt {attempt}/{max_attempts}), retrying in {delay:.2f}s: {e}"
                     )
@@ -94,13 +89,9 @@ def async_retry(
                     attempt += 1
                 except Exception as e:
                     if attempt >= max_attempts:
-                        logger.error(
-                            f"Unhandled exception (final) in {func.__name__}: {e}"
-                        )
+                        logger.error(f"Unhandled exception (final) in {func.__name__}: {e}")
                         raise
-                    delay = _compute_backoff_delay(
-                        base_delay, factor, attempt, max_delay, jitter
-                    )
+                    delay = _compute_backoff_delay(base_delay, factor, attempt, max_delay, jitter)
                     logger.warning(
                         f"Unhandled exception in {func.__name__} (attempt {attempt}/{max_attempts}), retrying in {delay:.2f}s: {e}"
                     )

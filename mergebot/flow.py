@@ -67,9 +67,7 @@ def extract_assessment(impact_assessment: str) -> dict:
     }
     return {
         "score": (
-            extracted_metrics["score"].group(1).strip()
-            if extracted_metrics["score"]
-            else "N/A"
+            extracted_metrics["score"].group(1).strip() if extracted_metrics["score"] else "N/A"
         ),
         "recommendation": (
             extracted_metrics["recommendation"].group(1).strip()
@@ -117,9 +115,7 @@ def is_conclusive_impact_assessment(data: dict) -> bool:
     score = str(data.get("score", "") or "").strip()
     if not rec or not score:
         return False
-    if score.upper() in {"N/A", "NA"}:
-        return False
-    return True
+    return score.upper() not in {"N/A", "NA"}
 
 
 def extract_pr_id(output_string):
@@ -142,9 +138,7 @@ def extract_pr_id(output_string):
 
 class MergeBotCrews(BaseModel):
     code_analysis: Crew = Field(default_factory=lambda: CodeAnalysis().crew())
-    complexity_assessment: Crew = Field(
-        default_factory=lambda: ComplexityAnalysis().crew()
-    )
+    complexity_assessment: Crew = Field(default_factory=lambda: ComplexityAnalysis().crew())
     test_analysis: Crew = Field(default_factory=lambda: TestAnalysis().crew())
     risk_analysis: Crew = Field(default_factory=lambda: RiskAnalysis().crew())
     impact_evaluator: Crew = Field(default_factory=lambda: ImpactEvaluator().crew())
@@ -282,7 +276,7 @@ class MergeBotFlow(Flow[MergeBotState]):
 
 
 async def run_flow(
-    pr_url: str, pr_id: int = None, pr_title: str = "", project: str = None
+    pr_url: str, pr_id: int | None = None, pr_title: str = "", project: str | None = None
 ) -> AnalysisResult:
     """
     Initiates the MergeBotFlow to process a pull request (PR) or merge request (MR) URL.
