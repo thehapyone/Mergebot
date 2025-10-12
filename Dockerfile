@@ -40,4 +40,4 @@ COPY mergebot ./mergebot
 RUN poetry install --no-cache --no-plugins --no-interaction --no-ansi
 
 # Use the CLI as the entrypoint
-ENTRYPOINT ["mergebot"]
+CMD ["mergebot"]
