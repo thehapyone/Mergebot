@@ -91,10 +91,14 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         if self.github_app_id and self.github_app_private_key:
             # Prefer GitHub App regardless of PAT
             self._initialize_github_app(self.github_repository)
-            self.github = Github(self.github_app_access_token, base_url=self.github_api_url)
+            self.github = Github(
+                self.github_app_access_token, base_url=self.github_api_url, timeout=60
+            )
         else:
             # Fallback to PAT
-            self.github = Github(self.github_personal_access_token, base_url=self.github_api_url)
+            self.github = Github(
+                self.github_personal_access_token, base_url=self.github_api_url, timeout=60
+            )
 
         # Initialize the repository instance
         self.github_repo_instance = self.github.get_repo(self.github_repository)

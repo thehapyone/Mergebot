@@ -135,6 +135,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             url=self.gitlab_url,
             private_token=self.gitlab_personal_access_token,
             keep_base_url=True,
+            timeout=60,
         )
         self.gitlab.auth()
 
