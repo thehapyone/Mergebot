@@ -1,5 +1,4 @@
 import asyncio
-from typing import Dict, Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
@@ -11,20 +10,17 @@ from mergebot.utils import get_platform_type
 from mergebot.validator.logging_config import logger
 
 
-def parse_gitlab_mr_event(payload: dict) -> Optional[str]:
+def parse_gitlab_mr_event(payload: dict) -> str | None:
     """
     Parse a GitLab webhook payload and return the MR URL if the event is a new/opened MR.
     """
     object_attributes = payload.get("object_attributes", {})
-    if (
-        object_attributes.get("state") == "opened"
-        and object_attributes.get("action") == "open"
-    ):
+    if object_attributes.get("state") == "opened" and object_attributes.get("action") == "open":
         return object_attributes.get("url")
     return None
 
 
-def parse_github_pr_event(payload: dict) -> Optional[str]:
+def parse_github_pr_event(payload: dict) -> str | None:
     """
     Parse a GitHub webhook payload and return the PR URL if the event is a new/opened PR.
     """
@@ -35,7 +31,7 @@ def parse_github_pr_event(payload: dict) -> Optional[str]:
     return None
 
 
-def detect_platform(headers: Dict[str, str]) -> str:
+def detect_platform(headers: dict[str, str]) -> str:
     """
     Detect the platform (gitlab or github) based on webhook headers.
     """
@@ -53,7 +49,7 @@ class WebhookServer:
     MR/PR URLs, and triggers the Mergebot review flow.
     """
 
-    def __init__(self, port: int = 8000, project: str = None):
+    def __init__(self, port: int = 8000, project: str | None = None):
         """
         Initialize the WebhookServer.
 
@@ -66,6 +62,7 @@ class WebhookServer:
         self.platform_type = get_platform_type()
         self.dashboard_manager = DashboardManager(self.platform_type)
         self.app = FastAPI()
+        self._background_tasks: set[asyncio.Task] = set()
         self._setup_routes()
 
     def _setup_routes(self):
@@ -82,9 +79,7 @@ class WebhookServer:
         try:
             lock = SessionLockCoordinator(self.dashboard_manager)
             if not await lock.try_acquire():
-                logger.info(
-                    "[Webhook] Skipping run: session lock is held by another instance."
-                )
+                logger.info("[Webhook] Skipping run: session lock is held by another instance.")
                 return
             lock.start_heartbeat()
             try:
@@ -93,9 +88,7 @@ class WebhookServer:
                 await lock.stop_heartbeat()
                 await lock.release()
         except Exception as e:
-            logger.error(
-                f"[Webhook] Error in analyze_with_session_lock: {e}", exc_info=True
-            )
+            logger.error(f"[Webhook] Error in analyze_with_session_lock: {e}", exc_info=True)
 
     async def handle_webhook(self, request: Request):
         """
@@ -109,11 +102,9 @@ class WebhookServer:
         """
         try:
             payload = await request.json()
-            headers = {k: v for k, v in request.headers.items()}
+            headers = dict(request.headers.items())
             platform = detect_platform(headers)
-            secret_token = headers.get("X-Gitlab-Token") or headers.get(
-                "X-Hub-Signature"
-            )
+            secret_token = headers.get("X-Gitlab-Token") or headers.get("X-Hub-Signature")
 
             # Only process events for the configured platform
             if platform != self.platform_type:
@@ -141,14 +132,16 @@ class WebhookServer:
 
             if mr_url:
                 logger.info(f"Processing MR/PR: {mr_url}")
-                asyncio.create_task(self.analyze_with_session_lock(mr_url))
+                task = asyncio.create_task(self.analyze_with_session_lock(mr_url))
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
             else:
                 logger.info("No actionable MR/PR found in event")
 
             return {"status": "success"}
         except Exception as e:
             logger.error(f"Error processing webhook: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def run(self):
         """

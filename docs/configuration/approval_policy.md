@@ -6,7 +6,7 @@ This guide explains how to configure, tune, and understand the approval policy s
 
 ## What is the Approval Policy?
 
-The approval policy lets you control when Mergebot will auto-approve and merge a merge request (MR) based on the scores from its review agents.  
+The approval policy lets you control when Mergebot will auto-approve and merge a merge request (MR) based on the scores from its review agents.
 You can:
 - Assign weights to each agent (e.g., CodeAnalysis, ComplexityAnalysis, TestAnalysis, RiskAnalysis)
 - Set a threshold for auto-approval
@@ -137,7 +137,7 @@ approval_policy:
 - Review and adjust after running Mergebot for a while.
 
 ---
- 
+
 ## Relationship to Auto‑Merge
 
 If merge auto-merge is enabled in your config, the merge decision uses a threshold that falls back to the approval policy threshold when not explicitly set:
@@ -151,13 +151,13 @@ Notes:
 
 ## Troubleshooting & FAQ
 
-**Q: What happens if I use the wrong agent name or miss a weight?**  
+**Q: What happens if I use the wrong agent name or miss a weight?**
 A: Mergebot will fail fast with a clear error message. You must use all and only the valid agent names.
 
-**Q: How do I make the policy stricter or more lenient?**  
+**Q: How do I make the policy stricter or more lenient?**
 A: Lower the threshold for stricter auto-approval, raise it for more leniency. Increase the weight of the most important agent(s).
 
-**Q: What if I want to ignore an agent?**  
+**Q: What if I want to ignore an agent?**
 A: Set its weight to a very low value (but not zero, as all agents must be present).
 
 ---

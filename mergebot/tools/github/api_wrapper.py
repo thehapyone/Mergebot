@@ -36,6 +36,12 @@ class GitHubAPIWrapper(PullRequestAPIBase):
     github_app_private_key: str = None
     github_app_access_token: str = None
 
+    # Configuration for API operations
+    request_timeout = (5, 30)  # (connect timeout, read timeout) in seconds
+    max_jobs_per_page = 100
+    log_tail_lines = 30
+    timestamp_pattern = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z")
+
     def validate_github(self):
         cfg = get_runtime_config()["repository"]["github"]
 
@@ -48,9 +54,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
 
         # 2) Repository (must exist in some source)
         self.github_repository = (
-            self.github_repository
-            or cfg.get("github_repository")
-            or os.getenv("GITHUB_REPOSITORY")
+            self.github_repository or cfg.get("github_repository") or os.getenv("GITHUB_REPOSITORY")
         )
         if not self.github_repository:
             raise ValueError(
@@ -66,33 +70,24 @@ class GitHubAPIWrapper(PullRequestAPIBase):
 
         # --- GitHub App authentication ---
         self.github_app_id = (
-            self.github_app_id
-            or str(cfg.get("app_id") or os.getenv("GITHUB_APP_ID") or "").strip()
+            self.github_app_id or str(cfg.get("app_id") or os.getenv("GITHUB_APP_ID") or "").strip()
         )
         self.github_installation_id = (
             self.github_installation_id
             or str(
-                cfg.get("installation_id")
-                or os.getenv("GITHUB_APP_INSTALLATION_ID")
-                or ""
+                cfg.get("installation_id") or os.getenv("GITHUB_APP_INSTALLATION_ID") or ""
             ).strip()
         )
-        self.github_app_private_key = cfg.get("private_key") or os.getenv(
-            "GITHUB_APP_PRIVATE_KEY"
-        )
+        self.github_app_private_key = cfg.get("private_key") or os.getenv("GITHUB_APP_PRIVATE_KEY")
 
         # --- Authentication logic ---
         if self.github_app_id and self.github_app_private_key:
             # Prefer GitHub App regardless of PAT
             self._initialize_github_app(self.github_repository)
-            self.github = Github(
-                self.github_app_access_token, base_url=self.github_api_url
-            )
+            self.github = Github(self.github_app_access_token, base_url=self.github_api_url)
         else:
             # Fallback to PAT
-            self.github = Github(
-                self.github_personal_access_token, base_url=self.github_api_url
-            )
+            self.github = Github(self.github_personal_access_token, base_url=self.github_api_url)
 
         # Initialize the repository instance
         self.github_repo_instance = self.github.get_repo(self.github_repository)
@@ -106,7 +101,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             "Accept": "application/vnd.github+json",
         }
         url = f"{self.github_api_url}/repos/{repo_full_name}/installation"
-        resp = requests.get(url, headers=headers)
+        resp = requests.get(url, headers=headers, timeout=self.request_timeout)
         if resp.status_code == 200:
             return str(resp.json().get("id"))
         return None
@@ -120,15 +115,13 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             "Accept": "application/vnd.github+json",
         }
         url = f"{self.github_api_url}/app/installations/{installation_id}/access_tokens"
-        resp = requests.post(url, headers=headers)
+        resp = requests.post(url, headers=headers, timeout=self.request_timeout)
         if resp.status_code == 201:
             app_access_token = resp.json().get("token")
             if app_access_token:
                 return app_access_token
             raise ValueError("Failed to obtain GitHub App installation access token.")
-        raise Exception(
-            f"Failed to get installation access token: {resp.status_code} {resp.text}"
-        )
+        raise Exception(f"Failed to get installation access token: {resp.status_code} {resp.text}")
 
     def _initialize_github_app(self, repo):
         """
@@ -136,18 +129,12 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         If installation_id is not provided, it will be auto-discovered.
         If private_key is not provided, it will raise an error.
         """
-        jwt_token = generate_github_app_jwt(
-            self.github_app_id, self.github_app_private_key
-        )
+        jwt_token = generate_github_app_jwt(self.github_app_id, self.github_app_private_key)
 
         if not self.github_installation_id:
-            self.github_installation_id = self._discover_installation_id(
-                jwt_token, repo
-            )
+            self.github_installation_id = self._discover_installation_id(jwt_token, repo)
             if not self.github_installation_id:
-                raise ValueError(
-                    "Could not determine GitHub App installation_id for repository."
-                )
+                raise ValueError("Could not determine GitHub App installation_id for repository.")
 
         self.github_app_access_token = self._get_installation_token(
             jwt_token, self.github_installation_id
@@ -170,36 +157,44 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         try:
             owner, repo = self.github_repository.split("/", 1)
             return owner, repo
-        except Exception:
-            raise ValueError("github_repository must be in 'owner/repo' format.")
+        except Exception as e:
+            raise ValueError("github_repository must be in 'owner/repo' format.") from e
 
     def _find_run_id_for_pr(self, pr) -> int | None:
         """
         Try to find the Actions workflow run_id for the PR's head commit SHA. Fallback to PR/branch search.
         """
-        import requests
-
         owner, repo = self._owner_repo()
         headers = self._gh_headers()
         # Try: Use head_sha directly (most accurate, quickest)
         url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs"
         params = {"head_sha": pr.head.sha, "per_page": 2}
-        resp = requests.get(url, headers=headers, params=params)
-        if resp.status_code == 200:
-            runs = resp.json().get("workflow_runs", [])
-            if runs:
-                return runs[0].get("id")
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=self.request_timeout)
+            if resp.status_code == 200:
+                runs = resp.json().get("workflow_runs", [])
+                if runs:
+                    return runs[0].get("id")
+        except Exception as e:
+            logger.warning(f"Failed to fetch workflow runs by head_sha for PR #{pr.number}: {e}")
+
         # Fallback: search for PR-number-linked runs by branch & pull_request event
         url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs"
         params = {"event": "pull_request", "branch": pr.head.ref, "per_page": 20}
-        resp = requests.get(url, headers=headers, params=params)
-        if resp.status_code == 200:
-            for run in resp.json().get("workflow_runs", []):
-                if any(
-                    (pr.number == pr_obj.get("number"))
-                    for pr_obj in run.get("pull_requests", [])
-                ):
-                    return run.get("id")
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=self.request_timeout)
+            if resp.status_code == 200:
+                for run in resp.json().get("workflow_runs", []):
+                    if any(
+                        (pr.number == pr_obj.get("number"))
+                        for pr_obj in run.get("pull_requests", [])
+                    ):
+                        return run.get("id")
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch workflow runs by branch/event for PR #{pr.number}: {e}"
+            )
+
         return None
 
     def get_pipeline_details(self, pipeline_id: int) -> str:
@@ -241,14 +236,39 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         return "\n".join(info)
 
     def _fetch_action_jobs(self, pipeline_id: int):
-        """Fetch job metadata for a workflow run via REST (PyGithub lacks support)."""
+        """Fetch job metadata for a workflow run via REST with pagination (PyGithub lacks support)."""
         owner, repo = self._owner_repo()
         headers = self._gh_headers()
-        job_url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs/{pipeline_id}/jobs?per_page=100"
-        resp = requests.get(job_url, headers=headers)
-        if resp.status_code == 200:
-            return resp.json().get("jobs", [])
-        return []
+        jobs = []
+        page = 1
+
+        while True:
+            job_url = f"{self.github_api_url}/repos/{owner}/{repo}/actions/runs/{pipeline_id}/jobs"
+            params = {"per_page": self.max_jobs_per_page, "page": page}
+            try:
+                resp = requests.get(
+                    job_url, headers=headers, params=params, timeout=self.request_timeout
+                )
+                if resp.status_code != 200:
+                    logger.warning(
+                        f"Failed to fetch jobs for pipeline {pipeline_id}, page {page}: HTTP {resp.status_code}"
+                    )
+                    break
+
+                data = resp.json()
+                page_jobs = data.get("jobs", [])
+                jobs.extend(page_jobs)
+
+                # Stop if we got fewer jobs than the page size (last page)
+                if len(page_jobs) < self.max_jobs_per_page:
+                    break
+
+                page += 1
+            except Exception as e:
+                logger.warning(f"Error fetching jobs for pipeline {pipeline_id}, page {page}: {e}")
+                break
+
+        return jobs
 
     def _summarize_job(self, job: dict) -> dict:
         job_errors = sum(
@@ -279,11 +299,18 @@ class GitHubAPIWrapper(PullRequestAPIBase):
         if not job_id:
             return {}
         log_url = f"{self.github_api_url}/repos/{self._owner_repo()[0]}/{self._owner_repo()[1]}/actions/jobs/{job_id}/logs"
-        log_resp = requests.get(
-            log_url, headers=self._gh_headers(), allow_redirects=True
-        )
-        if log_resp.status_code != 200:
-            return {"log_tail": f"[Failed to retrieve job log: {log_resp.status_code}]"}
+        try:
+            log_resp = requests.get(
+                log_url,
+                headers=self._gh_headers(),
+                allow_redirects=True,
+                timeout=self.request_timeout,
+            )
+            if log_resp.status_code != 200:
+                return {"log_tail": f"[Failed to retrieve job log: {log_resp.status_code}]"}
+        except Exception as e:
+            logger.warning(f"Failed to fetch logs for job {job_id}: {e}")
+            return {"log_tail": f"[Error retrieving job log: {e}]"}
 
         log_lines = [line for line in log_resp.text.splitlines() if line.strip()]
 
@@ -297,33 +324,28 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             started = self._parse_iso_time(step["started_at"])
             ended = self._parse_iso_time(step["completed_at"])
             if started and ended:
-                timestamp_re = re.compile(
-                    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z"
-                )
                 snippet = []
                 for line in log_lines:
-                    m = timestamp_re.match(line)
+                    m = self.timestamp_pattern.match(line)
                     if m:
                         t = self._parse_iso_time(m.group(1))
                         if t and started <= t <= ended:
                             snippet.append(line)
                 if snippet:
                     return {
-                        "log_tail": "\n".join(snippet[-30:]),
+                        "log_tail": "\n".join(snippet[-self.log_tail_lines :]),
                         "failed_step": {
                             "name": step.get("name"),
                             "started_at": step["started_at"],
                             "completed_at": step["completed_at"],
                         },
                     }
-        # fallback - last 30 lines stripping group markers
+        # fallback - last log_tail_lines lines stripping group markers
         tail_lines = [
             line
             for line in log_lines
-            if line
-            and not line.startswith("##[group]")
-            and not line.startswith("##[endgroup]")
-        ][-30:]
+            if line and not line.startswith("##[group]") and not line.startswith("##[endgroup]")
+        ][-self.log_tail_lines :]
         return {"log_tail": "\n".join(tail_lines)}
 
     @staticmethod
@@ -392,9 +414,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 pr_details["pipeline"] = ""
             return self.pretty_print_pull_request(pr_details)
         except Exception as e:
-            return {
-                "error": f"Failed to retrieve pull request details for ID {pr_number}: {str(e)}"
-            }
+            return {"error": f"Failed to retrieve pull request details for ID {pr_number}: {e!s}"}
 
     def comment_pull_request(self, pr_number: int, body: str) -> str:
         try:
@@ -403,7 +423,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             comment_url = f"{pr.html_url}#issuecomment-{comment.id}"
             return f"Comment posted at {comment_url}"
         except Exception as e:
-            return f"Failed to post comment to Pull Request {pr_number}: {str(e)}"
+            return f"Failed to post comment to Pull Request {pr_number}: {e!s}"
 
     def approve_pull_request(self, pr_number: int) -> str:
         try:
@@ -412,9 +432,9 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             review_url = f"{pr.html_url}#pullrequestreview-{review.id}"
             return f"Approved PR #{pr_number}. Review: {review_url}"
         except Exception as e:
-            return f"Failed to approve Pull Request {pr_number}: {str(e)}"
+            return f"Failed to approve Pull Request {pr_number}: {e!s}"
 
-    def _evaluate_ci_state(self, pr):
+    def _evaluate_ci_state(self, pr):  # noqa: PLR0911, PLR0912
         """
         Evaluate CI state for PR head commit using the Checks APIs.
         Returns tuple: (ci_passed, ci_state)
@@ -425,9 +445,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
 
             # Prefer the PR head repo to avoid 404 on fork PRs
             head_repo = getattr(pr.head, "repo", None)
-            repo_for_commit = (
-                head_repo if head_repo is not None else self.github_repo_instance
-            )
+            repo_for_commit = head_repo if head_repo is not None else self.github_repo_instance
             commit = repo_for_commit.get_commit(head_sha)
 
             # Prefer aggregating by check runs (more precise than suites)
@@ -445,8 +463,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
 
                     # Any explicit failure from completed runs wins
                     any_failure = any(
-                        (getattr(r, "conclusion", "") or "").lower()
-                        in failure_conclusions
+                        (getattr(r, "conclusion", "") or "").lower() in failure_conclusions
                         for r in runs
                     )
                     if any_failure:
@@ -467,8 +484,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                             (getattr(r, "conclusion", "") or "").lower() for r in runs
                         ]
                         if completed_conclusions and all(
-                            c in successish_conclusions or c == ""
-                            for c in completed_conclusions
+                            c in successish_conclusions or c == "" for c in completed_conclusions
                         ):
                             checks_state = "success"
             except Exception as e:
@@ -478,9 +494,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             if not checks_state:
                 try:
                     combined = commit.get_combined_status()
-                    statuses_state = (
-                        combined.state or ""
-                    ).lower()  # success | failure | pending
+                    statuses_state = (combined.state or "").lower()  # success | failure | pending
                     if statuses_state == "failure":
                         return False, "failure"
                     if statuses_state == "pending":
@@ -530,20 +544,14 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 key = user.login
                 prev = latest_by_reviewer.get(key)
                 # Prefer the most recent submitted_at (fallback to updated_at)
-                curr_ts = getattr(r, "submitted_at", None) or getattr(
-                    r, "updated_at", None
-                )
-                prev_ts = getattr(prev, "submitted_at", None) or getattr(
-                    prev, "updated_at", None
-                )
+                curr_ts = getattr(r, "submitted_at", None) or getattr(r, "updated_at", None)
+                prev_ts = getattr(prev, "submitted_at", None) or getattr(prev, "updated_at", None)
                 if prev is None or (curr_ts and prev_ts and curr_ts > prev_ts):
                     latest_by_reviewer[key] = r
 
             # Reviews summary
             approved = sum(
-                1
-                for r in latest_by_reviewer.values()
-                if (r.state or "").upper() == "APPROVED"
+                1 for r in latest_by_reviewer.values() if (r.state or "").upper() == "APPROVED"
             )
             changes_requested = sum(
                 1
@@ -570,9 +578,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 },
             }
         except Exception as e:
-            return {
-                "error": f"Failed to retrieve pull request status for ID {pr_number}: {str(e)}"
-            }
+            return {"error": f"Failed to retrieve pull request status for ID {pr_number}: {e!s}"}
 
     def merge_pull_request(self, pr_number: int, strategy: str = "repo_default") -> str:
         """
@@ -584,9 +590,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             if strategy == "repo_default":
                 result = pr.merge()  # respect repo defaults if possible
             else:
-                method = (
-                    strategy if strategy in {"merge", "squash", "rebase"} else "merge"
-                )
+                method = strategy if strategy in {"merge", "squash", "rebase"} else "merge"
                 result = pr.merge(merge_method=method)
             if getattr(result, "merged", False) or (
                 isinstance(result, dict) and result.get("merged") is True
@@ -596,7 +600,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 message = getattr(result, "message", None) or result.get("message")
                 return f"Failed to merge PR #{pr_number}: {message}"
         except Exception as e:
-            return f"Failed to merge Pull Request {pr_number}: {str(e)}"
+            return f"Failed to merge Pull Request {pr_number}: {e!s}"
 
     def create_file(
         self, branch_name: str, file_path: str, file_contents: str, commit_message: str
@@ -647,8 +651,8 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             )
         except Exception as e:
             raise Exception(
-                f"Failed to update file {file_path} in branch {branch_name}: {str(e)}"
-            )
+                f"Failed to update file {file_path} in branch {branch_name}: {e!s}"
+            ) from e
 
     def search_issues(self, title: str):
         """

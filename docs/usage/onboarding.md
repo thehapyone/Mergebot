@@ -35,10 +35,10 @@ When Mergebot starts (in any mode), it performs the following steps:
 ### 3. **If `.mergebot.yml` is Missing**
 
 - Mergebot checks for an existing onboarding PR (from the `mergebot/onboarding` branch).
-- **If an onboarding PR already exists:**  
+- **If an onboarding PR already exists:**
   - Mergebot logs the PR/MR URL and aborts startup.
   - The user must merge the PR/MR to enable Mergebot.
-- **If no onboarding PR exists:**  
+- **If no onboarding PR exists:**
   - Mergebot creates a new onboarding PR/MR with a default `.mergebot.yml`.
   - The user must review, customize, and merge the PR/MR to enable Mergebot.
 
@@ -53,7 +53,7 @@ When Mergebot starts (in any mode), it performs the following steps:
 ## Configuration Precedence
 
 1. **Server/Default Config** (e.g., `config.yaml`)
-2. **Repo Config** (`.mergebot.yml` in the default branch)  
+2. **Repo Config** (`.mergebot.yml` in the default branch)
    - Repo config takes precedence and can override server defaults.
 
 ---
@@ -66,7 +66,7 @@ When Mergebot starts (in any mode), it performs the following steps:
 - The onboarding PR/MR now documents the `analysis.max_mrs` option, allowing you to limit the number of PRs/MRs analyzed per run.
 - By default, Draft/WIP PRs/MRs are skipped. To analyze them, set `draft_mrs: true` in your config.
 - **Note:** Mergebot always requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior and is merged with any repository config (`.mergebot.yml`) to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
-- **VCS API access:**  
+- **VCS API access:**
   - For GitHub: **Recommended: Use a GitHub App for Mergebot service user actions.**
     - Create a GitHub App in your organization or user account.
     - Set the following permissions:
@@ -165,11 +165,11 @@ For more details, see the main [Home](../index.md) or [Approval Policy](../confi
 
 You can run Mergebot as part of your CI pipelines to automate code review and impact assessment.
 
-- **GitHub Actions:**  
+- **GitHub Actions:**
   See [GitHub Actions Operations Guide](../operations/github_actions.md)
-- **GitLab CI:**  
+- **GitLab CI:**
   See [GitLab CI Operations Guide](../operations/gitlab_ci.md)
-- **Direct invocation / custom CI:**  
+- **Direct invocation / custom CI:**
   Mergebot can be invoked using Docker or Python in any pipeline system.
 
 Set up your credentials as described above, then connect to your platform’s CI as detailed in the operations docs for automation best practices.

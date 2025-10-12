@@ -70,7 +70,7 @@ flowchart TD
 
 ## Real-World Scenario: Mergebot in Action
 
-**Scenario:**  
+**Scenario:**
 A fintech company with a rapidly growing engineering team struggles to keep up with code reviews. Manual reviews are inconsistent, and compliance requirements demand every change be logged and justified.
 
 **With Mergebot:**
@@ -83,13 +83,13 @@ A fintech company with a rapidly growing engineering team struggles to keep up w
 - Once all guardrails pass (impact score ≤ threshold, CI/approvals satisfied), Mergebot merges the PR/MR and logs the decision for audit purposes.
 - If a merge is blocked, Mergebot now posts a detailed comment outlining the score, thresholds, and guardrail reason so teams can fix issues quickly.
 
-**Result:**  
+**Result:**
 The team ships code faster, maintains high quality, and meets compliance requirements—without burning out reviewers.
 
 ---
 
-> **Platform Support:**  
-> Mergebot fully supports **GitHub** and **GitLab** workflows.  
+> **Platform Support:**
+> Mergebot fully supports **GitHub** and **GitLab** workflows.
 > Other VCS platforms may be supported in the future.
 
 Use the navigation to explore installation, configuration, usage, architecture, and more.

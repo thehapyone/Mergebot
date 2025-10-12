@@ -1,6 +1,6 @@
 # Using Mergebot with GitHub Actions
 
-> **Prerequisite:**  
+> **Prerequisite:**
 > See [Onboarding Guide](../usage/onboarding.md) for GitHub App and secrets setup.
 
 Quickly integrate Mergebot PR/code review automation into your repository with a simple GitHub Actions workflow:

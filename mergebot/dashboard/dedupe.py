@@ -1,4 +1,5 @@
-from typing import Any, Dict, Iterable, List, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 
 def _is_non_empty_non_na(value: str) -> bool:
@@ -8,7 +9,7 @@ def _is_non_empty_non_na(value: str) -> bool:
 
 def stats_quality_key(
     impact_score: str, recommendation: str, last_reviewed: str
-) -> Tuple[int, int, int]:
+) -> tuple[int, int, int]:
     """
     Quality key for dashboard stats when parsing prior rows.
     Order of preference (higher is better):
@@ -34,7 +35,7 @@ def _status_priority(status: str) -> int:
     return 0  # Error/unknown
 
 
-def _row_quality_key(row: Dict[str, Any]) -> Tuple[int, int, int, int, int]:
+def _row_quality_key(row: dict[str, Any]) -> tuple[int, int, int, int, int]:
     """
     Composite quality key for deduping rows emitted to the dashboard.
     Order of preference:
@@ -55,11 +56,11 @@ def _row_quality_key(row: Dict[str, Any]) -> Tuple[int, int, int, int, int]:
     return (_status_priority(status), a, b, c, has_link)
 
 
-def dedupe_mr_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def dedupe_mr_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Deduplicate dashboard rows by PR/MR id, keeping the highest-quality row per id.
     """
-    best: Dict[str, Dict[str, Any]] = {}
+    best: dict[str, dict[str, Any]] = {}
     for r in rows:
         key = str(r.get("id"))
         cur = best.get(key)
@@ -68,13 +69,13 @@ def dedupe_mr_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return list(best.values())
 
 
-def dedupe_prs_by_id(prs: Iterable[Any], pr_id_attr: str) -> List[Any]:
+def dedupe_prs_by_id(prs: Iterable[Any], pr_id_attr: str) -> list[Any]:
     """
     Return a list of PR/MR objects with unique IDs (stringified) based on pr_id_attr.
     Keeps the first occurrence to preserve input priority.
     """
     seen = set()
-    unique: List[Any] = []
+    unique: list[Any] = []
     for pr in prs:
         pid = str(getattr(pr, pr_id_attr))
         if pid in seen:

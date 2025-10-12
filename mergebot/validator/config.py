@@ -2,7 +2,7 @@
 
 import os
 import sys
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 import yaml
 from dotenv import load_dotenv
@@ -18,10 +18,8 @@ class LLMConfig(BaseModel):
 
 
 class GitLabConfig(BaseModel):
-    url: str = Field(
-        default=os.getenv("GITLAB_URL"), description="GitLab API endpoint URL"
-    )
-    private_token: Optional[str] = Field(
+    url: str = Field(default=os.getenv("GITLAB_URL"), description="GitLab API endpoint URL")
+    private_token: str | None = Field(
         default=os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN"),
         description="Private token for GitLab API authentication",
     )
@@ -47,25 +45,23 @@ class GitHubConfig(BaseModel):
     Only one path is required; PAT remains for backward-compatibility.
     """
 
-    api_url: str = Field(
-        default="https://api.github.com", description="GitHub API endpoint URL"
-    )
+    api_url: str = Field(default="https://api.github.com", description="GitHub API endpoint URL")
 
     # --- Personal-access-token path (legacy) ---
-    private_token: Optional[str] = Field(
+    private_token: str | None = Field(
         default=os.getenv("GITHUB_TOKEN"),
         description="Personal access token for GitHub API authentication (legacy)",
     )
 
     # --- GitHub-App path ---
-    app_id: Optional[str] = Field(
+    app_id: str | None = Field(
         default=os.getenv("GITHUB_APP_ID"), description="Numeric GitHub App ID"
     )
-    installation_id: Optional[str] = Field(
+    installation_id: str | None = Field(
         default=os.getenv("GITHUB_APP_INSTALLATION_ID"),
         description="Installation ID for the GitHub App (optional)",
     )
-    private_key: Optional[str] = Field(
+    private_key: str | None = Field(
         default=os.getenv("GITHUB_APP_PRIVATE_KEY"),
         description="The raw PEM string for the GitHub App private key",
     )
@@ -89,8 +85,8 @@ class GitHubConfig(BaseModel):
 
 class RepositoryConfig(BaseModel):
     type: str = Field(..., description="Repository type, either 'gitlab' or 'github'")
-    gitlab: Optional[GitLabConfig] = None
-    github: Optional[GitHubConfig] = None
+    gitlab: GitLabConfig | None = None
+    github: GitHubConfig | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -111,7 +107,7 @@ class RepositoryConfig(BaseModel):
 
 
 class CrewConfig(BaseModel):
-    llm: Optional[LLMConfig] = None
+    llm: LLMConfig | None = None
 
 
 class ApprovalPolicy(BaseModel):
@@ -132,7 +128,7 @@ class ApprovalPolicy(BaseModel):
     """
 
     threshold: float = 3.0
-    weights: Dict[str, float] = {}
+    weights: dict[str, float] = {}
 
     @model_validator(mode="after")
     def validate_weights_agents(self):
@@ -169,20 +165,18 @@ class ApprovalPolicy(BaseModel):
 
 
 class AnalysisConfig(BaseModel):
-    max_mrs: Optional[int] = Field(
+    max_mrs: int | None = Field(
         default=None,
         description="Maximum number of merge requests to analyze at a time. 0 or None means unlimited.",
     )
-    draft_mrs: Optional[bool] = Field(
+    draft_mrs: bool | None = Field(
         default=False,
         description="If true, analyze Draft/WIP merge requests. If false (default), skip Draft/WIP MRs.",
     )
 
 
 class TelemetryConfig(BaseModel):
-    enabled: bool = Field(
-        default=False, description="Enable full telemetry via OpenTelemetry"
-    )
+    enabled: bool = Field(default=False, description="Enable full telemetry via OpenTelemetry")
 
 
 class MergeRules(BaseModel):
@@ -205,7 +199,7 @@ class MergeRules(BaseModel):
     approval_state: bool = Field(
         default=True, description="Require platform approval state to be satisfied"
     )
-    branch_prefixes: Optional[List[str]] = Field(
+    branch_prefixes: list[str] | None = Field(
         default=None,
         description="Allow-list for source branches. If set, only auto-merge when source branch starts with any of these prefixes.",
     )
@@ -221,7 +215,7 @@ class MergeConfig(BaseModel):
     """
 
     enabled: bool = Field(default=False, description="Enable auto-merge capability")
-    threshold: Optional[float] = Field(
+    threshold: float | None = Field(
         default=None,
         description="Merge threshold; if None, fallback to approval_policy.threshold",
     )
@@ -237,13 +231,11 @@ class MergeConfig(BaseModel):
 class Config(BaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")
     repository: RepositoryConfig = Field(..., description="Repository configuration")
-    crews: Optional[Dict[str, CrewConfig]] = Field(
-        None, description="Crew configurations"
-    )
-    approval_policy: Optional[ApprovalPolicy] = None
-    analysis: Optional[AnalysisConfig] = None
-    telemetry: Optional[TelemetryConfig] = None
-    merge: Optional[MergeConfig] = None
+    crews: dict[str, CrewConfig] | None = Field(None, description="Crew configurations")
+    approval_policy: ApprovalPolicy | None = None
+    analysis: AnalysisConfig | None = None
+    telemetry: TelemetryConfig | None = None
+    merge: MergeConfig | None = None
 
     def get_llm_model_for_crew(self, crew_name: str) -> str:
         """Get LLM model for the crew"""
@@ -353,7 +345,7 @@ def _load_config_dict_from_disk():
     """Internal helper to load the config dict from disk (config.yaml or CONFIG_PATH)."""
     config_path = os.getenv("CONFIG_PATH", "config.yaml")
     try:
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config_dict = yaml.safe_load(f)
     except FileNotFoundError:
         logger.error(f"Configuration file not found at {config_path}.")

@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from mergebot.services import approval_service, merge_service
 from mergebot.utils import get_platform_type
@@ -18,12 +18,10 @@ def _is_conclusive_impact_assessment(data: dict) -> bool:
     score = str(data.get("score", "") or "").strip()
     if not rec or not score:
         return False
-    if score.upper() in {"N/A", "NA"}:
-        return False
-    return True
+    return score.upper() not in {"N/A", "NA"}
 
 
-def _build_messages() -> Dict[str, str]:
+def _build_messages() -> dict[str, str]:
     pr_style = "MR" if get_platform_type() == "gitlab" else "PR"
     return {
         "approval": (
@@ -56,9 +54,7 @@ async def post_merge_failed_reason(pr_id, score_val, merge_threshold, reasons):
     await approval_service.post_comment(pr_id, msg)
 
 
-def generate_final_decision(
-    impact_assessment, approved_flag, action_note, analysis_link
-):
+def generate_final_decision(impact_assessment, approved_flag, action_note, analysis_link):
     final_decision = {
         "recommendation": impact_assessment.get("recommendation"),
         "impact_score": impact_assessment.get("score"),
@@ -70,9 +66,7 @@ def generate_final_decision(
     return final_decision
 
 
-async def process_decision(
-    pr_id: int, impact_assessment: Dict[str, Any]
-) -> Dict[str, Any]:
+async def process_decision(pr_id: int, impact_assessment: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0915
     """
     Orchestrates posting the assessment, approving if applicable, and auto-merging under guardrails.
 
@@ -91,9 +85,7 @@ async def process_decision(
 
     # Handle inconclusive assessment
     if not _is_conclusive_impact_assessment(impact_assessment):
-        analysis_link = await approval_service.post_comment(
-            pr_id, messages["inconclusive"]
-        )
+        analysis_link = await approval_service.post_comment(pr_id, messages["inconclusive"])
         action_note = "Human review required (inconclusive)"
         final_decision = generate_final_decision(
             impact_assessment,
@@ -129,13 +121,9 @@ async def process_decision(
             score_val = merge_service.parse_first_float(raw_score)
 
             # Threshold fallback: merge.threshold -> approval_policy.threshold
-            approval_threshold = (
-                cfg.approval_policy.threshold if cfg.approval_policy else None
-            )
+            approval_threshold = cfg.approval_policy.threshold if cfg.approval_policy else None
             merge_threshold = (
-                merge_cfg.threshold
-                if merge_cfg.threshold is not None
-                else approval_threshold
+                merge_cfg.threshold if merge_cfg.threshold is not None else approval_threshold
             )
             score_ok_for_merge = (
                 (score_val is not None)
@@ -152,9 +140,7 @@ async def process_decision(
                         else "Impact score unavailable"
                     )
                 ]
-                await post_merge_failed_reason(
-                    pr_id, score_val, merge_threshold, reasons
-                )
+                await post_merge_failed_reason(pr_id, score_val, merge_threshold, reasons)
                 final_decision = generate_final_decision(
                     impact_assessment, approved_flag, action_note, analysis_link
                 )
@@ -172,14 +158,10 @@ async def process_decision(
             )
 
             # Source branch prefix rule (allow-list).
-            prefixes = getattr(
-                getattr(merge_cfg, "rules", None), "branch_prefixes", None
-            )
+            prefixes = getattr(getattr(merge_cfg, "rules", None), "branch_prefixes", None)
             if prefixes:
                 source_branch = (status.get("source_branch") or "").strip()
-                if not any(
-                    isinstance(p, str) and source_branch.startswith(p) for p in prefixes
-                ):
+                if not any(isinstance(p, str) and source_branch.startswith(p) for p in prefixes):
                     allowed_by_rules = False
                     reasons.append(
                         f"Source branch '{source_branch or '?'}' not allowed by prefix rules"
@@ -187,9 +169,7 @@ async def process_decision(
 
             # Early exit if rules disallow merge
             if not allowed_by_rules:
-                await post_merge_failed_reason(
-                    pr_id, score_val, merge_threshold, reasons
-                )
+                await post_merge_failed_reason(pr_id, score_val, merge_threshold, reasons)
                 final_decision = generate_final_decision(
                     impact_assessment, approved_flag, action_note, analysis_link
                 )
@@ -197,9 +177,7 @@ async def process_decision(
 
             # Perform merge
             try:
-                result = await merge_service.merge_change(
-                    pr_id, strategy=merge_cfg.strategy
-                )
+                result = await merge_service.merge_change(pr_id, strategy=merge_cfg.strategy)
                 summary = (
                     f"✅ Auto-merged using strategy: {merge_cfg.strategy}\n"
                     f"- Weighted score: {score_val} (threshold: {merge_threshold})\n"

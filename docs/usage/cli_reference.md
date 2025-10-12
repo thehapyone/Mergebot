@@ -11,7 +11,7 @@ mergebot --help
 ## Commands
 
 - `ondemand` — Run a one-shot analysis of all open merge requests in a project.
-- `webhook` — (Experimental) Run as a webhook server to process MRs automatically.  
+- `webhook` — (Experimental) Run as a webhook server to process MRs automatically.
   *Note: Webhook mode is not actively maintained and may be removed in future releases.*
 
 ## Options

@@ -1,10 +1,11 @@
 import asyncio
+import contextlib
 import json
 import os
+import re
 import socket
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from mergebot.dashboard.dashboard_manager import (
     DASHBOARD_MARKER,
@@ -17,7 +18,7 @@ PLACEHOLDER_NO_LOCK = "_No active session lock_"
 
 
 def _now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _gen_owner_id() -> str:
@@ -59,8 +60,6 @@ def _extract_between_markers(body: str, marker: str) -> str:
     Return the content between 'marker' occurrences (without the markers themselves).
     If not present, return empty string.
     """
-    import re
-
     pattern = rf"{re.escape(marker)}(.*?){re.escape(marker)}"
     m = re.search(pattern, body, re.DOTALL)
     return (m.group(1) or "").strip() if m else ""
@@ -73,11 +72,9 @@ def _replace_between_markers(body: str, marker: str, new_content: str) -> str:
     If markers are missing, insert a single 'Active Session' header with markers
     inside the MERGEBOT_DASHBOARD region (before Analytics), or as a fallback in the body.
     """
-    import re
-
     header_pattern = r"^## 🔒 \*\*Active Session\*\*"
 
-    def replace_between(container: str) -> Optional[str]:
+    def replace_between(container: str) -> str | None:
         """Replace content strictly between markers within the given container."""
         pat = rf"({re.escape(marker)})(.*?){re.escape(marker)}"
         m = re.search(pat, container, re.DOTALL)
@@ -89,7 +86,7 @@ def _replace_between_markers(body: str, marker: str, new_content: str) -> str:
             )
         return None
 
-    def insert_after_header(container: str) -> Optional[str]:
+    def insert_after_header(container: str) -> str | None:
         """Insert markers block right after an existing header, without adding a second header."""
         hm = re.search(header_pattern, container, re.MULTILINE)
         if not hm:
@@ -108,9 +105,7 @@ def _replace_between_markers(body: str, marker: str, new_content: str) -> str:
 
     def insert_full_block(container: str) -> str:
         """Insert header + markers before Analytics; else append at end."""
-        session_block = (
-            f"\n## 🔒 **Active Session**\n{marker}\n{new_content}\n{marker}\n\n"
-        )
+        session_block = f"\n## 🔒 **Active Session**\n{marker}\n{new_content}\n{marker}\n\n"
         analytics_pattern = r"^## 📊 \*\*Analytics\*\*"
         ma = re.search(analytics_pattern, container, re.MULTILINE)
         if ma:
@@ -131,28 +126,16 @@ def _replace_between_markers(body: str, marker: str, new_content: str) -> str:
         # 1) If markers exist, replace inner content only (no header duplication)
         replaced = replace_between(dash_inner)
         if replaced is not None:
-            return (
-                body[: dm.start()]
-                + f"{dash_open}{replaced}{dash_close}"
-                + body[dm.end() :]
-            )
+            return body[: dm.start()] + f"{dash_open}{replaced}{dash_close}" + body[dm.end() :]
 
         # 2) If header exists in dashboard inner, insert markers after header
         inserted = insert_after_header(dash_inner)
         if inserted is not None:
-            return (
-                body[: dm.start()]
-                + f"{dash_open}{inserted}{dash_close}"
-                + body[dm.end() :]
-            )
+            return body[: dm.start()] + f"{dash_open}{inserted}{dash_close}" + body[dm.end() :]
 
         # 3) No header or markers; insert full block (header + markers) before Analytics
         new_inner = insert_full_block(dash_inner)
-        return (
-            body[: dm.start()]
-            + f"{dash_open}{new_inner}{dash_close}"
-            + body[dm.end() :]
-        )
+        return body[: dm.start()] + f"{dash_open}{new_inner}{dash_close}" + body[dm.end() :]
 
     # No dashboard region: operate on whole body
     # 1) Replace between markers if present
@@ -199,8 +182,8 @@ class SessionLockCoordinator:
         self,
         dashboard_manager: DashboardManager,
         ttl_seconds: int = 600,
-        refresh_interval_seconds: Optional[int] = None,
-        owner_id: Optional[str] = None,
+        refresh_interval_seconds: int | None = None,
+        owner_id: str | None = None,
     ):
         self.dm = dashboard_manager
         self.ttl_seconds = int(ttl_seconds)
@@ -210,8 +193,8 @@ class SessionLockCoordinator:
             else max(30, self.ttl_seconds // 3)
         )
         self.owner_id = owner_id or _gen_owner_id()
-        self._active_nonce: Optional[str] = None
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._active_nonce: str | None = None
+        self._heartbeat_task: asyncio.Task | None = None
         # Serialize this instance's lock updates to avoid self-overwrites
         self._local_lock = asyncio.Lock()
 
@@ -238,9 +221,7 @@ class SessionLockCoordinator:
             nonce = str(uuid.uuid4())
             started_at = now.isoformat().replace("+00:00", "Z")
             expires_at = (
-                (now + timedelta(seconds=self.ttl_seconds))
-                .isoformat()
-                .replace("+00:00", "Z")
+                (now + timedelta(seconds=self.ttl_seconds)).isoformat().replace("+00:00", "Z")
             )
             payload = {
                 "version": 1,
@@ -267,9 +248,7 @@ class SessionLockCoordinator:
                 and chk.get("lock", {}).get("owner") == self.owner_id
             ):
                 self._active_nonce = nonce
-                logger.info(
-                    f"[SessionLock] Acquired by {self.owner_id} (expires_at={expires_at})"
-                )
+                logger.info(f"[SessionLock] Acquired by {self.owner_id} (expires_at={expires_at})")
                 return True
 
             logger.info("[SessionLock] Lost race during acquisition; not acquired.")
@@ -290,9 +269,7 @@ class SessionLockCoordinator:
                 and lock_obj.get("lock", {}).get("owner") == self.owner_id
                 and lock_obj.get("lock", {}).get("nonce") == self._active_nonce
             ):
-                new_body = _replace_between_markers(
-                    body, SESSION_LOCK_MARKER, PLACEHOLDER_NO_LOCK
-                )
+                new_body = _replace_between_markers(body, SESSION_LOCK_MARKER, PLACEHOLDER_NO_LOCK)
                 self.dm.api.update_issue(dash["id"], new_body)
                 logger.info("[SessionLock] Released.")
             self._active_nonce = None
@@ -311,10 +288,8 @@ class SessionLockCoordinator:
         """
         if self._heartbeat_task:
             self._heartbeat_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._heartbeat_task
-            except asyncio.CancelledError:
-                pass
             self._heartbeat_task = None
 
     async def _heartbeat_loop(self):
@@ -340,21 +315,14 @@ class SessionLockCoordinator:
                 self._active_nonce = None
                 return
             lck = lock_obj.get("lock", {})
-            if (
-                lck.get("owner") != self.owner_id
-                or lck.get("nonce") != self._active_nonce
-            ):
+            if lck.get("owner") != self.owner_id or lck.get("nonce") != self._active_nonce:
                 logger.info("[SessionLock] Lock ownership changed; stopping heartbeat.")
                 self._active_nonce = None
                 return
 
             # Extend expiry
             now = _now_utc()
-            new_exp = (
-                (now + timedelta(seconds=self.ttl_seconds))
-                .isoformat()
-                .replace("+00:00", "Z")
-            )
+            new_exp = (now + timedelta(seconds=self.ttl_seconds)).isoformat().replace("+00:00", "Z")
             lock_obj["lock"]["expires_at"] = new_exp
             lock_obj["updated_at"] = now.isoformat().replace("+00:00", "Z")
             new_section = _fenced_json(lock_obj)
@@ -362,7 +330,7 @@ class SessionLockCoordinator:
             self.dm.api.update_issue(dash["id"], new_body)
             logger.info(f"[SessionLock] Heartbeat extended expires_at={new_exp}")
 
-    def _parse_lock_section(self, body: str) -> Optional[dict]:
+    def _parse_lock_section(self, body: str) -> dict | None:
         """
         Returns parsed lock JSON object (dict) or None if not present/invalid.
         """
@@ -379,9 +347,7 @@ class SessionLockCoordinator:
             return None
         return None
 
-    def _is_active_lock_held_by_other(
-        self, lock_obj: Optional[dict], now: datetime
-    ) -> bool:
+    def _is_active_lock_held_by_other(self, lock_obj: dict | None, now: datetime) -> bool:
         if not lock_obj:
             return False
         try:
@@ -391,9 +357,7 @@ class SessionLockCoordinator:
             if not exp or not owner:
                 return False
             exp_dt = datetime.fromisoformat(exp.replace("Z", "+00:00"))
-            if exp_dt > now and owner != self.owner_id:
-                return True
-            return False
+            return bool(exp_dt > now and owner != self.owner_id)
         except Exception:
             # If parsing fails, assume no valid lock
             return False

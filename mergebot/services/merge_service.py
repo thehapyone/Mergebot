@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from mergebot.services.common import ServiceError, async_retry
 from mergebot.tools.common import (
@@ -24,7 +24,7 @@ def _ensure_text_response(result) -> str:
     return text
 
 
-def _ensure_dict_response(result) -> Dict[str, Any]:
+def _ensure_dict_response(result) -> dict[str, Any]:
     """
     Ensure a dict status is returned; raise on tool-level error strings.
     """
@@ -41,7 +41,7 @@ def _ensure_dict_response(result) -> Dict[str, Any]:
     return {"error": f"Unexpected status result type: {type(result)}"}
 
 
-def parse_first_float(value: str) -> Optional[float]:
+def parse_first_float(value: str) -> float | None:
     """
     Extract first float-like number from a string. Returns None if not found.
     """
@@ -57,15 +57,15 @@ def parse_first_float(value: str) -> Optional[float]:
 
 
 def evaluate_rules(
-    status: Dict[str, Any],
-    rules: Dict[str, bool],
+    status: dict[str, Any],
+    rules: dict[str, bool],
     enforce_never_merge_draft: bool = True,
-) -> Tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     """
     Evaluate pre-merge guardrails against a status dict and rules flags.
     Returns (allowed, reasons[])
     """
-    reasons: List[str] = []
+    reasons: list[str] = []
 
     # Hard block: never merge Draft/WIP
     if enforce_never_merge_draft and status.get("draft") is True:
@@ -99,7 +99,7 @@ def evaluate_rules(
 
 
 @async_retry(max_attempts=2, base_delay=1.0, factor=2.0, max_delay=8.0, jitter=0.5)
-async def get_status(pr_number: int) -> Dict[str, Any]:
+async def get_status(pr_number: int) -> dict[str, Any]:
     """
     Fetch a structured PR/MR status for pre-merge decision making.
     """
@@ -110,7 +110,7 @@ async def get_status(pr_number: int) -> Dict[str, Any]:
     except ServiceError:
         raise
     except Exception as e:
-        raise ServiceError(f"Unexpected error fetching status: {e}", retryable=True)
+        raise ServiceError(f"Unexpected error fetching status: {e}", retryable=True) from e
 
 
 @async_retry(max_attempts=2, base_delay=1.0, factor=2.0, max_delay=8.0, jitter=0.5)
@@ -127,4 +127,4 @@ async def merge_change(pr_number: int, strategy: str = "repo_default") -> str:
     except ServiceError:
         raise
     except Exception as e:
-        raise ServiceError(f"Unexpected error merging change: {e}", retryable=True)
+        raise ServiceError(f"Unexpected error merging change: {e}", retryable=True) from e

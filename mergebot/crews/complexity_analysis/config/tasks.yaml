@@ -7,7 +7,7 @@ complexity_analyze_task:
     - **Introduction of Complex Algorithms**: Incorporation of advanced algorithms or data structures.
     - **Dependencies Affected**: Impact on external libraries, modules, or services.
     - **Refactoring Efforts**: Simplification or complication of existing code.
-    
+
     **Pull Request Details**:
     {pr_details}
   agent: complexity_analyzer

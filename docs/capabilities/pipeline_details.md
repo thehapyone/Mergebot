@@ -22,7 +22,7 @@ Mergebot provides unified analysis and visibility into CI pipelines for both Git
 
 ## How the Matching Works
 
-- **GitHub**: 
+- **GitHub**:
   - Primary: finds workflow runs with matching `head_sha` to PR's HEAD commit.
   - Fallback: finds recent runs for `event=pull_request`, current branch, and checks if PR number matches in the run’s `pull_requests` array.
 - **GitLab**: Uses merge request’s head pipeline directly.

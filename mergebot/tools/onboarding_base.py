@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from mergebot.tools.api_base import PullRequestAPIBase
 
 
-class InvalidMergebotYAML(Exception):
+class InvalidMergebotYAMLError(Exception):
     """Raised when .mergebot.yml exists but is not valid YAML."""
 
 
@@ -74,18 +74,14 @@ class OnboardingManagerBase(BaseModel):
             return self.api_wrapper.github_repo_instance
         elif self.vcs == "gitlab":
             return self.api_wrapper.gitlab_repo_instance
-        raise ValueError(
-            f"VCS system {self.vcs} is not supported for project retrieval."
-        )
+        raise ValueError(f"VCS system {self.vcs} is not supported for project retrieval.")
 
     def get_file_contents(self):
         """
         Retrieves the contents of a file from the repository.
         """
         if self.vcs == "github":
-            return self.project.get_contents(
-                self.config_file, ref=self.project.default_branch
-            )
+            return self.project.get_contents(self.config_file, ref=self.project.default_branch)
         elif self.vcs == "gitlab":
             return self.project.files.get(
                 file_path=self.config_file, ref=self.project.default_branch
@@ -130,7 +126,7 @@ class OnboardingManagerBase(BaseModel):
             content = base64.b64decode(file.content).decode("utf-8")
             return yaml.safe_load(content)
         except yaml.YAMLError as e:
-            raise InvalidMergebotYAML(f"Invalid YAML in .mergebot.yml: {e}")
+            raise InvalidMergebotYAMLError(f"Invalid YAML in .mergebot.yml: {e}") from e
         except Exception:
             return None
 

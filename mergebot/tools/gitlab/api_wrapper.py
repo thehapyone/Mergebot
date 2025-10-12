@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from typing import Any, Dict
+from typing import Any
 
 import gitlab
 
@@ -39,7 +39,7 @@ def strip_ansi_codes(text: str) -> str:
     return ansi_escape.sub("", text)
 
 
-def parse_job_log(log: str, job_status: str) -> Dict[str, Any]:
+def parse_job_log(log: str, job_status: str) -> dict[str, Any]:
     """
     Parses the job log to extract warnings and errors with context
 
@@ -94,16 +94,12 @@ class GitlabAPIWrapper(PullRequestAPIBase):
 
         # 1) URL
         self.gitlab_url = (
-            self.gitlab_url
-            or cfg.get("url")
-            or os.getenv("GITLAB_URL", "https://gitlab.com")
+            self.gitlab_url or cfg.get("url") or os.getenv("GITLAB_URL", "https://gitlab.com")
         )
 
         # 2) Repository (must exist in some source)
         self.gitlab_repository = (
-            self.gitlab_repository
-            or cfg.get("gitlab_repository")
-            or os.getenv("GITLAB_REPOSITORY")
+            self.gitlab_repository or cfg.get("gitlab_repository") or os.getenv("GITLAB_REPOSITORY")
         )
         if not self.gitlab_repository:
             raise ValueError(
@@ -249,7 +245,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             return self.pretty_print_pull_request(mr_details)
         except Exception as e:
             return {
-                "error": f"Failed to retrieve merge request details for MR IID {pr_number}: {str(e)}"
+                "error": f"Failed to retrieve merge request details for MR IID {pr_number}: {e!s}"
             }
 
     def comment_pull_request(self, pr_number: int, body: str) -> str:
@@ -259,7 +255,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             note_url = f"{mr.web_url}#note_{note.id}"
             return f"Comment posted at {note_url}"
         except Exception as e:
-            return f"Failed to post comment to Merge Request {pr_number}: {str(e)}"
+            return f"Failed to post comment to Merge Request {pr_number}: {e!s}"
 
     def approve_pull_request(self, pr_number: int) -> str:
         try:
@@ -267,7 +263,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             mr.approve()
             return f"Successfully approved Merge Request {pr_number}."
         except Exception as e:
-            return f"Failed to approve Merge Request {pr_number}: {str(e)}"
+            return f"Failed to approve Merge Request {pr_number}: {e!s}"
 
     def _evaluate_ci_state(self, mr):
         """
@@ -286,9 +282,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
                 return False, "pending"
             return None, "unknown"
         except Exception as e:
-            logger.warning(
-                f"CI state evaluation failed for MR !{getattr(mr, 'iid', '?')}: {e}"
-            )
+            logger.warning(f"CI state evaluation failed for MR !{getattr(mr, 'iid', '?')}: {e}")
             return None, "unknown"
 
     def get_pull_request_status(self, pr_number: int) -> dict:
@@ -322,9 +316,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             # Approvals
             approval_state = None
             approved_count = 0
-            changes_requested = (
-                0  # Best-effort; GitLab has no native "changes requested"
-            )
+            changes_requested = 0  # Best-effort; GitLab has no native "changes requested"
             try:
                 approvals = mr.approvals.get()
                 approved_count = len(getattr(approvals, "approved_by", []) or [])
@@ -367,7 +359,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             }
         except Exception as e:
             return {
-                "error": f"Failed to retrieve merge request status for MR IID {pr_number}: {str(e)}"
+                "error": f"Failed to retrieve merge request status for MR IID {pr_number}: {e!s}"
             }
 
     def merge_pull_request(self, pr_number: int, strategy: str = "repo_default") -> str:
@@ -384,7 +376,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
                 mr.merge()
             return f"Merged Merge Request !{pr_number}: {mr.web_url}"
         except Exception as e:
-            return f"Failed to merge Merge Request {pr_number}: {str(e)}"
+            return f"Failed to merge Merge Request {pr_number}: {e!s}"
 
     def get_pipeline_job(self, job_id: int) -> dict:
         """Gets the job information"""
@@ -468,7 +460,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             return "\n".join(info)
 
         except Exception as e:
-            return f"Failed to retrieve pipeline details for Pipeline ID {pipeline_id}: {str(e)}"
+            return f"Failed to retrieve pipeline details for Pipeline ID {pipeline_id}: {e!s}"
 
     def search_issues(self, title: str):
         """
@@ -541,12 +533,10 @@ class GitlabAPIWrapper(PullRequestAPIBase):
 
         # If file creation failed, try updating the existing file
         try:
-            file = self.gitlab_repo_instance.files.get(
-                file_path=file_path, ref=branch_name
-            )
+            file = self.gitlab_repo_instance.files.get(file_path=file_path, ref=branch_name)
             file.content = file_contents
             file.save(branch=branch_name, commit_message=commit_message)
         except Exception as e:
             raise Exception(
-                f"Failed to update file {file_path} in branch {branch_name}: {str(e)}"
-            )
+                f"Failed to update file {file_path} in branch {branch_name}: {e!s}"
+            ) from e

@@ -61,7 +61,7 @@ class OndemandRunner:
         self.dashboard_manager = DashboardManager(self.platform_type)
         self.pr_id_attr = "iid" if self.platform_type == "gitlab" else "number"
 
-    async def run_once(self):
+    async def run_once(self):  # noqa: PLR0912, PLR0915
         """
         Runs a single dashboard scan and update, analyzing all relevant pull or merge requests in parallel.
         """
@@ -69,9 +69,7 @@ class OndemandRunner:
         # Acquire project-level session lock to prevent concurrent sessions across instances
         lock = SessionLockCoordinator(self.dashboard_manager)
         if not await lock.try_acquire():
-            logger.info(
-                "[Ondemand] Skipping run: session lock is held by another instance."
-            )
+            logger.info("[Ondemand] Skipping run: session lock is held by another instance.")
             return
         lock.start_heartbeat()
 
@@ -200,14 +198,12 @@ class OndemandRunner:
         for pr_iid, result in results:
             if result["error"] is None:
                 analysis_results.append(
-                    {k: result[k] for k in result if k != "duration" and k != "error"}
+                    {k: result[k] for k in result if k not in {"duration", "error"}}
                 )
                 analyzed_iids.add(str(pr_iid))
             else:
                 errors.append((pr_iid, result["error"]))
-                analysis_results.append(
-                    {k: result[k] for k in result if k != "duration"}
-                )
+                analysis_results.append({k: result[k] for k in result if k != "duration"})
 
             analysis_durations.append(result["duration"])
 
@@ -280,9 +276,7 @@ class OndemandRunner:
                 f"Analyzed PR/MR {pr_ref_prefix}{getattr(pr, self.pr_id_attr)}"
                 for pr in prs_to_analyze
             ]
-            + [
-                f"Error in PR/MR {pr_ref_prefix}{pr_id}: {err}" for pr_id, err in errors
-            ],
+            + [f"Error in PR/MR {pr_ref_prefix}{pr_id}: {err}" for pr_id, err in errors],
             analytics=analytics_summary,
         )
         logger.info("[Ondemand] Dashboard update complete")

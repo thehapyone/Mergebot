@@ -32,9 +32,7 @@ class GitHubOnboardingManager(OnboardingManagerBase):
         # Ensure the branch exists (create if not)
         if not self.branch_exists():
             source_sha = self.project.get_branch(default_branch).commit.sha
-            self.project.create_git_ref(
-                ref=f"refs/heads/{self.onboarding_branch}", sha=source_sha
-            )
+            self.project.create_git_ref(ref=f"refs/heads/{self.onboarding_branch}", sha=source_sha)
 
         # Write or update the file in the onboarding branch
         self.api_wrapper.update_file(

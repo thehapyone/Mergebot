@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -11,20 +11,20 @@ class PullRequestAPIBase(BaseModel):
     ## GitHub-specific attributes
     github: Any = None
     github_repo_instance: Any = None
-    github_api_url: Optional[str] = None
-    github_repository: Optional[str] = None
-    github_personal_access_token: Optional[str] = None
-    github_branch: Optional[str] = None
-    github_base_branch: Optional[str] = None
+    github_api_url: str | None = None
+    github_repository: str | None = None
+    github_personal_access_token: str | None = None
+    github_branch: str | None = None
+    github_base_branch: str | None = None
 
     ## GitLab-specific attributes
     gitlab: Any = None
     gitlab_repo_instance: Any = None
-    gitlab_url: Optional[str] = None
-    gitlab_repository: Optional[str] = None
-    gitlab_personal_access_token: Optional[str] = None
-    gitlab_branch: Optional[str] = None
-    gitlab_base_branch: Optional[str] = None
+    gitlab_url: str | None = None
+    gitlab_repository: str | None = None
+    gitlab_personal_access_token: str | None = None
+    gitlab_branch: str | None = None
+    gitlab_base_branch: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -77,9 +77,7 @@ class PullRequestAPIBase(BaseModel):
         elif self.config_section == "github":
             self.validate_github()
         else:
-            raise ValueError(
-                "config_section must be set to either 'gitlab' or 'github'"
-            )
+            raise ValueError("config_section must be set to either 'gitlab' or 'github'")
 
         return self
 

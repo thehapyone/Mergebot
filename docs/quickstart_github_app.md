@@ -6,10 +6,10 @@ Follow these steps to run Mergebot **ondemand** against your repositories using 
 
 ## 1. Create a GitHub App
 
-1. Go to **Settings → Developer settings → GitHub Apps → New GitHub App**.  
+1. Go to **Settings → Developer settings → GitHub Apps → New GitHub App**.
 2. Fill in:
    * **App name**: e.g. `Mergebot Self-Hosted`
-   * **Webhook URL**: `http://YOUR-HOST/webhook` (not used in ondemand but required)  
+   * **Webhook URL**: `http://YOUR-HOST/webhook` (not used in ondemand but required)
    * **Callback URL**: leave blank or placeholder (`https://example.com/unused`)
 3. Permissions (Repository level)
    * Contents: **Read & write**

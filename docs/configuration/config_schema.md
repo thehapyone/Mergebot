@@ -2,8 +2,8 @@
 
 Mergebot requires a server/application configuration file (`mergebot/config.yaml`) to run. This file defines the default/global behavior for Mergebot and is always required. When Mergebot runs, it loads this server config and, if a repository config (e.g., `.mergebot.yml`) is present, merges the two to create a unified configuration. If `mergebot/config.yaml` is missing, Mergebot will fail to start.
 
-**Config file location:**  
-By default, Mergebot looks for the server config at `mergebot/config.yaml` (relative to the working directory).  
+**Config file location:**
+By default, Mergebot looks for the server config at `mergebot/config.yaml` (relative to the working directory).
 You can override the location by setting the `CONFIG_PATH` environment variable before running Mergebot:
 
 ```bash
@@ -40,7 +40,7 @@ telemetry:
 - When `enabled: true`, Mergebot unsets `OTEL_SDK_DISABLED` so telemetry is allowed.
 - If you set `OTEL_SDK_DISABLED=true` in your environment, this always takes precedence and disables telemetry regardless of config.
 
-**Environment variable override:**  
+**Environment variable override:**
 You can force-disable all telemetry by setting `OTEL_SDK_DISABLED=true` in your environment before running Mergebot.
 
 Example:
@@ -140,10 +140,10 @@ repository:
 
 - `type`: Must be `github` for GitHub repositories.
 - `github`: Required if type is `github`.
-- **GitHub App authentication is recommended.**  
-  - `app_id`: The numeric App ID for your GitHub App.  
-  - `installation_id`: The installation ID for the App on your repository/organization. If omitted, Mergebot will auto-discover it.  
-  - `private_key`: the raw PEM string.  
+- **GitHub App authentication is recommended.**
+  - `app_id`: The numeric App ID for your GitHub App.
+  - `installation_id`: The installation ID for the App on your repository/organization. If omitted, Mergebot will auto-discover it.
+  - `private_key`: the raw PEM string.
   - You can also set these via environment variables: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`.
 - `private_token`: (Legacy) Personal Access Token. This is used as a fallback if GitHub App credentials are not provided.
 

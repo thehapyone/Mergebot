@@ -72,7 +72,7 @@ mergebot:
 ## 3. Best Practices
 
 - **Always use environment variables for sensitive tokens.**
-- **Create a dedicated GitLab service account for Mergebot:**  
+- **Create a dedicated GitLab service account for Mergebot:**
   - It is strongly recommended to create a dedicated GitLab user (e.g., `mergebot`) to act as a bot/service account.
   - Generate a personal access token for this service account and use it as the `GITLAB_PERSONAL_ACCESS_TOKEN` (e.g., store as the `MERGEBOT_TOKEN` CI/CD variable).
   - Add this service account as a member to the relevant project(s) or group(s) with the minimum required permissions.
