@@ -8,7 +8,7 @@ The Mergebot Dashboard provides a centralized view of pull or merge request (PR/
 - Displays impact scores, recommendations, and review status.
 - Shows analytics: PRs/MRs processed, auto-approvals, manual reviews, average time to merge.
 - Supports rerun requests and action logs.
-- **Shows cumulative LLM token usage:** The analytics section displays "Total Tokens Used" and per-crew token breakdown based on the analyses in the latest dashboard run.
+- **Shows LLM token usage per run:** The analytics section displays "Total Tokens Used" and per-crew token breakdown based on the analyses in the latest dashboard run.
 
 ## LLM Token Usage Analytics
 
