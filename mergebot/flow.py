@@ -326,7 +326,7 @@ async def run_flow(
             analysis_link=mergebot.state.final_decision.get("analysis_link"),
             approved=mergebot.state.final_decision.get("approved", False),
             action_taken=mergebot.state.final_decision.get("action_taken", ""),
-            usage_metrics=mergebot.state.usage_metrics or {},
+            usage_metrics=mergebot.state.usage_metrics,
         )
     except ValidationError as e:
         logger.error(f"AnalysisResult validation failed: {e}")
