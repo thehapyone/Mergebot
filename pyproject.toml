@@ -1,6 +1,6 @@
 [project]
 name = "mergebot"
-version = "0.1.0"
+version = "0.2.0"
 description = "A bot for analysis, approving, and merging pull/merge requests"
 authors = [
     {name = "Ayo Ayibiowu",email = "charlesayibiowu@hotmail.com"}

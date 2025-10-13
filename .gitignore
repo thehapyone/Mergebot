@@ -161,3 +161,4 @@ cython_debug/
 
 # Skip EE files
 mergebot-ee
+mergebot-saas

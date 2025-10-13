@@ -50,3 +50,7 @@ env/
 .venv/
 .env/
 **/.venv
+
+# Skip EE files
+mergebot-ee
+mergebot-saas
