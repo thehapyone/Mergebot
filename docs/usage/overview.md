@@ -13,6 +13,7 @@ Mergebot uses a special "dashboard issue" in your VCS (GitHub or GitLab) to prov
 - **Active PR/MR Table:** See all open PRs/MRs, their status, and impact scores.
 - **Request a Rerun:** Check a box next to any PR/MR to request Mergebot to reanalyze it. When the CI job runs, Mergebot reads the dashboard, reruns analysis for checked PRs/MRs, and unchecks them after processing.
 - **Action Log & Analytics:** Track recent actions and view project analytics directly in the dashboard issue.
+- **Token Usage Metrics:** See "Total Tokens Used" for LLM invocations in the project, plus per-crew breakdown, in the dashboard’s analytics section.
 - **Transparency:** All updates and decisions are logged for audit and compliance.
 
 **Sample dashboard layout:**
@@ -30,6 +31,8 @@ _Check a box below to ask Mergebot to reanalyze any PR/MR._
 ## 📊 Analytics
 {{ analytics_table }}
 ```
+
+The analytics section now includes a **Total Tokens Used** metric, which shows the total LLM tokens processed across all PR/MR analyses performed in the current dashboard run. Additional breakdowns by analysis crew may also be visible.
 
 > **Current behavior:** Mergebot analyzes every open PR/MR on each run.
 > **New:** You can now limit the number of PRs/MRs analyzed per run using the `analysis.max_mrs` config option. See [Configuration Schema](../configuration/config_schema.md#analysis-options).

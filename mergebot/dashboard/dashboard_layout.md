@@ -39,6 +39,8 @@ _Check a box below to ask Mergebot to reanalyze any PR/MR. The bot will process 
 
 {{ analytics_table }}
 
+> **Total Tokens Used:** The sum of all LLM tokens processed by Mergebot for this dashboard run (across all crews and PR/MR analyses). Per-crew breakdown is also shown.
+
 ---
 
 <details>

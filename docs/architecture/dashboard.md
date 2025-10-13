@@ -8,6 +8,16 @@ The Mergebot Dashboard provides a centralized view of pull or merge request (PR/
 - Displays impact scores, recommendations, and review status.
 - Shows analytics: PRs/MRs processed, auto-approvals, manual reviews, average time to merge.
 - Supports rerun requests and action logs.
+- **Shows LLM token usage per run:** The analytics section displays "Total Tokens Used" and per-crew token breakdown based on the analyses in the latest dashboard run.
+
+## LLM Token Usage Analytics
+
+The dashboard includes a **Total Tokens Used** statistic showing the sum of all LLM tokens expended by Mergebot’s analysis crews when processing PRs/MRs in a dashboard update run. Values are collected per crew (code_analysis, risk_analysis, etc.) for every PR/MR and are aggregated project-wide in the analytics metrics dict before display.
+
+- **Metric Details:** "Total Tokens Used" is the sum of the `total_tokens` value for each analysis crew, for each PR/MR analyzed during the latest run. A per-crew breakdown is also visible as "Tokens Used (crewname)".
+- **Retention:** The metric reflects token usage for the *current dashboard scan*: it is not cumulative across historical runs, but always up-to-date with the latest batch analyzed.
+- **Extensibility:** The system supports adding further fine-grained LLM usage tracking or historical retention via additional dashboard markers or data artifacts.
+- **Implementation:** Usage metrics are gathered in per-PR/MR flow state, made available for aggregation in the dashboard runner, and pushed into the analytics dict for display.
 
 ## Implementation
 

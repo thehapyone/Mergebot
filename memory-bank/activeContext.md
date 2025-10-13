@@ -1,5 +1,13 @@
 # Active Context
 
+## Recent Changes (2025-10-13): Dashboard Token Usage Analytics
+
+- **New feature:** The Mergebot dashboard now displays "Total Tokens Used" in the Analytics section, tracking aggregate LLM usage across all PR/MR analyses in a run. A per-crew breakdown is also provided.
+- **Rationale:** This metric enables teams to track, optimize, and audit language model resource usage in the project over time—driving transparency and helping control operational costs.
+- **Implementation:** Aggregation of usage metrics was added to `ondemand_runner.py` (batch-run), and surfaced in analytics via `dashboard_manager.py`. Plumbing for metrics exposure is in `flow.py`.
+- **Documentation:** User, architecture, and template docs, as well as this memory bank, were updated to describe the new analytics fields and design.
+- **Design:** The metric reflects *current run* usage only (not cumulative across runs), but is extensibly designed for future historical tracking if desired.
+
 ## Core Project State (as of 2025-09-30)
 
 ### Recent Changes: Auto-Merge, CI Robustness, GitHub Actions Pipeline Support, Config Evolution
