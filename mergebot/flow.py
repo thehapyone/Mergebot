@@ -175,6 +175,9 @@ class AnalysisResult(BaseModel):
     analysis_link: str
     approved: bool = Field(default=False)
     action_taken: str = Field(default="")
+    usage_metrics: dict = Field(
+        default_factory=dict, description="Crew usage metrics for this PR/MR"
+    )
 
 
 class MergeBotFlow(Flow[MergeBotState]):
@@ -323,6 +326,7 @@ async def run_flow(
             analysis_link=mergebot.state.final_decision.get("analysis_link"),
             approved=mergebot.state.final_decision.get("approved", False),
             action_taken=mergebot.state.final_decision.get("action_taken", ""),
+            usage_metrics=mergebot.state.usage_metrics or {},
         )
     except ValidationError as e:
         logger.error(f"AnalysisResult validation failed: {e}")

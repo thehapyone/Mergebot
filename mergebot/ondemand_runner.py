@@ -158,6 +158,7 @@ class OndemandRunner:
                         pr_title=pr_title,
                         project=self.project,
                     )
+                    # Usage metrics for token aggregation
                     result = {
                         "id": analysis_result.id,
                         "title": analysis_result.title,
@@ -167,6 +168,7 @@ class OndemandRunner:
                         "last_reviewed": analysis_result.last_reviewed,
                         "analysis_link": analysis_result.analysis_link,
                         "web_url": pr_url,
+                        "usage_metrics": analysis_result.usage_metrics,
                         "duration": time.time() - start,
                         "error": None,
                     }
@@ -186,6 +188,7 @@ class OndemandRunner:
                         "last_reviewed": "N/A",
                         "analysis_link": "#",
                         "web_url": pr_url,
+                        "usage_metrics": {},
                         "duration": time.time() - start,
                         "error": error_msg,
                     }
@@ -195,12 +198,23 @@ class OndemandRunner:
         tasks = [analyze_pr(pr, semaphore) for pr in prs_to_analyze]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
+        total_tokens_used = 0
+        per_crew_totals = {}
+
         for pr_iid, result in results:
             if result["error"] is None:
                 analysis_results.append(
                     {k: result[k] for k in result if k not in {"duration", "error"}}
                 )
                 analyzed_iids.add(str(pr_iid))
+
+                # Aggregate token usage for successfully analyzed PRs
+                usage_metrics = result.get("usage_metrics", {})
+                for crew, metrics in usage_metrics.items():
+                    tt = metrics.get("total_tokens", 0)
+                    total_tokens_used += tt
+                    per_crew_totals[crew] = per_crew_totals.get(crew, 0) + tt
+
             else:
                 errors.append((pr_iid, result["error"]))
                 analysis_results.append({k: result[k] for k in result if k != "duration"})
@@ -259,7 +273,11 @@ class OndemandRunner:
             "Auto Approve": auto_approve_count,
             "Manual Reviews": manual_review_count,
             "Avg. Time Open→Merge": avg_time,
+            "Total Tokens Used": total_tokens_used,
         }
+        if per_crew_totals:
+            for crew, tokens in per_crew_totals.items():
+                analytics_summary[f"Tokens Used ({crew})"] = tokens
 
         # Only reset rerun_requests for processed PRs/MRs
         remaining_rerun_requests = [

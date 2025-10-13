@@ -24,6 +24,7 @@ Mergebot is designed as a modular, extensible system for automated pull or merge
 - **Orchestrator Pattern**: The core engine acts as an orchestrator, invoking crews as needed.
 - **Unified VCS-Agnostic Dashboard Pattern**: A single DashboardManager class abstracts all dashboard operations for both GitHub and GitLab, selecting the correct API wrapper at runtime.
 - **PR/MR Normalization Pattern**: All PR/MR objects are normalized to a common schema (e.g., `iid`, `web_url`, `title`) for dashboard, analytics, and analysis flows, ensuring platform-agnostic logic throughout.
+- **Cross-Crew Analytics Aggregation Pattern**: Usage metrics (e.g., LLM tokens consumed) are captured individually by each crew, then aggregated project-wide via the orchestrator for display in the dashboard. This enables extensible analytics—such as "Total Tokens Used" and per-crew statistics—for transparency and cost management.
 - **Configuration-Driven Behavior**: System behavior and crew activation are controlled via configuration files, supporting global and per-crew LLM settings.
 - **Audit Logging**: All actions and decisions are logged for traceability.
 - **Environment Variable Best Practices**: All sensitive credentials (LLM API keys, GitLab tokens) are managed via environment variables.
