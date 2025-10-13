@@ -32,7 +32,7 @@ _Check a box below to ask Mergebot to reanalyze any PR/MR._
 {{ analytics_table }}
 ```
 
-The analytics section now includes a **Total Tokens Used** metric, which shows the cumulative LLM tokens processed across all PR/MR analyses performed in the current dashboard run. Additional breakdowns by analysis crew may also be visible.
+The analytics section now includes a **Total Tokens Used** metric, which shows the total LLM tokens processed across all PR/MR analyses performed in the current dashboard run. Additional breakdowns by analysis crew may also be visible.
 
 > **Current behavior:** Mergebot analyzes every open PR/MR on each run.
 > **New:** You can now limit the number of PRs/MRs analyzed per run using the `analysis.max_mrs` config option. See [Configuration Schema](../configuration/config_schema.md#analysis-options).
