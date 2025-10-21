@@ -127,6 +127,7 @@ repository:
   type: github
   github:
     base_branch: main
+    webhook_secret: your-shared-secret  # Validates webhook signatures
     # GitHub App authentication (recommended)
     app_id: 123456                # GitHub App ID (int or ENV: GITHUB_APP_ID)
     installation_id: 987654       # Installation ID (int, optional; ENV: GITHUB_APP_INSTALLATION_ID)
@@ -140,6 +141,7 @@ repository:
 
 - `type`: Must be `github` for GitHub repositories.
 - `github`: Required if type is `github`.
+- `webhook_secret`: Shared secret for validating GitHub webhook requests (`X-Hub-Signature-256` or `X-Hub-Signature`).
 - **GitHub App authentication is recommended.**
   - `app_id`: The numeric App ID for your GitHub App.
   - `installation_id`: The installation ID for the App on your repository/organization. If omitted, Mergebot will auto-discover it.
@@ -155,11 +157,13 @@ repository:
   gitlab:
     url: https://gitlab.example.com/api/v4
     private_token: YOUR_TOKEN # (not recommended, use env var)
+    webhook_secret: your-shared-secret  # Validates X-Gitlab-Token
     base_branch: main
 ```
 
 - `type`: Must be `gitlab`
 - `gitlab`: Required if type is `gitlab`
+- `webhook_secret`: Shared secret for validating GitLab webhooks (`X-Gitlab-Token`).
 - **Set the GitLab personal access token as the `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable** (recommended).
 
 ---

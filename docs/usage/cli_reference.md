@@ -11,8 +11,7 @@ mergebot --help
 ## Commands
 
 - `ondemand` — Run a one-shot analysis of all open merge requests in a project.
-- `webhook` — (Experimental) Run as a webhook server to process MRs automatically.
-  *Note: Webhook mode is not actively maintained and may be removed in future releases.*
+- `webhook` — Run as a webhook server to process PR/MR events automatically (requires a configured webhook secret).
 
 ## Options
 
@@ -22,6 +21,8 @@ mergebot --help
 | --workers      | Number of parallel workers          |
 | --port         | Port for webhook server             |
 | --help         | Show help message                   |
+
+> **Security:** Set `GITLAB_WEBHOOK_SECRET` or `GITHUB_WEBHOOK_SECRET` (or the corresponding config field) before running in webhook mode to authenticate incoming events.
 
 > **Tip:** For most users, the recommended mode is `ondemand` via CI/CD.
 

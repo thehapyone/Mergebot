@@ -18,6 +18,7 @@ Mergebot is designed as a modular, extensible system for automated pull or merge
 - GitHub and GitLab as primary VCS integration targets, with roadmap for additional VCS support
 - LiteLLM as the LLM abstraction layer for multi-provider support
 - Documentation-first workflow using the Memory Bank and MkDocs Material
+- Webhook service authenticates GitLab tokens and GitHub HMAC signatures using config-driven secrets, deduplicating in-flight analyses per PR/MR URL.
 
 ## Design Patterns in Use
 - **Modular Plugin Pattern**: Each crew is a self-contained module with a defined interface.

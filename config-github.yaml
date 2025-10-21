@@ -9,6 +9,7 @@ repository:
 
   github:
     base_branch: "main"
+    webhook_secret: "replace-with-your-github-webhook-secret"  # Validates X-Hub-Signature
 
 crews:
   ImpactEvaluator:

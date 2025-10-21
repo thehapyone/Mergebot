@@ -20,6 +20,8 @@ docker run --rm thehapyone/mergebot:latest ondemand --project mygroup/myrepo
 docker run --rm -p 8000:8000 thehapyone/mergebot:latest webhook --project mygroup/myrepo --port 8000
 ```
 
+> Configure `GITLAB_WEBHOOK_SECRET` or `GITHUB_WEBHOOK_SECRET` (e.g. `-e GITLAB_WEBHOOK_SECRET=...`) when running in webhook mode so incoming events are authenticated.
+
 ## Mount Custom Config
 
 ```bash

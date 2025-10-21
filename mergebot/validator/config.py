@@ -23,6 +23,10 @@ class GitLabConfig(BaseModel):
         default=os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN"),
         description="Private token for GitLab API authentication",
     )
+    webhook_secret: str | None = Field(
+        default=os.getenv("GITLAB_WEBHOOK_SECRET"),
+        description="Shared secret used to validate GitLab webhooks (X-Gitlab-Token).",
+    )
     base_branch: str = Field(default="main", description="Base branch for the project")
 
     @field_validator("private_token")
@@ -64,6 +68,10 @@ class GitHubConfig(BaseModel):
     private_key: str | None = Field(
         default=os.getenv("GITHUB_APP_PRIVATE_KEY"),
         description="The raw PEM string for the GitHub App private key",
+    )
+    webhook_secret: str | None = Field(
+        default=os.getenv("GITHUB_WEBHOOK_SECRET"),
+        description="Shared secret used to validate GitHub webhook signatures.",
     )
 
     base_branch: str = Field(default="main", description="Base branch for the project")

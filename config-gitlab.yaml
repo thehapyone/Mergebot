@@ -6,6 +6,7 @@ repository:
 
   gitlab:
     base_branch: "main"
+    webhook_secret: "replace-with-your-gitlab-webhook-secret"  # Validates X-Gitlab-Token
 
   github:
     base_branch: "main"
