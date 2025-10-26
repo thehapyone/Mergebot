@@ -1,0 +1,29 @@
+# Default Mergebot configuration
+# See docs for full configuration: https://github.com/thehapyone/Mergebot/tree/main/docs/configuration
+repository:
+  type: github
+  github:
+    base_branch: main
+approval_policy:
+  threshold: 3.0
+  weights:
+    CodeAnalysis: 0.4
+    ComplexityAnalysis: 0.2
+    TestAnalysis: 0.2
+    RiskAnalysis: 0.2
+analysis:
+  max_mrs: 10
+merge:
+  enabled: false
+  threshold: 2.5
+  strategy: repo_default
+  rules:
+    ci_passed: true
+    ci_strict: false
+    no_changes_requested: true
+    mergeable: true
+    approval_state: true
+    branch_prefixes:
+      - "feature/"
+      - "renovate/"
+      - "dependabot/"
