@@ -373,10 +373,7 @@ class WebhookServer:
             logger.error(f"Error processing webhook: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal server error") from e
 
-    def run(self):
-        """
-        Start the webhook server using Uvicorn.
-        """
+    def _log_startup(self):
         if self._multi_project_enabled:
             logger.info(
                 "Running webhook server in multi-project mode on port %s (max concurrency: %s)",
@@ -391,4 +388,18 @@ class WebhookServer:
                 self.port,
                 self._max_concurrency,
             )
-        uvicorn.run(self.app, host="0.0.0.0", port=self.port)
+
+    async def serve(self):
+        """
+        Start the webhook server using Uvicorn within an existing event loop.
+        """
+        self._log_startup()
+        config = uvicorn.Config(self.app, host="0.0.0.0", port=self.port, loop="asyncio")
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    def run(self):
+        """
+        Convenience synchronous runner for contexts without an event loop.
+        """
+        asyncio.run(self.serve())

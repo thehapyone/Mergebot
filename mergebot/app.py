@@ -8,7 +8,7 @@ from mergebot.validator.logging_config import logger
 from mergebot.webhook_server import WebhookServer
 
 
-def run_webhook_mode(port: int, max_concurrency: int):
+async def run_webhook_mode(port: int, max_concurrency: int):
     """
     Run MergeBot in webhook server mode on the specified port.
 
@@ -21,13 +21,13 @@ def run_webhook_mode(port: int, max_concurrency: int):
         port,
         max_concurrency,
     )
+    server = WebhookServer(port=port, max_concurrency=max_concurrency)
     try:
-        server = WebhookServer(port=port, max_concurrency=max_concurrency)
-        server.run()
+        await server.serve()
         logger.info("[Webhook] Webhook server stopped.")
     except Exception as e:
         logger.error(f"[Webhook] Error during webhook server run: {e}", exc_info=True)
-        sys.exit(1)
+        raise
 
 
 async def main():
@@ -88,7 +88,7 @@ async def main():
         configure_telemetry()
 
         if args.mode == "webhook":
-            run_webhook_mode(args.port, args.max_concurrency)
+            await run_webhook_mode(args.port, args.max_concurrency)
         elif args.mode == "ondemand":
             orchestrator = OndemandOrchestrator(
                 workers=args.workers, max_concurrency=args.max_concurrency
