@@ -4,12 +4,17 @@ llm:
 repository:
   type: "github"
 
-  gitlab:
-    base_branch: "main"
-
   github:
     base_branch: "main"
-    webhook_secret: "replace-with-your-github-webhook-secret"  # Validates X-Hub-Signature
+
+  projects:
+    - path: "thehapyone/Sage"
+      webhook:
+        secret: "replace-with-your-github-webhook-secret"
+      overrides:
+        merge:
+          enabled: true
+          threshold: 1.0
 
 crews:
   ImpactEvaluator:

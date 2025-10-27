@@ -17,9 +17,8 @@ mergebot:
   stage: deploy
   image: thehapyone/mergebot:latest
   script:
-    - mergebot ondemand --project $GITLAB_PROJECT_PATH --workers 10
+    - mergebot ondemand --workers 10
   variables:
-    GITLAB_PROJECT_PATH: $CI_PROJECT_PATH
     REQUESTS_CA_BUNDLE: $CA_BUNDLE
     GITLAB_PERSONAL_ACCESS_TOKEN: $MERGEBOT_TOKEN
     CONFIG_PATH: "$CI_PROJECT_DIR/mergebot-config.yml"
@@ -46,14 +45,7 @@ mergebot:
   stage: deploy
   image: thehapyone/mergebot:latest
   script:
-    - mergebot ondemand --project $GITLAB_PROJECT_PATH --workers 10
-  parallel:
-    matrix:
-      # use mergebot for various projects
-      - GITLAB_PROJECT_PATH:
-          - group1/project1
-          - group3/project3
-          - group4/project
+    - mergebot ondemand --workers 10 --max-concurrency 4
   variables:
     REQUESTS_CA_BUNDLE: $CA_BUNDLE
     GITLAB_PERSONAL_ACCESS_TOKEN: $MERGEBOT_TOKEN
@@ -67,7 +59,7 @@ mergebot:
 ```
 
 - Schedule this pipeline in the CI/CD > Schedules section.
-- Add as many `mergebot ondemand --project ...` lines as needed for your projects.
+- List every target repository under `repository.projects` in the config referenced by `CONFIG_PATH`; Mergebot will fan out automatically, so no per-run `--project` flag is required.
 
 ## 3. Best Practices
 

@@ -39,8 +39,9 @@ jobs:
             # -e AZURE_API_KEY \
             -v "${{ github.workspace }}:/repo" \
             -w /repo \
+            -e CONFIG_PATH=/repo/mergebot/config.yaml \
             thehapyone/mergebot:latest \
-              mergebot ondemand --project="${{ github.repository }}"
+              mergebot ondemand
 ```
 
 ---
@@ -58,25 +59,25 @@ on:
 jobs:
   batch-mergebot:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        repo:
-          - owner1/repoA
-          - owner2/repoB
     env:
       GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
       GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
     steps:
+      - name: Checkout config repo
+        uses: actions/checkout@v4
+        with:
+          repository: your-org/mergebot-configs
       - name: Pull Mergebot Docker image
         run: docker pull thehapyone/mergebot:latest
-      - name: Run Mergebot on ${{ matrix.repo }}
+      - name: Run Mergebot for all configured projects
         run: |
           docker run --rm \
             -e GITHUB_APP_ID \
             -e GITHUB_APP_PRIVATE_KEY \
-            -w /tmp \
+            -v "${{ github.workspace }}/config-github.yaml:/config/config.yaml" \
+            -e CONFIG_PATH=/config/config.yaml \
             thehapyone/mergebot:latest \
-              mergebot ondemand --project="${{ matrix.repo }}"
+              mergebot ondemand --max-concurrency 4 --workers 6
 ```
 
 ---
@@ -86,7 +87,7 @@ jobs:
 - Use repo/org-level Action secrets for credentials.
 - Reference onboarding doc for detailed GitHub App or PAT setup.
 - Use the official Docker image for consistency.
-- Config file: `.mergebot.yml` or `config-github.yaml` ([config docs](../configuration/config_overview.md)).
+- Config file: `.mergebot.yml` or `config-github.yaml` ([config docs](../configuration/config_overview.md)). Ensure `repository.projects` lists every repository you want Mergebot to service; no `--project` flag is required.
 - For advanced usage, see [Mergebot on GitHub](https://github.com/thehapyone/Mergebot).
 
 ---

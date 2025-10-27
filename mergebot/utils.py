@@ -1,17 +1,9 @@
 import os
 
-from mergebot.validator.config import get_runtime_config
+from mergebot.validator.config import Config, load_config
 
 
-def get_platform_type():
-    """
-    Returns the repository platform type from the validated config.
-    """
-    config = get_runtime_config(as_pydantic=True)
-    return config.repository.type
-
-
-def configure_telemetry():
+def configure_telemetry(config: Config | None = None):
     """
     Configures OpenTelemetry enable/disable based on MergeBot runtime config
     and existing environment variables.
@@ -29,9 +21,15 @@ def configure_telemetry():
     if os.getenv("OTEL_SDK_DISABLED", "").lower() == "true":
         return
 
-    cfg = get_runtime_config() or {}
-    telemetry_cfg = cfg.get("telemetry", {}) if isinstance(cfg, dict) else {}
-    enabled = telemetry_cfg.get("enabled", False)
+    if config is None:
+        try:
+            config = load_config()
+        except SystemExit:
+            # Configuration load failures already logged upstream.
+            return
+
+    telemetry_cfg = getattr(config, "telemetry", None)
+    enabled = bool(getattr(telemetry_cfg, "enabled", False))
 
     if enabled:
         # Allow telemetry

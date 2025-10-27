@@ -1,3 +1,4 @@
+from mergebot.project_registry import ProjectRuntime
 from mergebot.services.common import ServiceError, async_retry
 from mergebot.tools.common import GetPullOrMergeRequestTool
 from mergebot.validator.logging_config import logger
@@ -27,7 +28,7 @@ def _ensure_text_details(result) -> str:
 
 
 @async_retry(max_attempts=3, base_delay=1.0, factor=2.0, max_delay=8.0, jitter=0.5)
-async def get_pull_or_merge_request_details(pr_number: int) -> str:
+async def get_pull_or_merge_request_details(pr_number: int, runtime: ProjectRuntime) -> str:
     """
     Fetch PR/MR details as a pretty-printed text (for current analysis crews)
     using the existing GetPullOrMergeRequestTool outside of AI crews.
@@ -39,7 +40,7 @@ async def get_pull_or_merge_request_details(pr_number: int) -> str:
     """
     logger.info(f"Fetching PR/MR details for #{pr_number}")
     try:
-        result = GetPullOrMergeRequestTool().run(pr_number=pr_number)
+        result = GetPullOrMergeRequestTool(runtime=runtime).run(pr_number=pr_number)
         return _ensure_text_details(result)
     except ServiceError:
         raise

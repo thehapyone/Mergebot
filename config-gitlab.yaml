@@ -6,10 +6,11 @@ repository:
 
   gitlab:
     base_branch: "main"
-    webhook_secret: "replace-with-your-gitlab-webhook-secret"  # Validates X-Gitlab-Token
 
-  github:
-    base_branch: "main"
+  projects:
+    - path: "dts/anthea/iac-layers/gitlab-instance-iacs"
+    - path: "dts/anthea/iac-layers/secruity-iac"
+    - path: "dts/anthea/on-prem-iac"
 
 crews:
   ImpactEvaluator:

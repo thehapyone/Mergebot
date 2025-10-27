@@ -1,49 +1,55 @@
-import sys
+from collections.abc import Mapping
+from typing import Any
 
+from mergebot.project_registry import ProjectContext, ProjectRuntime
 from mergebot.tools.github.onboarding import GitHubOnboardingManager
-from mergebot.tools.gitlab.onboarding import (
-    GitlabOnboardingManager,
-)
+from mergebot.tools.gitlab.onboarding import GitlabOnboardingManager
 from mergebot.tools.onboarding_base import InvalidMergebotYAMLError
-from mergebot.utils import get_platform_type
-from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
 
 
-def ensure_repo_config(project: str):
-    """
-    Ensures that a valid Mergebot configuration is present in the repository for the given platform.
+class EnsureRepoConfigError(RuntimeError):
+    """Raised when repository configuration cannot be ensured for a project."""
 
-    - For supported platforms (currently GitLab):
-        - Checks if .mergebot.yml exists in the default branch of the repository.
-        - If found and valid, merges it into the runtime config and validates the result.
-        - If missing, creates an onboarding PR with a default .mergebot.yml and aborts execution.
-        - If present but invalid (malformed YAML), aborts execution and logs a clear error.
-    - For unsupported platforms, aborts with an error.
 
-    This function should be called once at application startup, before any flows or runners are executed.
+def ensure_repo_config(
+    context: ProjectContext, overrides: Mapping[str, Any] | None = None
+) -> ProjectRuntime:
+    """Resolve the effective configuration for a project and return a ProjectRuntime.
+
+    The function validates repository-level configuration by fetching ``.mergebot.yml``
+    (creating an onboarding PR when missing) and merges it with the server-level
+    project definition and any explicit overrides. A fully validated ``ProjectRuntime``
+    is returned for downstream consumers.
     """
-    logger.info(f"Finding Mergebot configuration for project: {project}")
-    platform_type = get_platform_type()
+    logger.info(f"Finding Mergebot configuration for project: {context.project_path}")
+    platform_type = context.platform_type
     if platform_type == "gitlab":
-        runtime_config.set("repository.gitlab.gitlab_repository", project)
-        onboarding = GitlabOnboardingManager()
+        onboarding = GitlabOnboardingManager(
+            config=context.config, project_path=context.project_path
+        )
     elif platform_type == "github":
-        runtime_config.set("repository.github.github_repository", project)
-        onboarding = GitHubOnboardingManager()
+        onboarding = GitHubOnboardingManager(
+            config=context.config, project_path=context.project_path
+        )
     else:
         logger.error(f"Unsupported platform: {platform_type}")
-        sys.exit(1)
+        raise EnsureRepoConfigError(f"Unsupported platform: {platform_type}")
+
+    runtime: ProjectRuntime | None = None
 
     try:
-        logger.info(f"Checking for .mergebot.yml in repository: {project}")
+        logger.info("Checking for .mergebot.yml in repository: %s", context.project_path)
         repo_config = onboarding.get_mergebot_yml()
         if repo_config is not None:
             logger.info(".mergebot.yml found in repo. Merging and validating config...")
-            if isinstance(repo_config, dict):
-                runtime_config.set_many({f"{k}": v for k, v in repo_config.items()})
-            # Validate config
-            _ = get_runtime_config(as_pydantic=True)
+            if not isinstance(repo_config, Mapping):
+                logger.error(".mergebot.yml must define a mapping at the root level.")
+                raise EnsureRepoConfigError(".mergebot.yml must define a mapping at the root level")
+
+            runtime = context.build_runtime(
+                repo_config=repo_config,
+            )
             logger.info("Successfully loaded and validated .mergebot.yml from repo.")
         else:
             logger.warning(
@@ -55,7 +61,7 @@ def ensure_repo_config(project: str):
                 logger.error(
                     "Onboarding required. Please merge the existing PR to enable Mergebot."
                 )
-                sys.exit(1)
+                raise EnsureRepoConfigError("Onboarding PR already exists for this project")
             else:
                 logger.info("No existing onboarding PR found. Creating onboarding PR...")
                 base_branch = onboarding.project.default_branch
@@ -93,12 +99,16 @@ def ensure_repo_config(project: str):
                 pr_url = onboarding.create_onboarding_pr(default_mergebot_yml)
                 logger.info(f"Onboarding PR created: <{pr_url}>")
                 logger.error("Onboarding required. Please merge the PR to enable Mergebot.")
-                sys.exit(1)
+                raise EnsureRepoConfigError("Onboarding PR created for project")
     except InvalidMergebotYAMLError as e:
         logger.error(f"Invalid .mergebot.yml detected: {e}")
-        sys.exit(1)
+        raise EnsureRepoConfigError(str(e)) from e
     except Exception as e:
-        logger.error(f"Error while ensuring repo config: {e}", exc_info=True)
-        sys.exit(1)
+        logger.error(f"Error while ensuring repo config: {e}")
+        raise EnsureRepoConfigError(str(e)) from e
 
     logger.info("Mergebot configuration successfully ensured.")
+    if runtime is None:
+        logger.error("Failed to initialize ProjectRuntime.")
+        raise EnsureRepoConfigError("Failed to initialize ProjectRuntime.")
+    return runtime

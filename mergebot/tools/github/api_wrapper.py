@@ -11,7 +11,6 @@ import requests
 from github import Github
 
 from mergebot.tools.api_base import PullRequestAPIBase
-from mergebot.validator.config import get_runtime_config
 from mergebot.validator.logging_config import logger
 
 
@@ -50,18 +49,35 @@ class GitHubAPIWrapper(PullRequestAPIBase):
     )
 
     def validate_github(self):
-        cfg = get_runtime_config()["repository"]["github"]
+        repo_cfg = self.config.repository.github
+
+        api_url = repo_cfg.api_url if repo_cfg and getattr(repo_cfg, "api_url", None) else None
+        pat = (
+            repo_cfg.private_token
+            if repo_cfg and getattr(repo_cfg, "private_token", None)
+            else None
+        )
+        app_id = repo_cfg.app_id if repo_cfg and getattr(repo_cfg, "app_id", None) else None
+        installation_id = (
+            repo_cfg.installation_id
+            if repo_cfg and getattr(repo_cfg, "installation_id", None)
+            else None
+        )
+        app_private_key = (
+            repo_cfg.private_key if repo_cfg and getattr(repo_cfg, "private_key", None) else None
+        )
+        base_branch = (
+            repo_cfg.base_branch if repo_cfg and getattr(repo_cfg, "base_branch", None) else None
+        )
 
         # 1) API URL
         self.github_api_url = (
-            self.github_api_url
-            or cfg.get("api_url")
-            or os.getenv("GITHUB_API_URL", "https://api.github.com")
+            self.github_api_url or api_url or os.getenv("GITHUB_API_URL", "https://api.github.com")
         )
 
         # 2) Repository (must exist in some source)
         self.github_repository = (
-            self.github_repository or cfg.get("github_repository") or os.getenv("GITHUB_REPOSITORY")
+            self.github_repository or self.project_path or os.getenv("GITHUB_REPOSITORY")
         )
         if not self.github_repository:
             raise ValueError(
@@ -70,22 +86,23 @@ class GitHubAPIWrapper(PullRequestAPIBase):
 
         # 3) Auth: Prefer PAT, else GitHub App
         self.github_personal_access_token = (
-            self.github_personal_access_token
-            or cfg.get("private_token")
-            or os.getenv("GITHUB_TOKEN")
+            self.github_personal_access_token or pat or os.getenv("GITHUB_TOKEN")
         )
 
         # --- GitHub App authentication ---
         self.github_app_id = (
-            self.github_app_id or str(cfg.get("app_id") or os.getenv("GITHUB_APP_ID") or "").strip()
+            self.github_app_id or str(app_id or os.getenv("GITHUB_APP_ID") or "").strip()
         )
         self.github_installation_id = (
             self.github_installation_id
-            or str(
-                cfg.get("installation_id") or os.getenv("GITHUB_APP_INSTALLATION_ID") or ""
-            ).strip()
+            or str(installation_id or os.getenv("GITHUB_APP_INSTALLATION_ID") or "").strip()
         )
-        self.github_app_private_key = cfg.get("private_key") or os.getenv("GITHUB_APP_PRIVATE_KEY")
+        self.github_app_private_key = app_private_key or os.getenv("GITHUB_APP_PRIVATE_KEY")
+
+        self.github_branch = self.github_branch or base_branch or os.getenv("GITHUB_BRANCH", "main")
+        self.github_base_branch = (
+            self.github_base_branch or base_branch or os.getenv("GITHUB_BASE_BRANCH", "main")
+        )
 
         # --- Authentication logic ---
         if self.github_app_id and self.github_app_private_key:

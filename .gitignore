@@ -162,3 +162,7 @@ cython_debug/
 # Skip EE files
 mergebot-ee
 mergebot-saas
+
+# Skip local configuration files
+config-github.yaml
+config-gitlab.yaml

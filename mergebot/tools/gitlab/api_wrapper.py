@@ -6,7 +6,6 @@ from typing import Any
 import gitlab
 
 from mergebot.tools.api_base import PullRequestAPIBase
-from mergebot.validator.config import get_runtime_config
 from mergebot.validator.logging_config import logger
 
 
@@ -90,16 +89,26 @@ class GitlabAPIWrapper(PullRequestAPIBase):
     config_section: str = "gitlab"
 
     def validate_gitlab(self):
-        cfg = get_runtime_config()["repository"]["gitlab"]
+        repo_cfg = self.config.repository.gitlab
+
+        repo_url = repo_cfg.url if repo_cfg and getattr(repo_cfg, "url", None) else None
+        token = (
+            repo_cfg.private_token
+            if repo_cfg and getattr(repo_cfg, "private_token", None)
+            else None
+        )
+        base_branch = (
+            repo_cfg.base_branch if repo_cfg and getattr(repo_cfg, "base_branch", None) else None
+        )
 
         # 1) URL
         self.gitlab_url = (
-            self.gitlab_url or cfg.get("url") or os.getenv("GITLAB_URL", "https://gitlab.com")
+            self.gitlab_url or repo_url or os.getenv("GITLAB_URL", "https://gitlab.com")
         )
 
         # 2) Repository (must exist in some source)
         self.gitlab_repository = (
-            self.gitlab_repository or cfg.get("gitlab_repository") or os.getenv("GITLAB_REPOSITORY")
+            self.gitlab_repository or self.project_path or os.getenv("GITLAB_REPOSITORY")
         )
         if not self.gitlab_repository:
             raise ValueError(
@@ -108,9 +117,7 @@ class GitlabAPIWrapper(PullRequestAPIBase):
 
         # 3) Token (must exist in some source)
         self.gitlab_personal_access_token = (
-            self.gitlab_personal_access_token
-            or cfg.get("private_token")
-            or os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN")
+            self.gitlab_personal_access_token or token or os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN")
         )
         if not self.gitlab_personal_access_token:
             raise ValueError(
@@ -118,16 +125,9 @@ class GitlabAPIWrapper(PullRequestAPIBase):
             )
 
         # 4) Branches w/ defaults
-        self.gitlab_branch = (
-            self.gitlab_branch
-            or cfg.get("branch")
-            or cfg.get("base_branch")
-            or os.getenv("GITLAB_BRANCH", "main")
-        )
+        self.gitlab_branch = self.gitlab_branch or base_branch or os.getenv("GITLAB_BRANCH", "main")
         self.gitlab_base_branch = (
-            self.gitlab_base_branch
-            or cfg.get("base_branch")
-            or os.getenv("GITLAB_BASE_BRANCH", "main")
+            self.gitlab_base_branch or base_branch or os.getenv("GITLAB_BASE_BRANCH", "main")
         )
 
         # Instantiate & authenticate the GitLab client

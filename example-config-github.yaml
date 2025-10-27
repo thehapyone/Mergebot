@@ -1,0 +1,83 @@
+# Example Mergebot configuration for GitHub
+#
+# Replace ${...} placeholders with your actual values or environment-variable
+# references before running Mergebot.
+
+llm:
+  model: gpt-4o-mini
+
+repository:
+  type: github
+  github:
+    api_url: https://api.github.com
+    # Personal access token path (legacy / simple)
+    private_token: ${GITHUB_TOKEN}
+    # GitHub App authentication (preferred for multi-repo)
+    app_id: ${GITHUB_APP_ID}
+    installation_id: ${GITHUB_APP_INSTALLATION_ID}
+    private_key: ${GITHUB_APP_PRIVATE_KEY}
+    base_branch: main
+  projects:
+    - path: acme/terraform-modules
+      webhook:
+        secret: ${TERRAFORM_MODULES_WEBHOOK_SECRET}
+      overrides:
+        merge:
+          enabled: true
+          threshold: 1.8
+          strategy: squash
+          rules:
+            ci_passed: true
+            ci_strict: true
+            branch_prefixes:
+              - feature/
+              - renovate/
+        analysis:
+          max_mrs: 8
+    - path: acme/platform-api
+      overrides:
+        crews:
+          ImpactEvaluator:
+            llm:
+              model: gpt-4o
+        approval_policy:
+          threshold: 2.2
+          weights:
+            CodeAnalysis: 0.35
+            ComplexityAnalysis: 0.2
+            TestAnalysis: 0.25
+            RiskAnalysis: 0.2
+
+crews:
+  CodeAnalysis:
+    llm:
+      model: gpt-4o-mini
+  TestAnalysis:
+    llm:
+      model: gpt-4o-mini
+
+approval_policy:
+  threshold: 2.5
+  weights:
+    CodeAnalysis: 0.35
+    ComplexityAnalysis: 0.2
+    TestAnalysis: 0.25
+    RiskAnalysis: 0.2
+
+analysis:
+  max_mrs: 12
+  draft_mrs: false
+
+merge:
+  enabled: true
+  threshold: null  # falls back to approval_policy.threshold
+  strategy: repo_default
+  rules:
+    ci_passed: true
+    ci_strict: false
+    no_changes_requested: true
+    mergeable: true
+    approval_state: true
+
+telemetry:
+  enabled: true

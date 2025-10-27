@@ -13,9 +13,8 @@ from mergebot.crews import (
     RiskAnalysis,
     TestAnalysis,
 )
+from mergebot.project_registry import ProjectRuntime
 from mergebot.services import decision_service, pr_service
-from mergebot.utils import get_platform_type
-from mergebot.validator.config import get_runtime_config, runtime_config
 from mergebot.validator.logging_config import logger
 
 
@@ -136,12 +135,26 @@ def extract_pr_id(output_string):
     return None
 
 
-class MergeBotCrews(BaseModel):
-    code_analysis: Crew = Field(default_factory=lambda: CodeAnalysis().crew())
-    complexity_assessment: Crew = Field(default_factory=lambda: ComplexityAnalysis().crew())
-    test_analysis: Crew = Field(default_factory=lambda: TestAnalysis().crew())
-    risk_analysis: Crew = Field(default_factory=lambda: RiskAnalysis().crew())
-    impact_evaluator: Crew = Field(default_factory=lambda: ImpactEvaluator().crew())
+class MergeBotCrews:
+    """Container for lazily-instantiated crews tied to a specific project config."""
+
+    def __init__(self, config):
+        self._crews = {
+            "code_analysis": CodeAnalysis(config=config).crew(),
+            "complexity_assessment": ComplexityAnalysis(config=config).crew(),
+            "test_analysis": TestAnalysis(config=config).crew(),
+            "risk_analysis": RiskAnalysis(config=config).crew(),
+            "impact_evaluator": ImpactEvaluator(config=config).crew(),
+        }
+
+    def __getattr__(self, item: str) -> Crew:
+        try:
+            return self._crews[item]
+        except KeyError as exc:  # pragma: no cover - defensive
+            raise AttributeError(item) from exc
+
+    def __iter__(self):
+        return iter(self._crews.items())
 
 
 class MergeBotState(BaseModel):
@@ -181,17 +194,23 @@ class AnalysisResult(BaseModel):
 
 
 class MergeBotFlow(Flow[MergeBotState]):
+    runtime: ProjectRuntime | None = None
+
     @start()
     def initialize(self):
         logger.info("Commencing and starting the MergeBot")
-        self.crews = MergeBotCrews()
+        if self.runtime is None:
+            raise RuntimeError("MergeBotFlow runtime was not configured")
+        self.crews = MergeBotCrews(self.runtime.config)
         # The ID field is automatically available
-        logger.info(f"Flow with ID: {self.state.id} initialized")
+        logger.info(
+            f"Flow with ID: {self.state.id} for project {self.runtime.project_path} initialized"
+        )
 
     @listen(initialize)
     async def pr_retriever(self):
         """Fetches PR/MR details using service layer"""
-        details = await pr_service.get_pull_or_merge_request_details(self.state.pr_id)
+        details = await pr_service.get_pull_or_merge_request_details(self.state.pr_id, self.runtime)
         self.state.pr_details = details
 
     @listen(pr_retriever)
@@ -240,7 +259,7 @@ class MergeBotFlow(Flow[MergeBotState]):
     )
     async def impact_evaluator(self):
         """Runs the Impact Evaluator Analysis Assessment on the PR details"""
-        approval_policy = get_runtime_config(as_pydantic=True).approval_policy
+        approval_policy = self.runtime.config.approval_policy
         policy_str = approval_policy.to_markdown() if approval_policy else ""
         impact_evaluator = (
             await self.crews.impact_evaluator.kickoff_async(
@@ -266,7 +285,7 @@ class MergeBotFlow(Flow[MergeBotState]):
         approve if applicable, and auto-merge under configured guardrails.
         """
         self.state.final_decision = await decision_service.process_decision(
-            self.state.pr_id, self.state.impact_assessment
+            self.state.pr_id, self.state.impact_assessment, self.runtime
         )
 
         # Store the crew usage metrics
@@ -279,7 +298,11 @@ class MergeBotFlow(Flow[MergeBotState]):
 
 
 async def run_flow(
-    pr_url: str, pr_id: int | None = None, pr_title: str = "", project: str | None = None
+    pr_url: str,
+    pr_id: int | None = None,
+    pr_title: str = "",
+    project: str | None = None,
+    runtime: ProjectRuntime | None = None,
 ) -> AnalysisResult:
     """
     Initiates the MergeBotFlow to process a pull request (PR) or merge request (MR) URL.
@@ -293,6 +316,9 @@ async def run_flow(
     Returns:
         AnalysisResult: Validated analysis result for dashboard/tracking.
     """
+    if runtime is None:
+        raise ValueError("Project runtime must be provided to run_flow")
+
     pr_id_val = pr_id or extract_pr_id(pr_url)
     if not pr_id_val:
         raise Exception(f"Failed to extract PR/MR ID from URL: {pr_url}")
@@ -304,10 +330,8 @@ async def run_flow(
         "project": project,
     }
 
-    if project and get_platform_type() == "gitlab":
-        runtime_config.set("repository.gitlab.gitlab_repository", project)
-
     mergebot = MergeBotFlow(**inital_state)
+    mergebot.runtime = runtime
     flow_id = mergebot.flow_id
 
     logger.info(f"Initiated MergeBotFlow with Flow ID: {flow_id}")

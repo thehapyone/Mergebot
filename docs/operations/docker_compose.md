@@ -9,10 +9,11 @@ version: "3.8"
 services:
   mergebot:
     image: thehapyone/mergebot:latest
-    command: ondemand --project mygroup/myrepo
+    command: ondemand --max-concurrency 4
     volumes:
       - ./mergebot/config.yaml:/home/appuser/mergebot/config.yaml
     environment:
+      - CONFIG_PATH=/home/appuser/mergebot/config.yaml
       # GitHub App (recommended for GitHub)
       # - GITHUB_APP_ID=${GITHUB_APP_ID}
       # - GITHUB_APP_PRIVATE_KEY=${GITHUB_APP_PRIVATE_KEY}

@@ -46,3 +46,5 @@
 - Documentation-first: all context, decisions, and progress tracked in the Memory Bank and docs site
 - CI/CD integration: ondemand mode is the recommended and supported workflow for production use
 - Project-level session lock: ondemand and webhook runs acquire a dashboard-backed lock (between `MERGEBOT_SESSION_LOCK` markers) to ensure only one active session per project; heartbeat extends TTL and lock expires automatically on crash.
+- Project registry: webhook and ondemand flows apply project-scoped configuration overlays via `ProjectRegistry`, allowing a single process to service multiple repositories securely.
+- CLI `--max-concurrency` throttles how many project contexts run simultaneously in webhook and ondemand orchestrators.

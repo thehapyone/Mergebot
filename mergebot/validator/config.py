@@ -6,26 +6,43 @@ from typing import Literal
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from mergebot.validator.logging_config import logger
 
 load_dotenv()
 
 
-class LLMConfig(BaseModel):
+class StrictBaseModel(BaseModel):
+    """Base model enforcing strict schema (no extra keys)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class LLMConfig(StrictBaseModel):
     model: str = Field(..., description="LLM model to be used")
 
 
-class GitLabConfig(BaseModel):
+class WebhookProjectConfig(StrictBaseModel):
+    """
+    Webhook-specific settings for a single project entry.
+    """
+
+    secret: str | None = Field(
+        default=None,
+        description="Shared secret used to validate incoming webhook requests for this project.",
+    )
+    enabled_events: list[str] | None = Field(
+        default=None,
+        description="Optional allow-list of event names Mergebot should process for this project.",
+    )
+
+
+class GitLabConfig(StrictBaseModel):
     url: str = Field(default=os.getenv("GITLAB_URL"), description="GitLab API endpoint URL")
     private_token: str | None = Field(
         default=os.getenv("GITLAB_PERSONAL_ACCESS_TOKEN"),
         description="Private token for GitLab API authentication",
-    )
-    webhook_secret: str | None = Field(
-        default=os.getenv("GITLAB_WEBHOOK_SECRET"),
-        description="Shared secret used to validate GitLab webhooks (X-Gitlab-Token).",
     )
     base_branch: str = Field(default="main", description="Base branch for the project")
 
@@ -41,7 +58,7 @@ class GitLabConfig(BaseModel):
 
 
 # GitHub configuration mirrors GitLab but for GitHub REST API
-class GitHubConfig(BaseModel):
+class GitHubConfig(StrictBaseModel):
     """
     GitHub authentication supports **either** a Personal Access Token
     or a GitHub App (App ID + private key, with optional installation_id).
@@ -69,10 +86,6 @@ class GitHubConfig(BaseModel):
         default=os.getenv("GITHUB_APP_PRIVATE_KEY"),
         description="The raw PEM string for the GitHub App private key",
     )
-    webhook_secret: str | None = Field(
-        default=os.getenv("GITHUB_WEBHOOK_SECRET"),
-        description="Shared secret used to validate GitHub webhook signatures.",
-    )
 
     base_branch: str = Field(default="main", description="Base branch for the project")
 
@@ -91,34 +104,11 @@ class GitHubConfig(BaseModel):
         return self
 
 
-class RepositoryConfig(BaseModel):
-    type: str = Field(..., description="Repository type, either 'gitlab' or 'github'")
-    gitlab: GitLabConfig | None = None
-    github: GitHubConfig | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_repository_settings(cls, values: dict) -> dict:
-        repo_type = values.get("type")
-        gitlab_config = values.get("gitlab")
-        github_config = values.get("github")
-
-        if repo_type == "gitlab" and not gitlab_config:
-            raise ValueError(
-                "GitLab configuration must be provided when repository type is 'gitlab'"
-            )
-        if repo_type == "github" and not github_config:
-            raise ValueError(
-                "GitHub configuration must be provided when repository type is 'github'"
-            )
-        return values
-
-
-class CrewConfig(BaseModel):
+class CrewConfig(StrictBaseModel):
     llm: LLMConfig | None = None
 
 
-class ApprovalPolicy(BaseModel):
+class ApprovalPolicy(StrictBaseModel):
     """
     Represents the policy for approving changes based on weighted scores of various agents.
 
@@ -172,7 +162,7 @@ class ApprovalPolicy(BaseModel):
         )
 
 
-class AnalysisConfig(BaseModel):
+class AnalysisConfig(StrictBaseModel):
     max_mrs: int | None = Field(
         default=None,
         description="Maximum number of merge requests to analyze at a time. 0 or None means unlimited.",
@@ -183,11 +173,11 @@ class AnalysisConfig(BaseModel):
     )
 
 
-class TelemetryConfig(BaseModel):
+class TelemetryConfig(StrictBaseModel):
     enabled: bool = Field(default=False, description="Enable full telemetry via OpenTelemetry")
 
 
-class MergeRules(BaseModel):
+class MergeRules(StrictBaseModel):
     """
     Gate conditions evaluated before performing an auto-merge.
     All set to True by default (strict/safe).
@@ -213,7 +203,7 @@ class MergeRules(BaseModel):
     )
 
 
-class MergeConfig(BaseModel):
+class MergeConfig(StrictBaseModel):
     """
     Auto-merge configuration.
     - enabled: Explicit opt-in to allow Mergebot to merge.
@@ -236,7 +226,74 @@ class MergeConfig(BaseModel):
     )
 
 
-class Config(BaseModel):
+class ProjectConfigOverrides(StrictBaseModel):
+    """
+    Represents per-project configuration overrides used in multi-project deployments.
+    Any unset field falls back to the global configuration.
+    """
+
+    crews: dict[str, "CrewConfig"] | None = Field(
+        default=None, description="Optional crew overrides scoped to this project."
+    )
+    approval_policy: ApprovalPolicy | None = Field(
+        default=None, description="Optional approval policy overrides for this project."
+    )
+    analysis: AnalysisConfig | None = Field(
+        default=None, description="Optional analysis overrides for this project."
+    )
+    merge: MergeConfig | None = Field(
+        default=None,
+        description="Optional merge configuration overrides for this project.",
+    )
+
+
+class ProjectDefinition(StrictBaseModel):
+    """Defines a single repository serviced by Mergebot."""
+
+    path: str = Field(
+        ...,
+        description="Repository path (e.g., 'group/project' for GitLab or 'owner/repo' for GitHub).",
+    )
+    webhook: WebhookProjectConfig | None = Field(
+        default=None, description="Webhook-related settings for this project."
+    )
+    overrides: ProjectConfigOverrides | None = Field(
+        default=None,
+        description="Optional configuration overrides applied on top of global defaults for this project.",
+    )
+
+
+class RepositoryConfig(StrictBaseModel):
+    type: str = Field(..., description="Repository type, either 'gitlab' or 'github'")
+    gitlab: GitLabConfig | None = None
+    github: GitHubConfig | None = None
+    projects: list[ProjectDefinition] = Field(
+        default_factory=list,
+        description="List of repositories serviced by this Mergebot instance.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_repository_settings(cls, values: dict) -> dict:
+        repo_type = values.get("type")
+        gitlab_config = values.get("gitlab")
+        github_config = values.get("github")
+
+        if repo_type == "gitlab" and not gitlab_config:
+            raise ValueError(
+                "GitLab configuration must be provided when repository type is 'gitlab'"
+            )
+        if repo_type == "github" and not github_config:
+            raise ValueError(
+                "GitHub configuration must be provided when repository type is 'github'"
+            )
+        projects = values.get("projects") or []
+        if not isinstance(projects, list):
+            raise ValueError("repository.projects must be a list of project definitions")
+        return values
+
+
+class Config(StrictBaseModel):
     llm: LLMConfig = Field(..., description="Global configurations")
     repository: RepositoryConfig = Field(..., description="Repository configuration")
     crews: dict[str, CrewConfig] | None = Field(None, description="Crew configurations")
@@ -254,126 +311,32 @@ class Config(BaseModel):
             return self.llm.model
 
 
-class RuntimeConfig:
-    """
-    In-memory, mutable runtime config that overlays changes on top of the default config.
-    Allows arbitrary updates, including new keys not present in the default schema.
-    Changes are not persisted.
-    """
+def load_config_dict(config_path: str | None = None) -> dict:
+    """Load the base configuration dictionary from disk."""
 
-    def __init__(self, base_config: dict):
-        self._default = dict(base_config)  # shallow copy is enough if we never mutate
-        self._runtime = {}
-
-    def set(self, key_path: str, value):
-        """Set a value at a dot-separated key path (supports nested and new keys)."""
-        keys = key_path.split(".")
-        d = self._runtime
-        for k in keys[:-1]:
-            d = d.setdefault(k, {})
-        d[keys[-1]] = value
-
-    def set_many(self, updates: dict):
-        """
-        Set multiple key paths at once, or recursively merge nested dicts.
-        If a value is a dict and the key exists, perform a deep merge.
-        """
-
-        def deep_merge_dict(d, u):
-            for k, v in u.items():
-                if isinstance(v, dict) and isinstance(d.get(k), dict):
-                    d[k] = deep_merge_dict(d.get(k, {}), v)
-                else:
-                    d[k] = v
-            return d
-
-        for key_path, value in updates.items():
-            keys = key_path.split(".")
-            d = self._runtime
-            for k in keys[:-1]:
-                d = d.setdefault(k, {})
-            if isinstance(value, dict) and isinstance(d.get(keys[-1]), dict):
-                d[keys[-1]] = deep_merge_dict(d.get(keys[-1], {}), value)
-            else:
-                d[keys[-1]] = value
-
-    def get(self, key_path: str, default=None):
-        """Get a value from the runtime config, falling back to default config."""
-        keys = key_path.split(".")
-        d = self._runtime
-        for k in keys[:-1]:
-            d = d.get(k, {})
-        if keys[-1] in d:
-            return d[keys[-1]]
-        # Fallback to default
-        d = self._default
-        for k in keys[:-1]:
-            d = d.get(k, {})
-        return d.get(keys[-1], default)
-
-    def delete(self, key_path: str):
-        """Delete a key from the runtime config only."""
-        keys = key_path.split(".")
-        d = self._runtime
-        for k in keys[:-1]:
-            d = d.get(k, {})
-        d.pop(keys[-1], None)
-
-    def reset(self):
-        """Reset all runtime changes."""
-        self._runtime = {}
-
-    def get_config(self):
-        """Return a merged dict of default config overlaid with runtime changes."""
-
-        def merge(a, b):
-            # Simple recursive merge: b has priority
-            if not isinstance(a, dict) or not isinstance(b, dict):
-                return b
-            result = dict(a)
-            for k, v in b.items():
-                if k in result and isinstance(result[k], dict) and isinstance(v, dict):
-                    result[k] = merge(result[k], v)
-                else:
-                    result[k] = v
-            return result
-
-        return merge(self._default, self._runtime)
-
-    def as_dict(self):
-        """Alias for get_config()."""
-        return self.get_config()
-
-    def validate(self):
-        """Validate the current runtime config against the Pydantic schema. Raises ValidationError if invalid."""
-        Config(**self.get_config())
-
-
-def _load_config_dict_from_disk():
-    """Internal helper to load the config dict from disk (config.yaml or CONFIG_PATH)."""
-    config_path = os.getenv("CONFIG_PATH", "config.yaml")
+    resolved_path = config_path or os.getenv("CONFIG_PATH", "config.yaml")
     try:
-        with open(config_path) as f:
+        with open(resolved_path) as f:
             config_dict = yaml.safe_load(f)
     except FileNotFoundError:
-        logger.error(f"Configuration file not found at {config_path}.")
+        logger.error(f"Configuration file not found at {resolved_path}.")
         sys.exit(1)
     except yaml.YAMLError as e:
         logger.error(f"Error parsing YAML: {e}")
         sys.exit(1)
+
+    if config_dict is None:
+        logger.error("Configuration file is empty.")
+        sys.exit(1)
+
+    if not isinstance(config_dict, dict):
+        logger.error("Configuration root must be a mapping/dictionary.")
+        sys.exit(1)
+
     return config_dict
 
 
-# Initialize the runtime config singleton
-runtime_config = RuntimeConfig(_load_config_dict_from_disk())
+def load_config(config_path: str | None = None) -> Config:
+    """Load and validate the base configuration from disk."""
 
-
-def get_runtime_config(as_pydantic: bool = False):
-    """
-    Returns the current runtime config as a dict (merged view).
-    If as_pydantic is True, returns a Config object (validates against schema).
-    """
-    merged = runtime_config.get_config()
-    if as_pydantic:
-        return Config(**merged)
-    return merged
+    return Config(**load_config_dict(config_path))

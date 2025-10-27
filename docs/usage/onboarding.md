@@ -28,7 +28,7 @@ When Mergebot starts (in any mode), it performs the following steps:
 
 ### 2. **If `.mergebot.yml` Exists and is Valid**
 
-- The YAML is parsed and merged into the runtime/server config.
+- The YAML is parsed and merged into the per-project runtime configuration that Mergebot builds before invoking downstream services.
 - The merged config is validated against the schema.
 - If valid, Mergebot proceeds with its normal operation.
 
