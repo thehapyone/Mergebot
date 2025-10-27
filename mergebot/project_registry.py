@@ -167,15 +167,7 @@ class ProjectRegistry:
         ## Remove projects from config
         base_dump.get("repository", {}).pop("projects", None)
 
-        ## Convert project overrides to dict if available
-        overrides_dump = (
-            definition.overrides.model_dump(mode="python", exclude_none=True)
-            if definition.overrides
-            else {}
-        )
-        merged_dict = _merge_dicts(base_dump, overrides_dump)
-
-        merged_config = Config(**merged_dict)
+        merged_config = Config(**base_dump)
         context = ProjectContext(
             project_path=project_id,
             config=merged_config,
