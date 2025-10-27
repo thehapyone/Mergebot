@@ -202,10 +202,6 @@ class MergeBotFlow(Flow[MergeBotState]):
         if self.runtime is None:
             raise RuntimeError("MergeBotFlow runtime was not configured")
         self.crews = MergeBotCrews(self.runtime.config)
-        # The ID field is automatically available
-        logger.info(
-            f"Flow with ID: {self.state.id} for project {self.runtime.project_path} initialized"
-        )
 
     @listen(initialize)
     async def pr_retriever(self):
@@ -334,7 +330,9 @@ async def run_flow(
     mergebot.runtime = runtime
     flow_id = mergebot.flow_id
 
-    logger.info(f"Initiated MergeBotFlow with Flow ID: {flow_id}")
+    logger.info(
+        f"Initiated MergeBotFlow with Flow ID: {flow_id} for project {runtime.project_path}"
+    )
 
     await mergebot.kickoff_async()
 
