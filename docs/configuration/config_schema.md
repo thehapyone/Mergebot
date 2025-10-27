@@ -68,13 +68,23 @@ analysis:
 
 ## LLM Configuration
 
-Mergebot uses [LiteLLM](https://docs.litellm.ai/docs/) to support a wide range of providers. In the Mergebot config you only specify the model name; LiteLLM picks the provider based on which API keys are present in the environment.
+Mergebot uses [LiteLLM](https://docs.litellm.ai/docs/) to support a wide range of providers. In the Mergebot config you specify the **provider-prefixed model name** (`provider/model`). LiteLLM uses the provider prefix to route the request and the API keys defined in your environment.
+
+Common examples:
+
+| Provider | Example model string |
+| -------- | -------------------- |
+| OpenAI   | `openai/gpt-4o-mini` |
+| Azure OpenAI | `azure/gpt-4o` |
+| Anthropic | `anthropic/claude-3-opus-20240229` |
+| Google (Gemini) | `google/gemini-1.5-pro` |
+| Ollama / local models | `ollama/llama3` |
 
 **Global LLM:**
 
 ```yaml
 llm:
-  model: gpt-4o-mini
+  model: openai/gpt-4o-mini
 ```
 
 **Per-crew LLM override:**
@@ -83,13 +93,13 @@ llm:
 crews:
   CodeAnalysis:
     llm:
-      model: gpt-4.1-mini
+      model: openai/gpt-4.1-mini
   ComplexityAnalysis:
     llm:
-      model: claude-3-opus-20240229
+      model: anthropic/claude-3-opus-20240229
   TestAnalysis:
     llm:
-      model: gemini-1.5-pro
+      model: google/gemini-1.5-pro
 ```
 
 If a crew does not specify an LLM, it will use the global model.
