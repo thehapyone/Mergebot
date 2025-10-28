@@ -1,3 +1,12 @@
+"""
+Ondemand runner utilities for scanning open PRs/MRs, running analysis crews, and updating the dashboard.
+
+This module provides:
+- skip_draft_pr: helper to filter out draft/WIP PRs/MRs.
+- OndemandRunner: runs analysis for a single project.
+- OndemandOrchestrator: coordinates runs across multiple projects with concurrency limits.
+"""
+
 import asyncio
 import sys
 import time
@@ -6,8 +15,8 @@ from mergebot.dashboard.dashboard_manager import DashboardManager
 from mergebot.dashboard.dedupe import dedupe_mr_rows, dedupe_prs_by_id
 from mergebot.dashboard.session_lock import SessionLockCoordinator
 from mergebot.flow import run_flow
-from mergebot.utils import get_platform_type
-from mergebot.validator.config import get_runtime_config
+from mergebot.project_registry import ProjectContext, ProjectRegistry, ProjectRuntime
+from mergebot.validator.config_manager import EnsureRepoConfigError, ensure_repo_config
 from mergebot.validator.logging_config import logger
 
 
@@ -46,19 +55,19 @@ def skip_draft_pr(pr, draft_prs_enabled: bool) -> bool:
 
 
 class OndemandRunner:
-    def __init__(self, project: str, workers: int = 4):
-        """
-        OndemandRunner manages the dashboard update process for MergeBot,
-        supporting parallel analysis of multiple pull or merge requests.
+    """
+    Orchestrates analysis of open PRs/MRs for a single project and updates the dashboard.
+    """
 
-        Args:
-            project (str): The GitLab project/repository path.
-            workers (int): Number of parallel workers for PR/MR analysis.
+    def __init__(self, runtime: ProjectRuntime, workers: int = 4):
         """
-        self.platform_type = get_platform_type()
-        self.project = project
+        Handles dashboard updates for a single project context.
+        """
+        self.runtime = runtime
+        self.context = runtime.context
+        self.project_identifier = self.context.repository_identifier
+        self.platform_type = self.context.platform_type
         self.workers = workers
-        self.dashboard_manager = DashboardManager(self.platform_type)
         self.pr_id_attr = "iid" if self.platform_type == "gitlab" else "number"
 
     async def run_once(self):  # noqa: PLR0912, PLR0915
@@ -67,22 +76,23 @@ class OndemandRunner:
         """
         logger.info("[Ondemand] Running dashboard scan and update (one-shot)")
         # Acquire project-level session lock to prevent concurrent sessions across instances
-        lock = SessionLockCoordinator(self.dashboard_manager)
+        dashboard_manager = DashboardManager(self.runtime)
+        lock = SessionLockCoordinator(dashboard_manager)
         if not await lock.try_acquire():
             logger.info("[Ondemand] Skipping run: session lock is held by another instance.")
             return
         lock.start_heartbeat()
 
-        dashboard = self.dashboard_manager.get_or_create_dashboard()
-        _, open_pr_iids = self.dashboard_manager.get_open_prs()
+        dashboard = dashboard_manager.get_or_create_dashboard()
+        _, open_pr_iids = dashboard_manager.get_open_prs()
 
         # Parse Dashboard
-        dashboard_data = self.dashboard_manager.parse_dashboard(dashboard["body"])
+        dashboard_data = dashboard_manager.parse_dashboard(dashboard["body"])
         rerun_requests = set(dashboard_data["rerun_requests"])
         tracked_prs = set(dashboard_data["tracked_prs"])
 
         # Get runtime config, which may include overrides for this run
-        config = get_runtime_config(as_pydantic=True)
+        config = self.runtime.config
         draft_prs_enabled = config.analysis.draft_mrs if config.analysis else False
 
         # Compute helper sets for selection
@@ -90,7 +100,7 @@ class OndemandRunner:
         tracked_open_ids = set(tracked_prs).intersection(open_ids)
 
         # Parse previous rows to detect missing/incomplete analyses
-        prior_rows = self.dashboard_manager.parse_active_prs_table(dashboard["body"])
+        prior_rows = dashboard_manager.parse_active_prs_table(dashboard["body"])
         pending_analysis_ids = set()
         for pr_id, row in prior_rows.items():
             last_reviewed = (row.get("last_reviewed") or "").strip()
@@ -143,6 +153,12 @@ class OndemandRunner:
         analyzed_iids = set()
 
         async def analyze_pr(pr, semaphore):
+            """
+            Analyze a single PR/MR using the flow pipeline, returning a tuple of (pr_id, result dict).
+
+            The result dict contains status, impact_score, recommendation, last_reviewed, analysis_link,
+            web_url, usage_metrics, duration, and error (if any).
+            """
             async with semaphore:
                 # Consolidate attribute extraction for both platforms
                 pr_id = getattr(pr, "iid", getattr(pr, "number", "<unknown>"))
@@ -156,7 +172,8 @@ class OndemandRunner:
                         pr_url,
                         pr_id=pr_id,
                         pr_title=pr_title,
-                        project=self.project,
+                        project=self.project_identifier,
+                        runtime=self.runtime,
                     )
                     # Usage metrics for token aggregation
                     result = {
@@ -287,7 +304,7 @@ class OndemandRunner:
         ]
 
         pr_ref_prefix = "!" if self.platform_type == "gitlab" else "#"
-        self.dashboard_manager.update_dashboard(
+        dashboard_manager.update_dashboard(
             mr_data=analysis_results,
             rerun_requests=remaining_rerun_requests,
             action_log=[
@@ -315,4 +332,65 @@ class OndemandRunner:
         logger.info(f"[Ondemand] Running dashboard scan every {interval} seconds")
         while True:
             await self.run_once()
+            await asyncio.sleep(interval)
+
+
+class OndemandOrchestrator:
+    """Coordinates ondemand runs across all configured projects."""
+
+    def __init__(self, workers: int = 4, max_concurrency: int = 1):
+        self.registry = ProjectRegistry()
+        self.contexts = [self.registry.resolve(pid) for pid in self.registry.list_project_ids()]
+        self.workers = workers
+        self.max_concurrency = max(1, max_concurrency)
+
+    async def _run_project(self, context: ProjectContext, semaphore: asyncio.Semaphore):
+        """
+        Run the ondemand analysis for a single project context under concurrency control.
+
+        Ensures repository configuration is present, applies context to the runtime, and delegates
+        the analysis/update to an OndemandRunner instance.
+        """
+        async with semaphore:
+            try:
+                runtime = await asyncio.to_thread(ensure_repo_config, context)
+            except EnsureRepoConfigError as exc:
+                logger.error(
+                    "[Ondemand] Skipping project %s: %s",
+                    context.project_path,
+                    str(exc),
+                )
+                return
+            runner = OndemandRunner(runtime=runtime, workers=self.workers)
+            await runner.run_once()
+
+    async def run_once(self):
+        """
+        Execute a single ondemand scan across all registered projects, honoring max_concurrency.
+        """
+        total_projects = len(self.contexts)
+        logger.info(
+            "[Ondemand] Dispatching %d project(s) with max concurrency %d.",
+            total_projects,
+            self.max_concurrency,
+        )
+        semaphore = asyncio.Semaphore(self.max_concurrency)
+        await asyncio.gather(*(self._run_project(context, semaphore) for context in self.contexts))
+
+    async def run_periodic(self, interval: int):
+        """
+        Periodically execute ondemand scans across all registered projects at the given interval (seconds).
+        """
+        logger.info("[Ondemand] Running dashboard scans every %s seconds", interval)
+        while True:
+            total_projects = len(self.contexts)
+            logger.info(
+                "[Ondemand] Dispatching %d project(s) with max concurrency %d.",
+                total_projects,
+                self.max_concurrency,
+            )
+            semaphore = asyncio.Semaphore(self.max_concurrency)
+            await asyncio.gather(
+                *(self._run_project(context, semaphore) for context in self.contexts)
+            )
             await asyncio.sleep(interval)

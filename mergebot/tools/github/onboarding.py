@@ -14,7 +14,7 @@ class GitHubOnboardingManager(OnboardingManagerBase):
     @property
     def api_wrapper(self):
         if self._api_wrapper is None:
-            self._api_wrapper = GitHubAPIWrapper()
+            self._api_wrapper = GitHubAPIWrapper(config=self.config, project_path=self.project_path)
         return self._api_wrapper
 
     def onboarding_pr_exists(self):

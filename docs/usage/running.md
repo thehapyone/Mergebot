@@ -52,6 +52,14 @@ Stay tuned for release updates!
   Useful for scripting, advanced workflows, or debugging.
   See [CLI Reference](cli_reference.md) for full details.
 
+### Multi-Project Operation
+
+- Define repositories under `repository.projects` (see [Configuration Schema](../configuration/config_schema.md#multi-project-configuration-optional)). Each entry specifies the repository `path`, an optional `webhook.secret`, and any overrides.
+- The webhook server automatically dispatches events based on the repository identifier in the payload and enforces per-project secrets.
+- Ondemand mode fans out across the same project list; use `--max-concurrency` to control how many repositories are processed simultaneously.
+- Each ondemand sweep logs the number of projects discovered and the effective concurrency cap, and offloads `.mergebot.yml` loading to a background thread to keep the async runners responsive.
+- CLI flags no longer require `--project`; configuration is the single source of truth.
+
 ## Project Session Lock
 
 To prevent duplicate analysis/comments across multiple Mergebot instances for the same repository, Mergebot uses a project-level session lock:

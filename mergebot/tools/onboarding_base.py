@@ -1,9 +1,10 @@
 import base64
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from mergebot.tools.api_base import PullRequestAPIBase
+from mergebot.validator.config import Config
 
 
 class InvalidMergebotYAMLError(Exception):
@@ -15,11 +16,15 @@ class OnboardingManagerBase(BaseModel):
     Abstract base class for unified onboarding managers.
     """
 
+    config: Config
+    project_path: str
     _api_wrapper: PullRequestAPIBase | None = None
     vcs: str = ""
     config_file: str = ".mergebot.yml"
     pr_title: str = "chore: configure .mergebot.yml"
     onboarding_branch: str = "mergebot/onboarding"
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
 
     @staticmethod
     def pr_description() -> str:

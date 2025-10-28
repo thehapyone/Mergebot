@@ -7,7 +7,7 @@ approving requests, and obtaining pipeline status.
 Key Components:
 
 - BaseVCSTool: Abstract base class to provide lazy instantiation of platform-specific API wrappers
-  (GitHubAPIWrapper or GitlabAPIWrapper), based on the current platform as returned by get_platform_type().
+  (GitHubAPIWrapper or GitlabAPIWrapper) using the supplied project runtime context.
 - PRToolSchema, PullRequestCommentToolSchema, PullRequestApprovalToolSchema, PipelineToolSchema:
   Pydantic models defining expected arguments for corresponding tools.
 - PullRequestTool: Retrieves pull or merge request details.
@@ -22,8 +22,9 @@ tool are imported from mergebot.tools.prompts and each exposes a _run method for
 from typing import Any
 
 from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
+from mergebot.project_registry import ProjectRuntime
 from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.tools.prompts import (
@@ -34,13 +35,14 @@ from mergebot.tools.prompts import (
     MERGE_PULL_REQUEST_PROMPT,
     POST_PULL_REQUEST_COMMENT_PROMPT,
 )
-from mergebot.utils import get_platform_type
 
 
 class BaseVCSTool(BaseTool):
-    """Base class for all GitHub and gitlab tools with common functionality."""
+    """Base class for all GitHub and GitLab tools with common functionality."""
 
-    _api_wrapper: GitHubAPIWrapper | GitlabAPIWrapper = None
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    runtime: ProjectRuntime
+    _api_wrapper: GitHubAPIWrapper | GitlabAPIWrapper | None = None
 
     @property
     def api_wrapper(self) -> GitHubAPIWrapper | GitlabAPIWrapper:
@@ -48,7 +50,7 @@ class BaseVCSTool(BaseTool):
         Returns the appropriate API wrapper instance for the configured platform.
 
         Lazily instantiates the API wrapper for either GitHub or GitLab,
-        depending on the platform type returned by get_platform_type().
+        based on the project runtime's platform type.
         If the platform is not supported, raises a ValueError.
 
         Returns:
@@ -58,11 +60,17 @@ class BaseVCSTool(BaseTool):
             ValueError: If the returned platform type is not supported.
         """
         if self._api_wrapper is None:
-            platform_type = get_platform_type()
+            platform_type = self.runtime.platform_type
             if platform_type == "github":
-                self._api_wrapper = GitHubAPIWrapper()
+                self._api_wrapper = GitHubAPIWrapper(
+                    config=self.runtime.config,
+                    project_path=self.runtime.project_path,
+                )
             elif platform_type == "gitlab":
-                self._api_wrapper = GitlabAPIWrapper()
+                self._api_wrapper = GitlabAPIWrapper(
+                    config=self.runtime.config,
+                    project_path=self.runtime.project_path,
+                )
             else:
                 raise ValueError(f"Unsupported platform type: {platform_type}")
         return self._api_wrapper

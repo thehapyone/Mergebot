@@ -6,11 +6,13 @@
 .gitignore
 docs
 tests
-.Makefile
+Makefile
 LICENSE
 requirements.txt
 .github/
 examples/
+memory-bank/
+site/
 
 # Ignore all log files and temporary files
 *.log
@@ -24,6 +26,10 @@ tmp/
 .coverage
 .env.sample
 coverage.xml
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+logs.txt
 
 ## Sage data dir
 data
@@ -42,6 +48,7 @@ docker-compose.yml
 **/*.env
 docker
 **/*config.yaml
+example-config-*.yaml
 *.pem
 
 # Ignore the virtual environment directory

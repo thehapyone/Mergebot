@@ -1,6 +1,7 @@
 import re
 from typing import Any
 
+from mergebot.project_registry import ProjectRuntime
 from mergebot.services.common import ServiceError, async_retry
 from mergebot.tools.common import (
     GetPullRequestStatusTool,
@@ -99,13 +100,13 @@ def evaluate_rules(
 
 
 @async_retry(max_attempts=2, base_delay=1.0, factor=2.0, max_delay=8.0, jitter=0.5)
-async def get_status(pr_number: int) -> dict[str, Any]:
+async def get_status(pr_number: int, runtime: ProjectRuntime) -> dict[str, Any]:
     """
     Fetch a structured PR/MR status for pre-merge decision making.
     """
     logger.info(f"Fetching PR/MR structured status for #{pr_number}")
     try:
-        result = GetPullRequestStatusTool().run(pr_number=pr_number)
+        result = GetPullRequestStatusTool(runtime=runtime).run(pr_number=pr_number)
         return _ensure_dict_response(result)
     except ServiceError:
         raise
@@ -114,14 +115,16 @@ async def get_status(pr_number: int) -> dict[str, Any]:
 
 
 @async_retry(max_attempts=2, base_delay=1.0, factor=2.0, max_delay=8.0, jitter=0.5)
-async def merge_change(pr_number: int, strategy: str = "repo_default") -> str:
+async def merge_change(
+    pr_number: int, runtime: ProjectRuntime, strategy: str = "repo_default"
+) -> str:
     """
     Perform the merge operation using the underlying platform.
     """
     logger.info(f"Merging change for #{pr_number} with strategy={strategy}")
     try:
         text = _ensure_text_response(
-            MergePullOrMergeRequestTool().run(pr_number=pr_number, strategy=strategy)
+            MergePullOrMergeRequestTool(runtime=runtime).run(pr_number=pr_number, strategy=strategy)
         )
         return text
     except ServiceError:

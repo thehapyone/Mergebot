@@ -2,11 +2,12 @@ import re
 from datetime import datetime
 from functools import cache
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from jinja2 import Template
 
 from mergebot.dashboard.dedupe import stats_quality_key
+from mergebot.project_registry import ProjectRuntime
 from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 
@@ -33,18 +34,16 @@ class DashboardManager:
     VCS Agnostic Dashboard manager (supports PR/MR).
     """
 
-    def __init__(
-        self,
-        platform_type: Literal["gitlab", "github"],
-    ):
-        if platform_type == "gitlab":
-            self.api = GitlabAPIWrapper()
-        elif platform_type == "github":
-            self.api = GitHubAPIWrapper()
+    def __init__(self, runtime: ProjectRuntime):
+        self.runtime = runtime
+        if runtime.platform_type == "gitlab":
+            self.api = GitlabAPIWrapper(config=runtime.config, project_path=runtime.project_path)
+        elif runtime.platform_type == "github":
+            self.api = GitHubAPIWrapper(config=runtime.config, project_path=runtime.project_path)
         else:
-            raise ValueError(f"Unsupported VCS: {platform_type}")
+            raise ValueError(f"Unsupported VCS: {runtime.platform_type}")
 
-        self.platform_type = platform_type
+        self.platform_type = runtime.platform_type
         self.dashboard_title: str = "🛠️ Mergebot Project Dashboard"
 
     def get_open_prs(self):

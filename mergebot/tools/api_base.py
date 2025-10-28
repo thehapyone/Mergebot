@@ -2,12 +2,16 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from mergebot.validator.config import Config
+
 
 class PullRequestAPIBase(BaseModel):
     """
     Base class for unified pull/merge request API wrappers.
     """
 
+    config: Config
+    project_path: str
     ## GitHub-specific attributes
     github: Any = None
     github_repo_instance: Any = None
@@ -26,7 +30,7 @@ class PullRequestAPIBase(BaseModel):
     gitlab_branch: str | None = None
     gitlab_base_branch: str | None = None
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     def validate_gitlab(self):
         """

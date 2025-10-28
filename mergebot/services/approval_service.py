@@ -1,5 +1,6 @@
 import re
 
+from mergebot.project_registry import ProjectRuntime
 from mergebot.services.common import ServiceError, async_retry
 from mergebot.tools.common import ApprovePullOrMergeRequestTool, PostCommentTool
 from mergebot.validator.logging_config import logger
@@ -54,14 +55,16 @@ def sanitize_comment_body(body: str) -> str:
 
 
 @async_retry(max_attempts=2, base_delay=1.0, factor=2.0, max_delay=8.0, jitter=0.5)
-async def post_comment(pr_number: int, body: str) -> str:
+async def post_comment(pr_number: int, body: str, runtime: ProjectRuntime) -> str:
     """
     Post a general comment to PR/MR. Returns the permalink URL if available, else empty string.
     """
     logger.info(f"Posting comment on #{pr_number}")
     try:
         safe_body = sanitize_comment_body(body)
-        text = _ensure_text_response(PostCommentTool().run(pr_number=pr_number, message=safe_body))
+        text = _ensure_text_response(
+            PostCommentTool(runtime=runtime).run(pr_number=pr_number, message=safe_body)
+        )
         return _extract_url(text)
     except ServiceError:
         raise
@@ -70,13 +73,15 @@ async def post_comment(pr_number: int, body: str) -> str:
 
 
 @async_retry(max_attempts=2, base_delay=1.0, factor=2.0, max_delay=8.0, jitter=0.5)
-async def approve_change(pr_number: int) -> str:
+async def approve_change(pr_number: int, runtime: ProjectRuntime) -> str:
     """
     Approve the PR/MR. Returns response text; URL may be embedded for GitHub.
     """
     logger.info(f"Approving change for #{pr_number}")
     try:
-        text = _ensure_text_response(ApprovePullOrMergeRequestTool().run(pr_number=pr_number))
+        text = _ensure_text_response(
+            ApprovePullOrMergeRequestTool(runtime=runtime).run(pr_number=pr_number)
+        )
         return text
     except ServiceError:
         raise

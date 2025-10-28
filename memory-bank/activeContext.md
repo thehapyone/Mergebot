@@ -1,5 +1,15 @@
 # Active Context
 
+## Recent Changes (2025-10-14): Multi-Project Dispatch Foundation
+
+- **New capability:** Webhook mode now supports multi-project dispatch driven by a new `ProjectRegistry`. Incoming events are routed by repository identifier, validated with project-specific secrets, and deduplicated per project/PR before invoking the flow.
+- **Runtime isolation:** Each dispatched job now builds a `ProjectRuntime` capsule containing the merged config and passes it explicitly to services, ensuring API clients, dashboard locks, and telemetry stay per-project without touching shared globals.
+- **Ondemand alignment:** `OndemandRunner` now consumes `ProjectContext` and an `OndemandOrchestrator` manages fan-out with configurable `--max-concurrency`, keeping runtime hydration consistent across repositories.
+- **Concurrency polish:** Repo-config hydration is executed via `asyncio.to_thread` so concurrent ondemand runs aren’t blocked while fetching `.mergebot.yml`, and dispatch logs now surface how many projects are queued versus the current concurrency cap.
+- **Graceful config failures:** `ensure_repo_config` now raises structured errors that orchestrators catch, so a single misconfigured project no longer terminates multi-project ondemand or webhook runs—affected repositories are logged and skipped instead.
+- **Configuration:** Global config schema now defines `repository.projects`, letting each entry specify a repo path, nested `webhook.secret`, and optional overrides for merge policy, analysis limits, telemetry, etc. Docs highlight the structure and explain the removal of CLI `--project` flags.
+- **Documentation:** CLI, running guide, sample configs, and Docker notes updated to describe single vs multi-project operation and security considerations.
+
 ## Recent Changes (2025-10-13): Dashboard Token Usage Analytics
 
 - **New feature:** The Mergebot dashboard now displays "Total Tokens Used" in the Analytics section, tracking aggregate LLM usage across all PR/MR analyses in a run. A per-crew breakdown is also provided.

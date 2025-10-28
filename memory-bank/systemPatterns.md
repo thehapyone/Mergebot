@@ -18,6 +18,8 @@ Mergebot is designed as a modular, extensible system for automated pull or merge
 - GitHub and GitLab as primary VCS integration targets, with roadmap for additional VCS support
 - LiteLLM as the LLM abstraction layer for multi-provider support
 - Documentation-first workflow using the Memory Bank and MkDocs Material
+- Webhook service authenticates GitLab tokens and GitHub HMAC signatures using config-driven secrets, deduplicating in-flight analyses per PR/MR URL.
+- Project registry overlays merge global configuration with per-project overrides so a single Mergebot instance can manage multiple repositories without redeploying.
 
 ## Design Patterns in Use
 - **Modular Plugin Pattern**: Each crew is a self-contained module with a defined interface.
@@ -28,6 +30,9 @@ Mergebot is designed as a modular, extensible system for automated pull or merge
 - **Configuration-Driven Behavior**: System behavior and crew activation are controlled via configuration files, supporting global and per-crew LLM settings.
 - **Audit Logging**: All actions and decisions are logged for traceability.
 - **Environment Variable Best Practices**: All sensitive credentials (LLM API keys, GitLab tokens) are managed via environment variables.
+- **Orchestrated Fan-Out**: Webhook and ondemand modes share a dispatcher that maps events to `ProjectContext` instances and controls concurrency via semaphores, enabling safe multi-project execution.
+- **Per-Project Runtime Capsules**: Each analysis builds a dedicated `ProjectRuntime` instance that carries the merged config, credentials, and identifiers for a repository, and is passed explicitly to downstream services to avoid shared global state.
+- **Non-Blocking Config Hydration**: Repository configuration lookups run in a thread pool via `asyncio.to_thread`, keeping the async orchestration loop responsive even when `.mergebot.yml` needs to be fetched or validated per project.
 
 ## Component Relationships
 - The core engine invokes crews in a configurable sequence for each PR/MR.
@@ -36,6 +41,7 @@ Mergebot is designed as a modular, extensible system for automated pull or merge
 - The `GetPipelineDetailsTool` enables direct retrieval of pipeline/run details for either platform, in CLI, API, and automation.
 - Crews operate independently but may share context via the Memory Bank.
 - The unified DashboardManager aggregates and displays results from all crews and system actions, using normalized PR/MR data for both GitHub and GitLab.
+- `ProjectRegistry` mediates between global configuration and per-project overrides, supplying `ProjectContext` objects to both webhook dispatchers and ondemand runners so each analysis operates with the correct credentials, secrets, and merge policy.
 - Documentation and onboarding are tightly integrated with the system for rapid adoption.
 
 ## Critical Implementation Paths

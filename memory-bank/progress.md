@@ -13,6 +13,9 @@
   - Default TTL is 10 minutes (600s) with heartbeat refresh (~200s) while a run is active.
   - Both ondemand and webhook-triggered runs acquire the same project-scoped lock, preventing concurrent sessions across instances.
   - Layout normalization ensures only one “Active Session” header; the lock updater only replaces the content between markers.
+- Webhook mode now supports multi-project dispatch via a `ProjectRegistry` that merges per-project overrides, validates secrets per repository, and prevents duplicate in-flight analyses per project/PR pair.
+- Ondemand runner consumes `ProjectContext`, so one-shot runs benefit from the same configuration overlay used in webhook dispatch and are ready for future multi-project scheduling.
+- Root configuration now defines repositories under `repository.projects`, letting each project declare its repository `path`, nested `webhook.secret`, and targeted overrides while keeping global credentials centralized. Per-project `ProjectRuntime` capsules are constructed for each run so configuration overlays never clobber one another during fan-out.
 - Self-hosted Mergebot runs in ondemand mode with GitHub App authentication (raw PEM via env or config), validated end-to-end.
 - Documentation updated across Architecture, Usage, Operations, and Capabilities to describe session lock scope, TTL, and behavior.
 - PAT flow still present for GitLab and backward compatibility.
@@ -45,9 +48,10 @@
   - Emit concise logs/metrics for lock lifecycle (acquire, extend, release, busy/skip).
 
 ### B) Webhook-Driven GitHub App Support (Self-Hosted & SaaS)
-- [ ] Harden webhook server for GitHub (HMAC signature validation) and extend event handling.
-- [ ] Trigger re-review on PR opened/updated/synchronized/reopened; dedupe bursts.
+- [x] Harden webhook server for GitHub (HMAC signature validation) and extend event handling.
+- [x] Trigger re-review on PR opened/updated/synchronized/reopened; dedupe bursts.
 - [ ] Add command-based re-review (e.g., “@mergebot review”, configurable).
+- [ ] Implement persistent retry/backoff queue for webhook jobs and per-project concurrency controls.
 - [ ] Ensure ondemand vs webhook runs share core flow without duplication (already align with lock).
 
 ### C) Cloud/SaaS mode (separate track)
@@ -66,10 +70,11 @@
 
 - GitHub Actions pipeline (workflow run) details are fully supported, documented, and integrated in all flows. This brings Mergebot’s PR diagnostics to parity across all major platforms.
 - Project session lock (10-minute TTL + heartbeat) is implemented and documented.
-- Ondemand and webhook flows both respect the session lock to avoid duplicate analysis/comments.
-- Documentation updated to reflect concurrency control, behavior on busy lock, and layout normalization.
+- Ondemand and webhook flows both respect the session lock to avoid duplicate analysis/comments, and now share the `ProjectContext` abstraction for per-project configuration overlays.
+- Documentation updated to reflect concurrency control, behavior on busy lock, layout normalization, and multi-project webhook deployment guidance.
 - Next phase focuses on:
   - Tests and config for lock/session,
-  - Webhook hardening (HMAC, dedupe bursts),
+  - Webhook job queueing/backoff + command-based re-review enhancements,
   - PEM normalization for GitHub App private key handling,
+  - Refining multi-project scheduling (persistent state, per-project cadence) and other long-running operations,
   - **Potential future pipeline refinement:** parsing GitHub Actions logs for job warnings (current version: errors only), richer dashboard analytics, UI adjustments based on new data.

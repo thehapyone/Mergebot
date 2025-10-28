@@ -13,6 +13,8 @@ mergebot ...
 
 This page documents the fields and structure of the Mergebot configuration file (`.mergebot.yml` and `mergebot/config.yaml`).
 
+Looking for a ready-to-edit template? Check out `example-config-gitlab.yaml` and `example-config-github.yaml` in the repository root; they demonstrate multi-project setups with webhook secrets, per-project overrides, and merge guardrails.
+
 ## Top-Level Fields
 
 | Field           | Type   | Description                                   |
@@ -66,16 +68,23 @@ analysis:
 
 ## LLM Configuration
 
-Mergebot uses [LiteLLM](https://docs.litellm.ai/docs/) to support a wide range of LLM providers, including OpenAI, Azure, Anthropic, Google, and more.
+Mergebot uses [LiteLLM](https://docs.litellm.ai/docs/) to support a wide range of providers. In the Mergebot config you specify the **provider-prefixed model name** (`provider/model`). LiteLLM uses the provider prefix to route the request and the API keys defined in your environment.
 
-You can set a global LLM provider/model, and override it per crew.
+Common examples:
+
+| Provider | Example model string |
+| -------- | -------------------- |
+| OpenAI   | `openai/gpt-4o-mini` |
+| Azure OpenAI | `azure/gpt-4o` |
+| Anthropic | `anthropic/claude-3-opus-20240229` |
+| Google (Gemini) | `google/gemini-1.5-pro` |
+| Ollama / local models | `ollama/llama3` |
 
 **Global LLM:**
 
 ```yaml
 llm:
-  model: gpt-4
-  # provider: openai  # (optional, defaults to openai)
+  model: openai/gpt-4o-mini
 ```
 
 **Per-crew LLM override:**
@@ -84,27 +93,16 @@ llm:
 crews:
   CodeAnalysis:
     llm:
-      model: gpt-4-turbo
-      provider: openai
+      model: openai/gpt-4.1-mini
   ComplexityAnalysis:
     llm:
-      model: anthropic.claude-3-opus-20240229
-      provider: anthropic
+      model: anthropic/claude-3-opus-20240229
   TestAnalysis:
     llm:
-      model: gemini-pro
-      provider: google
+      model: google/gemini-1.5-pro
 ```
 
 If a crew does not specify an LLM, it will use the global model.
-
-### Supported Providers
-
-- `openai` (default)
-- `azure`
-- `anthropic`
-- `google`
-- ...and others supported by LiteLLM
 
 ### API Keys
 
@@ -126,26 +124,26 @@ If a crew does not specify an LLM, it will use the global model.
 repository:
   type: github
   github:
+    api_url: https://api.github.com
     base_branch: main
     # GitHub App authentication (recommended)
-    app_id: 123456                # GitHub App ID (int or ENV: GITHUB_APP_ID)
-    installation_id: 987654       # Installation ID (int, optional; ENV: GITHUB_APP_INSTALLATION_ID)
-    private_key: |
-      -----BEGIN RSA PRIVATE KEY-----
-      YOUR-PEM-CONTENT-HERE
-      -----END RSA PRIVATE KEY-----     # Raw PEM string (ENV: GITHUB_APP_PRIVATE_KEY)
+    app_id: ${GITHUB_APP_ID}
+    installation_id: ${GITHUB_APP_INSTALLATION_ID}   # optional; auto-discovered when omitted
+    private_key: ${GITHUB_APP_PRIVATE_KEY}           # raw PEM string or env var
     # Legacy Personal Access Token (not recommended)
-    private_token: YOUR_TOKEN     # (not recommended, use env var)
+    private_token: ${GITHUB_TOKEN}
+  projects:
+    - path: owner/repo-a
+    - path: owner/repo-b
 ```
 
 - `type`: Must be `github` for GitHub repositories.
 - `github`: Required if type is `github`.
-- **GitHub App authentication is recommended.**
-  - `app_id`: The numeric App ID for your GitHub App.
-  - `installation_id`: The installation ID for the App on your repository/organization. If omitted, Mergebot will auto-discover it.
-  - `private_key`: the raw PEM string.
-  - You can also set these via environment variables: `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`.
-- `private_token`: (Legacy) Personal Access Token. This is used as a fallback if GitHub App credentials are not provided.
+- `api_url`: Defaults to `https://api.github.com`.
+- `base_branch`: Used when creating onboarding PRs for repositories that do not yet have a `.mergebot.yml`.
+- `app_id` / `installation_id` / `private_key`: Prefer GitHub App authentication; values can come from environment variables as shown.
+- `private_token`: Optional PAT fallback used only when App credentials are absent.
+- Define project-level webhook secrets via `projects[].webhook.secret`.
 
 ### GitLab
 
@@ -154,13 +152,17 @@ repository:
   type: gitlab
   gitlab:
     url: https://gitlab.example.com/api/v4
-    private_token: YOUR_TOKEN # (not recommended, use env var)
+    private_token: ${GITLAB_PERSONAL_ACCESS_TOKEN}
     base_branch: main
+  projects:
+    - path: group/service-a
+    - path: group/service-b
 ```
 
 - `type`: Must be `gitlab`
 - `gitlab`: Required if type is `gitlab`
 - **Set the GitLab personal access token as the `GITLAB_PERSONAL_ACCESS_TOKEN` environment variable** (recommended).
+- Project-level webhook secrets belong under `projects[].webhook.secret`.
 
 ---
 
@@ -180,10 +182,55 @@ approval_policy:
 
 ---
 
+## Multi-Project Configuration (Optional)
+
+For deployments where a single Mergebot instance services multiple repositories, define them under `repository.projects`. Each entry identifies a repository and can override any subset of the global configuration:
+
+```yaml
+repository:
+  type: gitlab
+  gitlab:
+    url: https://gitlab.example.com/api/v4
+    private_token: ${GITLAB_TOKEN}
+    base_branch: main
+  projects:
+    - path: group/repo-a
+      webhook:
+        secret: ${GITLAB_WEBHOOK_SECRET_REPO_A}
+      overrides:
+        analysis:
+          max_mrs: 5
+        merge:
+          enabled: true
+          threshold: 2.2
+    - path: group/repo-b
+      overrides:
+        crews:
+          CodeAnalysis:
+            llm:
+              model: gpt-4o-mini
+        approval_policy:
+          threshold: 2.4
+          weights:
+            CodeAnalysis: 0.35
+            ComplexityAnalysis: 0.2
+            TestAnalysis: 0.25
+            RiskAnalysis: 0.2
+```
+
+Notes:
+- Any fields omitted in a project entry fall back to the global configuration defined earlier in the file.
+- `webhook.secret` overrides the shared secret used to validate webhook requests for that project. If not provided, ensure the hosting platform supplies the secret (e.g., via environment variables).
+- `overrides` can include `analysis`, `merge`, `crews`, and `approval_policy`. These dictionaries are deep-merged with the base config.
+- Define at least one project; the orchestrators refuse to start when `repository.projects` is empty.
+
+---
+
 ## Merge Configuration
 
 Configure auto-merge behavior. Draft/WIP requests are never merged.
 
+```yaml
 merge:
   enabled: false              # Explicit opt-in for auto-merge (default off)
   threshold: null             # If null, falls back to approval_policy.threshold
@@ -197,6 +244,7 @@ merge:
     branch_prefixes:              # Optional allow-list for source branches
       - "feature/"
       - "bugfix/"
+```
 
 Notes:
 - Threshold requirement: Mergebot only merges when it can evaluate a threshold. Provide `merge.threshold` or rely on `approval_policy.threshold`; if neither is set (or the score can’t be parsed) the merge is skipped with a comment explaining why.
@@ -212,36 +260,72 @@ Notes:
 
 ```yaml
 llm:
-  model: gpt-4
-  provider: openai
+  model: gpt-4o-mini
 
 repository:
-  type: gitlab
-  gitlab:
-    url: https://gitlab.example.com/api/v4
+  type: github
+  github:
+    api_url: https://api.github.com
     base_branch: main
+    app_id: ${GITHUB_APP_ID}
+    installation_id: ${GITHUB_APP_INSTALLATION_ID}
+    private_key: ${GITHUB_APP_PRIVATE_KEY}
+  projects:
+    - path: acme/platform-api
+      webhook:
+        secret: ${PLATFORM_API_WEBHOOK_SECRET}
+      overrides:
+        merge:
+          enabled: true
+          threshold: 2.1
+          rules:
+            ci_passed: true
+            ci_strict: true
+            branch_prefixes:
+              - "feature/"
+              - "hotfix/"
+        analysis:
+          max_mrs: 6
+    - path: acme/infra-modules
+      overrides:
+        crews:
+          CodeAnalysis:
+            llm:
+              model: gpt-4o
+        approval_policy:
+          threshold: 2.3
+          weights:
+            CodeAnalysis: 0.35
+            ComplexityAnalysis: 0.25
+            TestAnalysis: 0.2
+            RiskAnalysis: 0.2
 
 crews:
   CodeAnalysis:
     llm:
-      model: gpt-4-turbo
-      provider: openai
-  ComplexityAnalysis:
+      model: gpt-4o-mini
+  ImpactEvaluator:
     llm:
-      model: anthropic.claude-3-opus-20240229
-      provider: anthropic
-  TestAnalysis:
-    llm:
-      model: gemini-pro
-      provider: google
+      model: gpt-4o-mini
 
 approval_policy:
-  threshold: 3.0
+  threshold: 2.5
   weights:
-    CodeAnalysis: 0.4
+    CodeAnalysis: 0.35
     ComplexityAnalysis: 0.2
-    TestAnalysis: 0.2
+    TestAnalysis: 0.25
     RiskAnalysis: 0.2
+
+analysis:
+  max_mrs: 10
+  draft_mrs: false
+
+merge:
+  enabled: false
+  strategy: repo_default
+
+telemetry:
+  enabled: false
 ```
 
 ---

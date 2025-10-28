@@ -57,14 +57,16 @@ repository:
 
 ## 3. Run Mergebot ondemand
 
+Ensure your `mergebot/config.yaml` (or the file pointed to by `CONFIG_PATH`) lists the repositories under `repository.projects`. Then run:
+
 ```bash
-mergebot ondemand --project=owner/repo
+CONFIG_PATH=mergebot/config.yaml mergebot ondemand
 ```
 
 Mergebot will:
 
 1. Generate a JWT and exchange it for an installation access token.
-2. Analyse open pull requests.
+2. Analyse open pull requests for each configured project.
 3. Comment / approve according to your `.mergebot.yml`.
 
 ---
