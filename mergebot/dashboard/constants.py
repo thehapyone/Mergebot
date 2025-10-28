@@ -1,0 +1,21 @@
+"""
+Shared marker constants used across dashboard helpers.
+"""
+
+DASHBOARD_MARKER = "<!-- marker:MERGEBOT_DASHBOARD -->"
+ACTIVE_PRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_PRS -->"
+RERUNS_MARKER = "<!-- marker:MERGEBOT_RERUNS -->"
+ACTIONS_MARKER = "<!-- marker:MERGEBOT_ACTIONS -->"
+ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
+SESSION_LOCK_MARKER = "<!-- marker:MERGEBOT_SESSION_LOCK -->"
+REVIEW_TRIGGERS_MARKER = "<!-- marker:MERGEBOT_REVIEW_TRIGGERS -->"
+
+__all__ = [
+    "DASHBOARD_MARKER",
+    "ACTIVE_PRS_MARKER",
+    "RERUNS_MARKER",
+    "ACTIONS_MARKER",
+    "ANALYTICS_MARKER",
+    "SESSION_LOCK_MARKER",
+    "REVIEW_TRIGGERS_MARKER",
+]

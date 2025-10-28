@@ -7,11 +7,8 @@ import socket
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from mergebot.dashboard.dashboard_manager import (
-    DASHBOARD_MARKER,
-    SESSION_LOCK_MARKER,
-    DashboardManager,
-)
+from mergebot.dashboard.constants import DASHBOARD_MARKER, SESSION_LOCK_MARKER
+from mergebot.dashboard.dashboard_manager import DashboardManager
 from mergebot.validator.logging_config import logger
 
 PLACEHOLDER_NO_LOCK = "_No active session lock_"
