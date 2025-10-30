@@ -39,6 +39,18 @@ The analytics section now includes a **Total Tokens Used** metric, which shows t
 
 See [dashboard_layout.md](https://thehapyone.github.io/Mergebot/blob/main/mergebot/dashboard/dashboard_layout.md) for the full template.
 
+### 🔁 Triggering a new analysis from a PR/MR
+
+Mergebot responds to comment-based commands and mentions in addition to the dashboard checklist. Use any of the following options to queue a new review:
+
+| Trigger | Command | Description |
+| --- | --- | --- |
+| Comment command | `/mergebot review` | Runs a fresh analysis immediately (ondemand + webhook). |
+| Mention | `@mergebot` (or your service account) | Mention Mergebot in any PR/MR comment to request another pass. |
+| Dashboard rerun | Check “Request a Rerun” in the Mergebot dashboard | Adds the PR/MR to the rerun queue for the next scan. |
+
+Every impact assessment now ends with a reminder of these commands so authors and reviewers know how to request follow-up help. Mergebot automatically clears the trigger once the rerun completes or the PR/MR is closed/merged.
+
 - **Webhook mode**: (Experimental) Not actively maintained and may be removed in future releases.
 
 ## CI/CD Integration Patterns

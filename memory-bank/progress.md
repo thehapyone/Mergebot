@@ -19,6 +19,7 @@
 - Self-hosted Mergebot runs in ondemand mode with GitHub App authentication (raw PEM via env or config), validated end-to-end.
 - Documentation updated across Architecture, Usage, Operations, and Capabilities to describe session lock scope, TTL, and behavior.
 - PAT flow still present for GitLab and backward compatibility.
+- Comment-based review triggers supported across GitHub and GitLab: `/mergebot review` commands, direct mentions, and dashboard rerun checkboxes all feed a shared dashboard tracker, with instructions appended automatically to every impact assessment.
 
 ## What's Left to Build (Detailed TODO)
 
@@ -50,7 +51,7 @@
 ### B) Webhook-Driven GitHub App Support (Self-Hosted & SaaS)
 - [x] Harden webhook server for GitHub (HMAC signature validation) and extend event handling.
 - [x] Trigger re-review on PR opened/updated/synchronized/reopened; dedupe bursts.
-- [ ] Add command-based re-review (e.g., “@mergebot review”, configurable).
+- [x] Add comment/mention-based re-review (e.g., `/mergebot review`, service-account mention) with shared dashboard tracking.
 - [ ] Implement persistent retry/backoff queue for webhook jobs and per-project concurrency controls.
 - [ ] Ensure ondemand vs webhook runs share core flow without duplication (already align with lock).
 

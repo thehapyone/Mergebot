@@ -1,5 +1,12 @@
 # Active Context
 
+## Recent Changes (2025-10-28): Comment-Based Reruns & Review Triggers
+
+- **New triggers:** Mergebot now watches for `/mergebot review` comment commands and direct mentions of the bot account (e.g., `@mergebot`) on both GitHub and GitLab. These signals are stored in the dashboard so ondemand and webhook runs can reanalyse on demand without re-running forever.
+- **Dashboard state:** A new "Review Triggers" section in the dashboard persists trigger metadata, clears it automatically after a rerun, and drops entries when the PR/MR closes.
+- **Impact report guidance:** Every impact assessment comment now ends with a table explaining how to request another review (comment command, mention, dashboard checkbox), so contributors always know how to queue a fresh scan.
+- **Compatibility:** The trigger tracker is shared between ondemand and webhook flows; webhook dispatch still dedupes per-project events.
+
 ## Recent Changes (2025-10-14): Multi-Project Dispatch Foundation
 
 - **New capability:** Webhook mode now supports multi-project dispatch driven by a new `ProjectRegistry`. Incoming events are routed by repository identifier, validated with project-specific secrets, and deduplicated per project/PR before invoking the flow.

@@ -7,11 +7,7 @@ from typing import Any
 from jinja2 import Template
 
 from mergebot.dashboard.constants import (
-    ACTIONS_MARKER,
-    ACTIVE_PRS_MARKER,
-    ANALYTICS_MARKER,
     DASHBOARD_MARKER,
-    RERUNS_MARKER,
     REVIEW_TRIGGERS_MARKER,
     SESSION_LOCK_MARKER,
 )

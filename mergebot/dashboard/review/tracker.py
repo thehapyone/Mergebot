@@ -37,7 +37,7 @@ def _fenced_json(payload: dict[str, Any]) -> str:
 class DashboardReviewTracker:
     """Persist review-trigger snapshots inside the dashboard issue body."""
 
-    def __init__(self, manager: "DashboardManager"):
+    def __init__(self, manager: DashboardManager):
         self.manager = manager
 
     def load(self) -> dict[str, ReviewTriggerState]:
@@ -66,10 +66,7 @@ class DashboardReviewTracker:
             for k, v in snapshots.items()
             if v and isinstance(v, ReviewTriggerState) and v.has_active_data()
         }
-        if not state:
-            payload = PLACEHOLDER
-        else:
-            payload = _fenced_json(state)
+        payload = PLACEHOLDER if not state else _fenced_json(state)
         updated = self.manager.replace_custom_section(
             dashboard["body"], REVIEW_TRIGGERS_MARKER, payload
         )

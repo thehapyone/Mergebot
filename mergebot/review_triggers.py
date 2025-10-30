@@ -12,8 +12,8 @@ rerunning analyses repeatedly for the same request.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Iterable, Mapping
 
 from mergebot.validator.logging_config import logger
 
@@ -34,7 +34,7 @@ class ReviewTriggerState:
     last_comment_id: int | None = None
 
     @classmethod
-    def from_mapping(cls, data: Mapping[str, int | bool] | None) -> "ReviewTriggerState":
+    def from_mapping(cls, data: Mapping[str, int | bool] | None) -> ReviewTriggerState:
         if not data:
             return cls()
         assigned = bool(data.get("assigned", False))
@@ -128,13 +128,13 @@ def compute_triggers(
         if comment_id is None:
             continue
         try:
-            comment_id = int(comment_id)
+            current_id = int(comment_id)
         except (TypeError, ValueError):
             continue
-        if comment_id <= latest_comment_id:
+        if current_id <= latest_comment_id:
             continue
         if mentions_mergebot(body or "", bot_login):
-            latest_comment_id = comment_id
+            latest_comment_id = current_id
             triggered = True
 
     state.last_comment_id = None if latest_comment_id < 0 else latest_comment_id
