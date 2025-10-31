@@ -6,18 +6,16 @@ from typing import Any
 
 from jinja2 import Template
 
+from mergebot.dashboard.constants import (
+    DASHBOARD_MARKER,
+    REVIEW_TRIGGERS_MARKER,
+    SESSION_LOCK_MARKER,
+)
 from mergebot.dashboard.dedupe import stats_quality_key
+from mergebot.dashboard.review import DashboardReviewTracker
 from mergebot.project_registry import ProjectRuntime
 from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
-
-# Section markers for robust, sectioned updates
-DASHBOARD_MARKER = "<!-- marker:MERGEBOT_DASHBOARD -->"
-ACTIVE_PRS_MARKER = "<!-- marker:MERGEBOT_ACTIVE_PRS -->"
-RERUNS_MARKER = "<!-- marker:MERGEBOT_RERUNS -->"
-ACTIONS_MARKER = "<!-- marker:MERGEBOT_ACTIONS -->"
-ANALYTICS_MARKER = "<!-- marker:MERGEBOT_ANALYTICS -->"
-SESSION_LOCK_MARKER = "<!-- marker:MERGEBOT_SESSION_LOCK -->"
 
 
 @cache
@@ -45,6 +43,7 @@ class DashboardManager:
 
         self.platform_type = runtime.platform_type
         self.dashboard_title: str = "🛠️ Mergebot Project Dashboard"
+        self._review_tracker: DashboardReviewTracker | None = None
 
     def get_open_prs(self):
         """
@@ -164,6 +163,7 @@ class DashboardManager:
         # Extract previous MR table for Last Reviewed preservation and current lock section
         previous_table = None
         locks_section = "_No active session lock_"
+        review_triggers_section = "_No review triggers recorded_"
         try:
             # Find the Active Merge Requests table and Session Lock section in the current dashboard
             dashboard = self.get_or_create_dashboard()
@@ -183,6 +183,15 @@ class DashboardManager:
                 content = (lock_match.group(1) or "").strip()
                 if content:
                     locks_section = content
+
+            trigger_pattern = (
+                rf"{re.escape(REVIEW_TRIGGERS_MARKER)}(.*?){re.escape(REVIEW_TRIGGERS_MARKER)}"
+            )
+            trigger_match = re.search(trigger_pattern, body, re.DOTALL)
+            if trigger_match:
+                t_content = (trigger_match.group(1) or "").strip()
+                if t_content:
+                    review_triggers_section = t_content
         except Exception:
             # Keep defaults if anything goes wrong
             previous_table = None
@@ -196,8 +205,42 @@ class DashboardManager:
             action_log=self._render_action_log(action_log),
             analytics_table=self._render_analytics_table(analytics),
             locks_section=locks_section,
+            review_triggers_section=review_triggers_section,
         )
         return rendered
+
+    def extract_custom_section(self, markdown: str, marker: str) -> str:
+        pattern = rf"{re.escape(marker)}(.*?){re.escape(marker)}"
+        match = re.search(pattern, markdown, re.DOTALL)
+        return match.group(1).strip() if match else ""
+
+    def replace_custom_section(self, markdown: str, marker: str, content: str) -> str:
+        pattern = rf"({re.escape(marker)})(.*?){re.escape(marker)}"
+        if re.search(pattern, markdown, re.DOTALL):
+
+            def _replacer(match):
+                return f"{marker}\n{content}\n{marker}"
+
+            return re.sub(pattern, _replacer, markdown, flags=re.DOTALL)
+        # if markers are missing, append block inside dashboard region
+        block = f"{marker}\n{content}\n{marker}"
+        dashboard_pattern = rf"{re.escape(DASHBOARD_MARKER)}(.*?){re.escape(DASHBOARD_MARKER)}"
+        match = re.search(dashboard_pattern, markdown, re.DOTALL)
+        if match:
+            inner = match.group(1)
+            updated_inner = inner + f"\n{block}\n"
+            return (
+                markdown[: match.start()]
+                + f"{DASHBOARD_MARKER}{updated_inner}{DASHBOARD_MARKER}"
+                + markdown[match.end() :]
+            )
+        return f"{markdown}\n{block}\n"
+
+    @property
+    def review_tracker(self) -> DashboardReviewTracker:
+        if self._review_tracker is None:
+            self._review_tracker = DashboardReviewTracker(self)
+        return self._review_tracker
 
     def _render_active_mrs_table(
         self, mr_data: list[dict[str, Any]], previous_table: str | None = None

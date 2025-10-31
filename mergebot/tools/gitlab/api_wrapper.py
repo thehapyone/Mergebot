@@ -285,6 +285,21 @@ class GitlabAPIWrapper(PullRequestAPIBase):
         except Exception as e:
             return f"Failed to approve Merge Request {pr_number}: {e!s}"
 
+    def get_bot_identity(self) -> str:
+        """Return the username of the authenticated GitLab service account."""
+        cached = getattr(self, "_cached_bot_username", None)
+        if cached:
+            return cached
+        username = ""
+        try:
+            user = getattr(self.gitlab, "user", None)
+            if user:
+                username = (getattr(user, "username", "") or "").strip()
+        except Exception:
+            username = ""
+        self._cached_bot_username = username
+        return username
+
     def _evaluate_ci_state(self, mr):
         """
         Evaluate CI state for MR head pipeline.

@@ -16,6 +16,12 @@ from mergebot.dashboard.dedupe import dedupe_mr_rows, dedupe_prs_by_id
 from mergebot.dashboard.session_lock import SessionLockCoordinator
 from mergebot.flow import run_flow
 from mergebot.project_registry import ProjectContext, ProjectRegistry, ProjectRuntime
+from mergebot.review_triggers import (
+    ReviewTriggerState,
+    collect_assignments,
+    collect_comments,
+    compute_triggers,
+)
 from mergebot.validator.config_manager import EnsureRepoConfigError, ensure_repo_config
 from mergebot.validator.logging_config import logger
 
@@ -86,6 +92,21 @@ class OndemandRunner:
         dashboard = dashboard_manager.get_or_create_dashboard()
         _, open_pr_iids = dashboard_manager.get_open_prs()
 
+        review_tracker = dashboard_manager.review_tracker
+        previous_trigger_state = review_tracker.load()
+        new_trigger_state: dict[str, ReviewTriggerState] = {}
+        bot_login = ""
+        api = dashboard_manager.api
+        if hasattr(api, "get_bot_identity"):
+            try:
+                bot_login = api.get_bot_identity()
+            except Exception as exc:  # pragma: no cover - external API path
+                logger.warning(
+                    "[Ondemand] Failed to resolve bot identity for %s: %s",
+                    self.project_identifier,
+                    exc,
+                )
+
         # Parse Dashboard
         dashboard_data = dashboard_manager.parse_dashboard(dashboard["body"])
         rerun_requests = set(dashboard_data["rerun_requests"])
@@ -120,9 +141,25 @@ class OndemandRunner:
         rerun_list = []
         pending_list = []
         new_list = []
+        trigger_list = []
         for pr_iid, pr in open_pr_iids.items():
             if skip_draft_pr(pr, draft_prs_enabled):
                 continue
+
+            # Review trigger detection
+            assignments = collect_assignments(pr, self.platform_type)
+            comments = collect_comments(pr, self.platform_type, bot_login)
+            previous_state = previous_trigger_state.get(str(pr_iid))
+            state, triggered = compute_triggers(
+                assignments=assignments,
+                comments=comments,
+                bot_login=bot_login,
+                previous=previous_state,
+                require_assignment_drop=True,
+            )
+            new_trigger_state[str(pr_iid)] = state
+            if triggered:
+                trigger_list.append(pr)
 
             if pr_iid in rerun_requests:
                 rerun_list.append(pr)
@@ -131,7 +168,7 @@ class OndemandRunner:
             elif pr_iid not in tracked_prs:
                 new_list.append(pr)
 
-        prs_to_analyze = rerun_list + pending_list + new_list
+        prs_to_analyze = rerun_list + pending_list + trigger_list + new_list
 
         # De-duplicate in case any path introduced duplicates (defensive)
         prs_to_analyze = dedupe_prs_by_id(prs_to_analyze, self.pr_id_attr)
@@ -261,6 +298,11 @@ class OndemandRunner:
         # Deduplicate MR rows to ensure one entry per PR/MR
         analysis_results = dedupe_mr_rows(analysis_results)
 
+        # Purge trigger metadata for PRs that are no longer open
+        closed_ids = set(previous_trigger_state.keys()) - open_ids
+        for pr_id in closed_ids:
+            new_trigger_state.pop(str(pr_id), None)
+
         # Compute analytics summary metrics, accumulating with previous values
         prev_analytics = dashboard_data["analytics"]
         prs_processed = prev_analytics.get("PRs/MRs Processed", 0) + len(prs_to_analyze)
@@ -314,6 +356,7 @@ class OndemandRunner:
             + [f"Error in PR/MR {pr_ref_prefix}{pr_id}: {err}" for pr_id, err in errors],
             analytics=analytics_summary,
         )
+        review_tracker.save(new_trigger_state)
         logger.info("[Ondemand] Dashboard update complete")
 
         # Release the session lock

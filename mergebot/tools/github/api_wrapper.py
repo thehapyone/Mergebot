@@ -36,6 +36,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
     github_installation_id: str = None
     github_app_private_key: str = None
     github_app_access_token: str = None
+    github_app_slug: str | None = None
 
     # Configuration for API operations
     request_timeout: ClassVar[tuple[int, int]] = (
@@ -151,6 +152,24 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             raise ValueError("Failed to obtain GitHub App installation access token.")
         raise Exception(f"Failed to get installation access token: {resp.status_code} {resp.text}")
 
+    def _fetch_app_slug(self, jwt_token: str) -> str | None:
+        """
+        Retrieve the GitHub App slug (used for the bot account login) using an App-scoped JWT.
+        """
+        headers = {
+            "Authorization": f"Bearer {jwt_token}",
+            "Accept": "application/vnd.github+json",
+        }
+        url = f"{self.github_api_url}/app"
+        try:
+            resp = requests.get(url, headers=headers, timeout=self.request_timeout)
+            if resp.status_code == 200:
+                payload = resp.json() or {}
+                return payload.get("slug")
+        except Exception as exc:  # pragma: no cover - network failure path
+            logger.warning("Failed to fetch GitHub App slug: %s", exc)
+        return None
+
     def _initialize_github_app(self, repo):
         """
         Initializes the GitHub App authentication.
@@ -163,6 +182,9 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             self.github_installation_id = self._discover_installation_id(jwt_token, repo)
             if not self.github_installation_id:
                 raise ValueError("Could not determine GitHub App installation_id for repository.")
+
+        if not self.github_app_slug:
+            self.github_app_slug = self._fetch_app_slug(jwt_token)
 
         self.github_app_access_token = self._get_installation_token(
             jwt_token, self.github_installation_id
@@ -478,7 +500,7 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             pr = self.github_repo_instance.get_pull(pr_number)
 
             # Check if already approved by the current user
-            current_user = self.github.get_user().login
+            current_user = self.get_bot_identity()
             reviews = list(pr.get_reviews())
 
             # Find latest review by current user
@@ -491,6 +513,24 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             return f"Approved PR #{pr_number}. Review: {review_url}"
         except Exception as e:
             return f"Failed to approve Pull Request {pr_number}: {e!s}"
+
+    def get_bot_identity(self) -> str:
+        """Return the login of the authenticated bot/service account."""
+        cached = getattr(self, "_cached_bot_login", None)
+        if cached:
+            return cached
+        if self.github_app_slug:
+            login = f"{self.github_app_slug}[bot]"
+            self._cached_bot_login = login
+            return login
+        login = ""
+        try:
+            login = (self.github.get_user().login or "").strip()
+        except Exception as exc:
+            logger.debug("Failed to resolve GitHub user login via API: %s", exc)
+            login = ""
+        self._cached_bot_login = login
+        return login
 
     def _evaluate_ci_state(self, pr):  # noqa: PLR0911, PLR0912
         """

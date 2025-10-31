@@ -35,6 +35,13 @@ _Check a box below to ask Mergebot to reanalyze any PR/MR. The bot will process 
 
 ---
 
+## 📨 **Review Triggers**
+<!-- marker:MERGEBOT_REVIEW_TRIGGERS -->
+{{ review_triggers_section }}
+<!-- marker:MERGEBOT_REVIEW_TRIGGERS -->
+
+---
+
 ## 📊 **Analytics**
 
 {{ analytics_table }}
