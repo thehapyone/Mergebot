@@ -76,6 +76,29 @@ Behavior:
 
 ---
 
+## Local Webhook Testing (Ngrok or similar tunnels)
+
+Need to exercise webhook mode from a laptop or CI sandbox? Use a tunnelling service (e.g., [Ngrok](https://ngrok.com), Cloudflare Tunnels, GitHub Codespaces forwarding) to expose your local FastAPI server to GitHub or GitLab:
+
+1. Start the webhook server locally:
+   ```bash
+   poetry run mergebot webhook --port 8000 --max-concurrency 1
+   ```
+2. Run a tunnel pointing to the same port:
+   ```bash
+   ngrok http http://localhost:8000
+   ```
+   Copy the generated `https://<random>.ngrok.app/webhook` URL.
+3. Configure the GitHub/GitLab webhook with that public URL and reuse the same secret defined in your Mergebot config (or project-level override).
+4. Trigger events (e.g., open an MR/PR or post `/mergebot review`). Ngrok will forward them to your local Mergebot instance so you can iterate rapidly.
+
+**Security tips:**
+- Keep the tunnel temporary and rotate the webhook secret after public demos.
+- Use Ngrok’s IP allow-listing or basic auth when possible.
+- Stop the tunnel when you finish testing so external services can’t reach a stale localhost instance.
+
+---
+
 ## Next Steps
 
 1. **Set up your credentials/bot:**
