@@ -1,3 +1,5 @@
+# codespell:ignore noteable
+
 import asyncio
 import hashlib
 import hmac
@@ -12,6 +14,9 @@ from mergebot.dashboard.dashboard_manager import DashboardManager
 from mergebot.dashboard.session_lock import SessionLockCoordinator
 from mergebot.flow import run_flow
 from mergebot.project_registry import ProjectContext, ProjectRegistry
+from mergebot.review_triggers import mentions_mergebot, normalize_login
+from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
+from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.validator.config_manager import EnsureRepoConfigError, ensure_repo_config
 from mergebot.validator.logging_config import logger
 
@@ -111,6 +116,7 @@ class WebhookServer:
         self._active_urls_lock = asyncio.Lock()
         self._analysis_semaphore: asyncio.Semaphore | None = None
         self._missing_secret_projects: set[str] = set()
+        self._bot_identities: dict[str, str] = {}
         self.default_context: ProjectContext | None = None
         if self._multi_project_enabled:
             project_count = len(self._project_ids)
@@ -226,6 +232,156 @@ class WebhookServer:
         )
         self._missing_secret_projects.add(project_id)
 
+    def _get_bot_identity(self, context: ProjectContext) -> str:
+        project_id = context.project_id
+        cached = self._bot_identities.get(project_id)
+        if cached is not None:
+            return cached
+
+        identity = ""
+        try:
+            if context.platform_type == "gitlab":
+                wrapper = GitlabAPIWrapper(config=context.config, project_path=context.project_path)
+                identity = wrapper.get_bot_identity() or ""
+            elif context.platform_type == "github":
+                wrapper = GitHubAPIWrapper(config=context.config, project_path=context.project_path)
+                identity = wrapper.get_bot_identity() or ""
+        except Exception as exc:  # pragma: no cover - defensive path
+            logger.debug(
+                "[Webhook] Failed to resolve bot identity for project '%s': %s",
+                project_id,
+                exc,
+            )
+            identity = ""
+
+        self._bot_identities[project_id] = identity
+        return identity
+
+    @staticmethod
+    def _gitlab_mr_url(payload: Mapping[str, Any]) -> str | None:
+        attributes = payload.get("object_attributes") or {}
+        merge_request = payload.get("merge_request") or {}
+        project = payload.get("project") or {}
+
+        url_candidates = [
+            attributes.get("url"),
+            merge_request.get("url"),
+            merge_request.get("web_url"),
+        ]
+        for candidate in url_candidates:
+            if candidate:
+                return candidate
+
+        base_url = project.get("web_url") or project.get("http_url") or ""
+        iid = merge_request.get("iid") or attributes.get("iid")
+        if base_url and iid:
+            sanitized = base_url.rstrip("/")
+            return f"{sanitized}/-/merge_requests/{iid}"
+        return None
+
+    def _extract_gitlab_note_trigger(
+        self, payload: Mapping[str, Any], context: ProjectContext
+    ) -> str | None:
+        attributes = payload.get("object_attributes") or {}
+        if (attributes.get("noteable_type") or attributes.get("noteable")) != "MergeRequest":
+            return None
+
+        body = attributes.get("note") or attributes.get("description") or ""
+        if not body:
+            return None
+
+        bot_identity = self._get_bot_identity(context)
+        normalized_bot = normalize_login(bot_identity)
+        user_block = payload.get("user") or {}
+        author_block = attributes.get("author") or {}
+        author_username = (
+            user_block.get("username")
+            or user_block.get("name")
+            or author_block.get("username")
+            or author_block.get("name")
+            or ""
+        )
+        if normalized_bot and normalize_login(author_username) == normalized_bot:
+            logger.debug(
+                "[Webhook] Ignoring GitLab note authored by Mergebot (%s).",
+                author_username,
+            )
+            return None
+
+        if not mentions_mergebot(body, bot_identity):
+            return None
+
+        return self._gitlab_mr_url(payload)
+
+    @staticmethod
+    def _github_comment_context(
+        payload: Mapping[str, Any], event_name: str
+    ) -> tuple[str, str, str | None]:
+        body = ""
+        author_login = ""
+        pr_url = None
+
+        if event_name == "issue_comment":
+            issue = payload.get("issue") or {}
+            pr_meta = issue.get("pull_request") or {}
+            comment = payload.get("comment") or {}
+            body = comment.get("body") or ""
+            user_block = comment.get("user") or {}
+            author_login = user_block.get("login") or ""
+            if pr_meta:
+                pr_url = pr_meta.get("html_url") or issue.get("html_url")
+        elif event_name == "pull_request_review":
+            review = payload.get("review") or {}
+            body = review.get("body") or ""
+            user_block = review.get("user") or {}
+            author_login = user_block.get("login") or ""
+            pr = payload.get("pull_request") or {}
+            pr_url = pr.get("html_url")
+        elif event_name == "pull_request_review_comment":
+            comment = payload.get("comment") or {}
+            body = comment.get("body") or ""
+            user_block = comment.get("user") or {}
+            author_login = user_block.get("login") or ""
+            pr = payload.get("pull_request") or {}
+            pr_url = pr.get("html_url")
+
+        return body, author_login, pr_url
+
+    def _extract_github_comment_trigger(
+        self,
+        payload: Mapping[str, Any],
+        context: ProjectContext,
+        event_name: str,
+    ) -> str | None:
+        action = (payload.get("action") or "").lower()
+        allowed_actions = {
+            "issue_comment": {"created", "edited"},
+            "pull_request_review_comment": {"created", "edited"},
+            "pull_request_review": {"submitted", "edited"},
+        }
+        allowed = allowed_actions.get(event_name, {"created"})
+        if action not in allowed:
+            return None
+
+        bot_identity = self._get_bot_identity(context)
+        normalized_bot = normalize_login(bot_identity)
+        body, author_login, pr_url = self._github_comment_context(payload, event_name)
+
+        if not body or not pr_url:
+            return None
+
+        if normalized_bot and normalize_login(author_login) == normalized_bot:
+            logger.debug(
+                "[Webhook] Ignoring GitHub comment authored by Mergebot (%s).",
+                author_login,
+            )
+            return None
+
+        if not mentions_mergebot(body, bot_identity):
+            return None
+
+        return pr_url
+
     async def _extract_request_payload(
         self, request: Request
     ) -> tuple[dict, bytes, dict[str, str]]:
@@ -259,17 +415,30 @@ class WebhookServer:
             raise HTTPException(status_code=400, detail="Missing event header")
 
         normalized = event_name.lower()
-        if platform == "gitlab" and normalized not in {"merge request hook", "merge_request"}:
-            logger.info(
-                f"Ignoring GitLab event '{event_name}' - only merge request hooks are actionable."
-            )
-            return {"status": "ignored", "reason": "unsupported event"}
+        if platform == "gitlab":
+            allowed = {"merge request hook", "merge_request", "note hook", "note"}
+            if normalized not in allowed:
+                logger.info(
+                    "Ignoring GitLab event '%s' - supported events: %s",
+                    event_name,
+                    ", ".join(sorted(allowed)),
+                )
+                return {"status": "ignored", "reason": "unsupported event"}
 
-        if platform == "github" and normalized != "pull_request":
-            logger.info(
-                f"Ignoring GitHub event '{event_name}' - only pull_request events are actionable."
-            )
-            return {"status": "ignored", "reason": "unsupported event"}
+        if platform == "github":
+            allowed = {
+                "pull_request",
+                "issue_comment",
+                "pull_request_review",
+                "pull_request_review_comment",
+            }
+            if normalized not in allowed:
+                logger.info(
+                    "Ignoring GitHub event '%s' - supported events: %s",
+                    event_name,
+                    ", ".join(sorted(allowed)),
+                )
+                return {"status": "ignored", "reason": "unsupported event"}
         return None
 
     def _verify_secret(
@@ -280,13 +449,26 @@ class WebhookServer:
         elif platform == "github":
             self._verify_github_signature(headers, raw_body, secret)
 
-    def _extract_actionable_url(self, platform: str, payload: dict) -> str | None:
+    def _extract_actionable_url(
+        self,
+        platform: str,
+        payload: dict,
+        event_name: str | None,
+        context: ProjectContext,
+    ) -> str | None:
+        normalized_event = (event_name or "").lower()
         if platform == "gitlab":
-            logger.info("Received GitLab webhook event")
+            if normalized_event in {"note hook", "note"}:
+                logger.info("Received GitLab Note webhook event")
+                return self._extract_gitlab_note_trigger(payload, context)
+            logger.info("Received GitLab Merge Request webhook event")
             return parse_gitlab_mr_event(payload)
         if platform == "github":
-            logger.info("Received GitHub webhook event")
-            return parse_github_pr_event(payload)
+            if normalized_event == "pull_request":
+                logger.info("Received GitHub Pull Request webhook event")
+                return parse_github_pr_event(payload)
+            logger.info("Received GitHub %s webhook event", event_name)
+            return self._extract_github_comment_trigger(payload, context, normalized_event)
         logger.info("Unhandled or unknown platform for webhook event")
         return None
 
@@ -365,7 +547,7 @@ class WebhookServer:
                 self._warn_missing_secret(project_id)
             self._verify_secret(platform, headers, raw_body, secret)
 
-            mr_url = self._extract_actionable_url(platform, payload)
+            mr_url = self._extract_actionable_url(platform, payload, event_name, context)
             return await self._enqueue_analysis(context, mr_url)
         except HTTPException:
             raise
