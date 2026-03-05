@@ -1,0 +1,113 @@
+name: CI/CD
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+  workflow_call:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  POETRY_VERSION: "2.2.1"
+  PYTHON_VERSION: "3.12"
+  WORKDIR: ${{ inputs.working-directory == '' && '.' || inputs.working-directory }}
+  RUFF_OUTPUT_FORMAT: github
+
+defaults:
+  run:
+    shell: bash
+    working-directory: .
+
+jobs:
+  lint:
+    name: "Code Style"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/'))
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python + Poetry ${{ env.POETRY_VERSION }}
+        uses: "./.github/actions/python_setup"
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          poetry-version: ${{ env.POETRY_VERSION }}
+          working-directory: ${{ env.WORKDIR }}
+          cache-key: lint-with-extras
+
+      - name: Check Poetry File
+        run: |
+          poetry check
+
+      - name: Install dependencies
+        run: |
+          poetry install --with dev
+
+      - name: Linting with ruff
+        run: |
+          make lint
+
+      - name: Style check with ruff
+        run: |
+          make format
+
+      - name: CodeSpell
+        run: |
+          make spell_check
+
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build Docker Image
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/'))
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: thehapyone/mergebot:ci-${{ github.sha }}
+          push: false
+
+  publish_image:
+    runs-on: ubuntu-latest
+    name: Build & Push Docker Image to Docker Hub
+    if: github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker Hub Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Extract tag or set latest
+        id: vars
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="latest"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      - name: Build and push Docker image to Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            thehapyone/mergebot:${{ steps.vars.outputs.tag }}

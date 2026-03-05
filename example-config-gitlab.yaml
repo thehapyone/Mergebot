@@ -1,0 +1,79 @@
+# Example Mergebot configuration for GitLab
+#
+# Replace ${...} placeholders with your actual values or environment-variable
+# references before running Mergebot.
+
+llm:
+  model: gpt-4o-mini
+
+repository:
+  type: gitlab
+  gitlab:
+    url: https://gitlab.com
+    private_token: ${GITLAB_PERSONAL_ACCESS_TOKEN}
+    base_branch: main
+  projects:
+    - path: my-group/platform/iac-core
+      webhook:
+        secret: ${IAC_CORE_WEBHOOK_SECRET}
+      overrides:
+        analysis:
+          max_mrs: 5
+          draft_mrs: false
+        merge:
+          enabled: true
+          threshold: 2.0
+          strategy: merge
+          rules:
+            ci_passed: true
+            ci_strict: true
+            branch_prefixes:
+              - feature/
+              - hotfix/
+    - path: my-group/platform/iac-networking
+      overrides:
+        crews:
+          CodeAnalysis:
+            llm:
+              model: gpt-4o-mini
+        approval_policy:
+          threshold: 2.5
+          weights:
+            CodeAnalysis: 0.4
+            ComplexityAnalysis: 0.2
+            TestAnalysis: 0.2
+            RiskAnalysis: 0.2
+
+crews:
+  CodeAnalysis:
+    llm:
+      model: gpt-4o-mini
+  ImpactEvaluator:
+    llm:
+      model: gpt-4o-mini
+
+approval_policy:
+  threshold: 3.0
+  weights:
+    CodeAnalysis: 0.4
+    ComplexityAnalysis: 0.2
+    TestAnalysis: 0.2
+    RiskAnalysis: 0.2
+
+analysis:
+  max_mrs: 10
+  draft_mrs: false
+
+merge:
+  enabled: false
+  threshold: null
+  strategy: repo_default
+  rules:
+    ci_passed: true
+    ci_strict: false
+    no_changes_requested: true
+    mergeable: true
+    approval_state: true
+
+telemetry:
+  enabled: false
