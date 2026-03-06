@@ -28,7 +28,7 @@ build-backend = "poetry.core.masonry.api"
 package-mode = true
 
 [tool.poetry.group.dev.dependencies]
-codespell = "^2.4.1"
+codespell = "^2.4.2"
 ruff = "^0.14.13"
 pre-commit = "^4.3.0"
 mkdocs-material = "^9.6.21"
