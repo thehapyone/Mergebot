@@ -4,9 +4,6 @@ This module is intentionally standalone: it does not alter the production flow a
 only reads the target repository. It is a proving ground for the proposed context
 builder shape before we commit to the full workspace/reviewer integration.
 """
-
-from __future__ import annotations
-
 import argparse
 import ast
 import hashlib

@@ -103,6 +103,15 @@ bounded number of file reads; it cannot spam a PR.
 
 New module: `mergebot/workspace/manager.py`
 
+> **Status: prototyped & validated.** `mergebot/workspace/prototype.py` proves this
+> design end-to-end. It self-verifies the security boundary (offline, with a token) and
+> was run against real PRs — see `docs/proposals/demo/workspace-manager-selftest.md` and
+> `…-realdemo.md` (Mergebot PR #74/#90 via real `refs/pull/N/head`, MarkupSafe at
+> depth=1 exercising the base-SHA guarantee, plus the degraded cases). All checks green.
+> The one validation still owed: a private-repo clone with a live installation token
+> (the sandbox only had public repos). Graduating the prototype into `manager.py`
+> (async git, `ProjectRuntime` wiring) is the remaining work.
+
 ```python
 @dataclass
 class Workspace:
@@ -113,6 +122,7 @@ class Workspace:
     base_sha: str | None
     project_path: str
     degraded: bool = False  # True when clone failed → diff-only mode
+    git_env: dict = field(repr=False, default_factory=dict)  # persisted token env; never logged
 
 class WorkspaceManager:
     async def provision(self, runtime: ProjectRuntime, pr_data: PrRef) -> Workspace: ...
@@ -145,30 +155,50 @@ Implementation notes:
   boundary commits with `^` — the blame tool must pass that marker through and label such
   lines "history truncated", so a reviewer never cites a boundary commit as a real
   last-touch fact.
-- **Auth — credentials live outside the tool jail.** The workspace is split:
-  `<workspace>/checkout/` holds the clone and is the *only* directory exploration tools
-  can see; `<workspace>/secrets/` holds the `GIT_ASKPASS` helper (mode 0600, removed at
-  cleanup) and is structurally unreachable from any tool. The token never appears in
-  argv (`ps`-visible) or `.git/config`; git subprocesses get `GIT_ASKPASS` via env.
+- **Auth — reuse the existing credential, kept outside the tool jail.** No new secret:
+  the clone uses the same credential Mergebot already resolves per project from the
+  `ProjectRuntime` — a GitHub App installation token (`_get_installation_token`,
+  `tools/github/api_wrapper.py`) or PAT (`GITHUB_TOKEN`), or a GitLab PAT
+  (`GITLAB_PERSONAL_ACCESS_TOKEN`). A `credential_from_runtime(platform, token)` helper
+  maps it to the git-usable `(username, token)`: `x-access-token` for GitHub, `oauth2`
+  for GitLab. The token reaches git **only as a process env var** read by a
+  **secret-free** `GIT_ASKPASS` helper — it is never written to disk: not in the URL,
+  not in `.git/config`, not in argv (`ps`-visible), not even inside the helper script
+  itself. The helper lives in `<workspace>/secrets/`, structurally outside the
+  `checkout/` jail.
   This split is a hard security boundary, not hygiene: PR content is attacker-controlled,
   and a prompt-injected reviewer that could read a token-bearing file inside its jail
-  could exfiltrate it into a public PR comment via a finding's evidence field. A
-  **deny-list test is mandatory**: `read_file`/`list_directory`/`grep_repo` must be
-  proven unable to observe the askpass helper, `.git/config`, or any path outside
-  `checkout/`. Reuses existing credentials: `GITHUB_TOKEN` / GitHub App installation
-  token / `GITLAB_PERSONAL_ACCESS_TOKEN` from the `ProjectRuntime`. (App installation
-  tokens expire after ~1 h — fine for a 1–4 min review; the manager re-mints per review,
-  never caches.)
-- **Lifecycle:** workspace dir `<workspace.root_dir>/<project-slug>-pr<id>-<uuid8>`;
-  removed in a `finally` block of the flow; a startup sweeper deletes orphans older than
-  a TTL (crash safety, mirroring the session-lock philosophy — no external infra).
-- **Guards:** repo size check via API before cloning (`max_repo_mb`, skip → degraded
-  mode), clone timeout (`clone_timeout`, default 120 s), free-disk check.
+  could exfiltrate it into a public PR comment via a finding's evidence field. It is safe
+  to reuse the (push-capable) review/merge token here *precisely because* the jail makes
+  it unreachable to the read-only tools. A **deny-list test is mandatory** (and passes in
+  the prototype): `read_file`/`list_directory`/`grep_repo` cannot observe the askpass
+  helper, `.git/config`, or any path outside `checkout/`. App installation tokens expire
+  after ~1 h — fine for a 1–4 min review; the manager resolves a fresh one per review,
+  holds it in the workspace's `git_env` for that review's lifetime (so blobless
+  lazy-fetches during `git blame`/history still authenticate), and never caches across
+  reviews.
+- **Container deployment (configure, don't detect).** Mergebot ships as a Docker image,
+  so facts the image controls are set at build time rather than probed at runtime: the
+  Dockerfile installs `git` + `ripgrep` + `code-review-graph`, and points
+  `MERGEBOT_WORKSPACE_DIR` at a **disk-backed, writable volume** (never tmpfs/ramfs)
+  sized for the configured fan-out (`workers × max_concurrency × max_repo_mb`). `HOME` is
+  set to the per-workspace `secrets/` dir so git always has a writable home regardless of
+  the container user, and `GIT_TERMINAL_PROMPT=0` guarantees a missing credential
+  degrades instead of hanging a headless container.
+- **Lifecycle:** workspace dir `<root_dir>/<project-slug>-pr<id>-<uuid8>`; removed in a
+  `finally` block of the flow; a lightweight startup sweeper deletes orphans older than a
+  TTL (matters for the long-running webhook container; mirrors the session-lock
+  no-external-infra philosophy).
+- **Guards (runtime, kept minimal):** repo-size check from `PrRef` before cloning
+  (`max_repo_mb` → degraded), clone timeout (`clone_timeout`, default 120 s), and a
+  simple "room for this clone" free-disk check (≈2× repo size). Volume-level sizing for
+  concurrent reviews is a deploy concern, not a runtime probe.
 - **Concurrency:** one workspace per analysis (UUID-suffixed), so concurrent PRs on the
   same repo never collide. Plays fine with `--max-concurrency`.
 - **Graceful degradation (mandatory):** any failure → log a warning, return
   `Workspace(degraded=True)`; the flow proceeds exactly as today (diff-only fact pack, no
-  tools attached). A degraded review must never fail the run.
+  tools attached). A degraded review must never fail the run. (Verified in the prototype:
+  bad URL, oversized repo, and low disk all degrade without raising.)
 
 ### 3.2 Context Builder (fact pack) — `mergebot/context/`
 
@@ -468,7 +498,9 @@ The PR being reviewed is **attacker-controlled input** that we now clone to loca
 mergebot/
 ├── workspace/                  # NEW
 │   ├── __init__.py
-│   └── manager.py              # WorkspaceManager, Workspace, orphan sweeper
+│   ├── prototype.py           # PROVEN: WorkspaceManager, Workspace, PrRef, GitCredential,
+│   │                          #   credential_from_runtime, split-jail, self-test + demos
+│   └── manager.py             # graduate prototype → async git + ProjectRuntime wiring
 ├── context/                    # NEW
 │   ├── __init__.py
 │   ├── fact_pack.py            # FactPack, FactPackSection, build_fact_pack()
@@ -513,23 +545,29 @@ flags** (§3.7): safety comes from preflight checks, graceful degradation, and t
 verification gates inside each phase — which means each phase must carry its own
 operational fixes rather than deferring them behind a switch.
 
-### Phase A — CrewAI 1.14 migration + structured outputs + deterministic scoring
-*No new context; pure modernization. Riskiest dependency change first, smallest surface.*
+**Execution order: Prep → B → A → C → D (value-first).** Phase B has no dependency on
+Phase A: the fact pack integrates with the current CrewAI 0.203 crews by appending text
+to the existing `pr_details` input — exactly the mechanism the value spike validated
+(see `docs/proposals/demo/value-spike-*`: 2 models × 16 runs; reviewers cite pack
+evidence, dependency PRs de-escalate with proof, zero score inflation or hallucination).
+Shipping B first delivers the user-visible review improvement on the battle-tested
+stack; the A migration then lands underneath a working feature. Phase C still wants A's
+1.14-era controls, so A sits between B and C.
 
-- Bump deps; fix imports/events; remove live-console hack; re-test Azure/OpenAI/Anthropic/
-  Gemini via LiteLLM extra and native paths.
-- `crews/schemas.py`, `output_pydantic` on all five crews, guardrails, `scoring.py`,
-  delete regex parsing, typed `MergeBotState`.
-- **Verify:** new `tests/` for `compute_weighted_score` (golden cases incl. missing
-  weights), verdict schema validation, decision_service contract; end-to-end dry-run
-  (`--dry-run` flag: full flow, post nothing) against a real PR on each platform; compare
-  cost/latency to baseline (expect ≈ parity).
+### Prep — typed PR metadata (`PrRef`)
+Small, isolated: `get_pull_request` (both platforms) + `pr_service` gain the typed
+`PrRef` (`head_sha`, `base_sha`, `pr_number`, `repo_size_kb`) described in §3.1. This is
+Phase B's only prerequisite.
 
-### Phase B — Workspace + fact pack
-*Reviewers get rich context; still no tools.*
+### Phase B — Workspace + fact pack (ships first)
+*Reviewers get rich context; still no tools. Runs on current CrewAI 0.203 — the pack is
+rendered text appended to the reviewers' existing `pr_details` input; no output-side
+changes.*
 
 - `workspace/`, `context/`, flow steps `workspace_provisioner` + `context_builder`,
   fact pack injected into reviewer task inputs, preflight checks + degraded mode.
+  (Both modules graduate from proven prototypes: `workspace/prototype.py`,
+  `context/prototype.py`.)
 - **Session-lock fix ships in this phase, not later:** Phase B is when reviews get
   slower, and with no off switch the lock fix can't be deferred. Ondemand releases and
   re-acquires the project lock *between PRs* in a batch (instead of holding it across
@@ -549,6 +587,29 @@ operational fixes rather than deferring them behind a switch.
   match today's output), and a **large-PR regression comparison**
   (40+ files: verdicts with compression on vs off must not lose findings that cite
   dropped hunks).
+
+### Phase A — CrewAI 1.14 migration + structured outputs + deterministic scoring
+*Pure modernization, no new context. Runs second: the riskiest dependency change lands
+underneath an already-working feature, and it defines the typed contract Phase C/D
+build on.*
+
+- Bump deps; fix imports/events; remove live-console hack; re-test Azure/OpenAI/Anthropic/
+  Gemini via LiteLLM extra and native paths.
+- `crews/schemas.py`, `output_pydantic` on all five crews, guardrails, `scoring.py`,
+  delete regex parsing, typed `MergeBotState`.
+- **Known live bug fixed here (documented, deliberately deferred until this phase):**
+  `validate_impact_assessment` (flow.py) normalizes any recommendation *containing* the
+  substring "approve" to `"Auto-Approve"`, and `decision_service.process_decision`
+  branches on the same substring — so an evaluator phrasing like "Do not approve" would
+  be auto-approved (and potentially merged). It has not fired because the evaluator
+  prompt phrases rejections as "Requires human review", but it is one unlucky phrasing
+  away. The Phase A enum contract (§3.5, exact-match `auto-approve`/`human-review`)
+  eliminates it. If Phase A slips significantly, fix the substring check standalone.
+- **Verify:** new `tests/` for `compute_weighted_score` (golden cases incl. missing
+  weights), verdict schema validation, decision_service contract (incl. a regression
+  test for the substring bug above); end-to-end dry-run (`--dry-run` flag: full flow,
+  post nothing) against a real PR on each platform; compare cost/latency to baseline
+  (expect ≈ parity).
 
 ### Phase C — Exploration tools
 *Reviewers become investigators.*
@@ -616,3 +677,4 @@ Because there is no off switch, these are phase prerequisites, not follow-ups:
 | Fact pack via LLM vs deterministic code | Deterministic code | Cheaper, faster, and makes the no-leakage guarantee structural rather than prompt-enforced. |
 | Repo map lite | Drop for now | Alphabetical signatures duplicate cheaper evidence from CRG locations, callers, and touched symbols. Reintroduce only if backed by real graph centrality/ranking. |
 | Knowledge/Memory features | Skip | Stale embeddings + cross-PR context bleed; revisit later as opt-in "learnings". |
+| Phase order: B before A | Value-first | B has no dependency on A (pack = text appended to `pr_details`, validated by the 2-model value spike); ships review improvement on the proven 0.203 stack, then migrates underneath it. C still follows A for 1.14 tool controls. |
