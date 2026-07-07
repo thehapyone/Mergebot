@@ -19,7 +19,7 @@ What it demonstrates:
 Container deployment: Mergebot ships as a Docker image, so environment facts the image
 controls are configured at build time, not detected at runtime — the Dockerfile installs
 git + ripgrep + code-review-graph and points MERGEBOT_WORKSPACE_DIR at a disk-backed,
-writable volume sized for the configured review fan-out (workers × max_concurrency).
+writable volume sized for the configured review fan-out (workers x max_concurrency).
 
 The production version (`mergebot/workspace/manager.py`) will run git via
 `asyncio.create_subprocess_exec`; this prototype is synchronous for easy CLI testing.
@@ -35,7 +35,6 @@ import stat
 import subprocess
 import tempfile
 import time
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -104,7 +103,7 @@ class WorkspaceLimits:
     clone_timeout: int = DEFAULT_CLONE_TIMEOUT
     depth: int = DEFAULT_DEPTH
     max_repo_mb: int = DEFAULT_MAX_REPO_MB
-    # Fan-out (workers × max_concurrency concurrent clones) is sized by the deploy — the
+    # Fan-out (workers x max_concurrency concurrent clones) is sized by the deploy — the
     # container's workspace volume is provisioned for it. At runtime we only guard that
     # THIS clone has room, so the headroom factor stays small.
 
@@ -229,7 +228,7 @@ class WorkspaceManager:
             return f"root_dir not writable: {root}"
         if pr.repo_size_kb is not None and pr.repo_size_kb / 1024 > self.limits.max_repo_mb:
             return f"repo too large: {pr.repo_size_kb / 1024:.0f}MB > {self.limits.max_repo_mb}MB"
-        # Room for THIS clone (working tree + .git ≈ 2× repo size). Volume-level sizing
+        # Room for THIS clone (working tree + .git ≈ 2x repo size). Volume-level sizing
         # for concurrent reviews is a deploy concern, not a runtime check.
         needed_mb = self.limits.max_repo_mb * 2
         free_mb = shutil.disk_usage(root).free / (1024 * 1024)
@@ -440,9 +439,12 @@ def _security_checks(
         token = credential.token
         leaks = _token_leak_scan(ws.checkout, token)
         record("token absent from everything under checkout (incl. .git)", not leaks, str(leaks))
-        cfg = manager._git(  # noqa: SLF001
-            ["config", "--list", "--show-origin"], env=env, cwd=ws.checkout,
-            what="config", check=False,
+        cfg = manager._git(
+            ["config", "--list", "--show-origin"],
+            env=env,
+            cwd=ws.checkout,
+            what="config",
+            check=False,
         ).stdout
         record("token absent from git config", token not in cfg)
         helper = ws.secrets_dir / "askpass.sh"
@@ -456,8 +458,12 @@ def _security_checks(
             oct(stat.S_IMODE(helper.stat().st_mode)) if helper.exists() else "missing",
         )
 
-    hooks = manager._git(  # noqa: SLF001
-        ["config", "--get", "core.hooksPath"], env=env, cwd=ws.checkout, what="hooks", check=False,
+    hooks = manager._git(
+        ["config", "--get", "core.hooksPath"],
+        env=env,
+        cwd=ws.checkout,
+        what="hooks",
+        check=False,
     ).stdout.strip()
     record(
         "hooks neutralized (core.hooksPath=/dev/null)",
@@ -497,15 +503,18 @@ def _security_checks(
 
 def _collect_clone_facts(manager: WorkspaceManager, ws: Workspace) -> dict[str, Any]:
     env = ws.git_env
-    head = manager._git(  # noqa: SLF001
+    head = manager._git(
         ["rev-parse", "HEAD"], env=env, cwd=ws.checkout, what="rev-parse", check=False
     ).stdout.strip()
-    count = manager._git(  # noqa: SLF001
+    count = manager._git(
         ["rev-list", "--count", "HEAD"], env=env, cwd=ws.checkout, what="count", check=False
     ).stdout.strip()
-    pfilter = manager._git(  # noqa: SLF001
-        ["config", "--get", "remote.origin.partialclonefilter"], env=env, cwd=ws.checkout,
-        what="filter", check=False,
+    pfilter = manager._git(
+        ["config", "--get", "remote.origin.partialclonefilter"],
+        env=env,
+        cwd=ws.checkout,
+        what="filter",
+        check=False,
     ).stdout.strip()
     worktree_files = sum(
         1
@@ -554,9 +563,7 @@ def provision_report(
 
     report["facts"] = _collect_clone_facts(manager, ws)
     report["base_present"] = (
-        manager._has_commit(pr.base_sha, ws.checkout, ws.git_env)  # noqa: SLF001
-        if pr.base_sha
-        else None
+        manager._has_commit(pr.base_sha, ws.checkout, ws.git_env) if pr.base_sha else None
     )
     report["head_matches_request"] = report["facts"]["head_checked_out"].startswith(
         pr.head_sha[:12]
@@ -577,7 +584,10 @@ def provision_report(
 def _ls_remote_sha(url: str, ref: str) -> str | None:
     result = subprocess.run(
         ["git", *GIT_SAFETY_CONFIG, "ls-remote", url, ref],
-        capture_output=True, text=True, timeout=60, check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
         env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "GIT_TERMINAL_PROMPT": "0"},
     )
     line = result.stdout.strip().splitlines()
@@ -640,8 +650,13 @@ def run_demo_suite(output: Path | None) -> int:
             continue
         reports.append(
             provision_report(
-                PrRef(clone_url=url, head_sha=head, base_sha=base, pr_number=pr_number,
-                      fetch_ref=fetch_ref),
+                PrRef(
+                    clone_url=url,
+                    head_sha=head,
+                    base_sha=base,
+                    pr_number=pr_number,
+                    fetch_ref=fetch_ref,
+                ),
                 credential=None,
                 limits=WorkspaceLimits(root_dir=root, depth=50, max_repo_mb=100_000),
                 label=label,
@@ -666,8 +681,10 @@ def run_demo_suite(output: Path | None) -> int:
     # Degraded scenarios — must never raise.
     reports.append(
         provision_report(
-            PrRef(clone_url="https://github.com/thehapyone/this-repo-does-not-exist.git",
-                  head_sha="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"),
+            PrRef(
+                clone_url="https://github.com/thehapyone/this-repo-does-not-exist.git",
+                head_sha="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            ),
             credential=None,
             limits=WorkspaceLimits(root_dir=root, max_repo_mb=100_000),
             label="Degraded: nonexistent remote (graceful, no raise)",
@@ -698,9 +715,8 @@ def run_demo_suite(output: Path | None) -> int:
     expected_degraded = [
         r for r in reports if "Degraded:" in r["label"] or "nonexistent" in r["label"]
     ]
-    ok = (
-        all(r.get("all_passed") for r in non_degraded)
-        and all(r.get("degraded") for r in expected_degraded)
+    ok = all(r.get("all_passed") for r in non_degraded) and all(
+        r.get("degraded") for r in expected_degraded
     )
     return 0 if ok else 1
 
@@ -720,25 +736,29 @@ def self_test(source_repo: Path, head_sha: str, base_sha: str, token: str) -> di
     ws = manager.provision(pr, credential=credential)
     report: dict[str, Any] = {"degraded": ws.degraded, "degraded_reason": ws.degraded_reason}
     checks: list[dict[str, Any]] = [
-        {"check": "clone succeeded (not degraded)", "pass": not ws.degraded,
-         "detail": ws.degraded_reason or ""}
+        {
+            "check": "clone succeeded (not degraded)",
+            "pass": not ws.degraded,
+            "detail": ws.degraded_reason or "",
+        }
     ]
     if ws.degraded:
         report["checks"] = checks
         report["all_passed"] = False
         return report
 
-    head_real = manager._git(  # noqa: SLF001
+    head_real = manager._git(
         ["rev-parse", "HEAD"], env=ws.git_env, cwd=ws.checkout, what="rev-parse", check=False
     ).stdout.strip()
     checks.append(
-        {"check": "HEAD checked out at requested SHA", "pass": head_real.startswith(head_sha[:7]),
-         "detail": head_real}
+        {
+            "check": "HEAD checked out at requested SHA",
+            "pass": head_real.startswith(head_sha[:7]),
+            "detail": head_real,
+        }
     )
-    base_ok = manager._has_commit(base_sha, ws.checkout, ws.git_env)  # noqa: SLF001
-    checks.append(
-        {"check": "base commit present in history", "pass": base_ok, "detail": ""}
-    )
+    base_ok = manager._has_commit(base_sha, ws.checkout, ws.git_env)
+    checks.append({"check": "base commit present in history", "pass": base_ok, "detail": ""})
     checks.extend(_security_checks(manager, ws, credential))
 
     root_before = ws.root
@@ -749,8 +769,11 @@ def self_test(source_repo: Path, head_sha: str, base_sha: str, token: str) -> di
 
     bad = manager.provision(PrRef(clone_url="file:///nonexistent/repo.git", head_sha="deadbeef"))
     checks.append(
-        {"check": "bogus clone degrades gracefully (no raise)", "pass": bad.degraded,
-         "detail": bad.degraded_reason or ""}
+        {
+            "check": "bogus clone degrades gracefully (no raise)",
+            "pass": bad.degraded,
+            "detail": bad.degraded_reason or "",
+        }
     )
     report["checks"] = checks
     report["all_passed"] = all(c["pass"] for c in checks)
@@ -778,7 +801,9 @@ def _render_report(report: dict[str, Any]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Workspace manager prototype tests.")
     parser.add_argument(
-        "--mode", choices=["selftest", "demo"], default="selftest",
+        "--mode",
+        choices=["selftest", "demo"],
+        default="selftest",
         help="selftest = offline local clone; demo = real remote PR provisioning.",
     )
     parser.add_argument("--source", default=".", help="[selftest] Local repo to clone.")

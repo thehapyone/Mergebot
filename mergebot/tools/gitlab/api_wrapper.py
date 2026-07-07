@@ -5,8 +5,9 @@ from typing import Any
 
 import gitlab
 
-from mergebot.tools.api_base import PullRequestAPIBase
+from mergebot.tools.api_base import PullRequestAPIBase, PullRequestDetails
 from mergebot.validator.logging_config import logger
+from mergebot.workspace.manager import PrRef
 
 
 def parse_diff_content(diff: str):
@@ -142,7 +143,43 @@ class GitlabAPIWrapper(PullRequestAPIBase):
         # Set the repository instance
         self.gitlab_repo_instance = self.gitlab.projects.get(self.gitlab_repository)
 
-    def get_pull_request(self, pr_number: int) -> str:
+    def resolve_git_token(self) -> str | None:
+        """Return the token usable for git HTTPS auth (the GitLab PAT)."""
+        return self.gitlab_personal_access_token
+
+    def _repo_size_kb(self) -> int | None:
+        """Best-effort repository size in KB; needs Reporter+ for project statistics."""
+        cached = getattr(self, "_cached_repo_size_kb", "unset")
+        if cached != "unset":
+            return cached
+        size_kb = None
+        try:
+            project = self.gitlab.projects.get(self.gitlab_repository, statistics=True)
+            repository_size = (project.statistics or {}).get("repository_size")
+            if repository_size is not None:
+                size_kb = int(repository_size) // 1024
+        except Exception as e:
+            logger.debug(f"Failed to resolve GitLab repository size: {e}")
+        self._cached_repo_size_kb = size_kb
+        return size_kb
+
+    def _build_pr_ref(self, mr) -> PrRef | None:
+        """Best-effort typed MR metadata for workspace provisioning (proposal 3.1)."""
+        try:
+            diff_refs = getattr(mr, "diff_refs", None) or {}
+            return PrRef(
+                clone_url=self.gitlab_repo_instance.http_url_to_repo,
+                head_sha=mr.sha,
+                base_sha=diff_refs.get("base_sha"),
+                pr_number=mr.iid,
+                fetch_ref=f"refs/merge-requests/{mr.iid}/head",
+                repo_size_kb=self._repo_size_kb(),
+            )
+        except Exception as e:
+            logger.warning(f"Failed to build PrRef for MR !{getattr(mr, 'iid', '?')}: {e}")
+            return None
+
+    def get_pull_request_with_ref(self, pr_number: int) -> PullRequestDetails | dict:
         try:
             # Fetch the merge request
             mr = self.gitlab_repo_instance.mergerequests.get(pr_number)
@@ -243,7 +280,11 @@ class GitlabAPIWrapper(PullRequestAPIBase):
                 "changed_files": len(changes),
                 "pipeline": pipeline_details,
             }
-            return self.pretty_print_pull_request(mr_details)
+            return PullRequestDetails(
+                details=self.pretty_print_pull_request(mr_details),
+                details_no_patch=self.pretty_print_pull_request(mr_details, include_patch=False),
+                ref=self._build_pr_ref(mr),
+            )
         except Exception as e:
             return {
                 "error": f"Failed to retrieve merge request details for MR IID {pr_number}: {e!s}"

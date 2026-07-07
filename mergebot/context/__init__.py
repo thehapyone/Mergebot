@@ -1,1 +1,1 @@
-"""Prototype context-pack helpers for Mergebot review experiments."""
+"""Deterministic review context (fact pack) builder (see `fact_pack.py`; `prototype.py` is the proving ground)."""

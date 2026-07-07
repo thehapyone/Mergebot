@@ -26,6 +26,7 @@ Looking for a ready-to-edit template? Check out `example-config-gitlab.yaml` and
 | analysis        | object | Analysis options (optional, e.g. MR limits)   |
 | telemetry       | object | Telemetry/analytics toggle (optional, see below) |
 | merge           | object | Auto-merge configuration (optional)              |
+| context         | object | Repo-context limits for workspace clones and the fact pack (optional, see below) |
 
 ---
 
@@ -51,6 +52,34 @@ export OTEL_SDK_DISABLED=true
 mergebot ...
 ```
 
+
+## Repo Context (`context`)
+
+Every review clones the PR/MR head into a temporary workspace and builds a
+deterministic "fact pack" (repository context) that is appended to the reviewers'
+input. There is no enable/disable switch: the `context` block contains *limits*
+only, and any workspace or fact-pack failure degrades that single review to the
+plain diff-only behavior — never a failed run.
+
+```yaml
+context:
+  workspace:
+    clone_timeout: 120     # seconds per git command
+    max_repo_mb: 2048      # skip the clone above this repo size (diff-only review)
+    root_dir: /var/lib/mergebot/workspaces  # disk-backed and writable, never tmpfs
+    depth: 50              # shallow clone/fetch depth
+  fact_pack:
+    token_budget: 12000    # total fact-pack size budget
+    section_caps:          # optional per-section overrides (token counts)
+      compressed_diff: 6000
+```
+
+- `workspace.root_dir` defaults to the `MERGEBOT_WORKSPACE_DIR` environment
+  variable (set in the Docker image to `/var/lib/mergebot/workspaces`); size the
+  backing volume for the review fan-out (`workers x max-concurrency x max_repo_mb`).
+- All fields can be overridden per project via `repository.projects[].overrides.context`.
+- The clone reuses the platform credential Mergebot already holds; the token is
+  never written to disk.
 
 ## Analysis Options
 

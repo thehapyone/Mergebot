@@ -2,6 +2,7 @@
 
 import os
 import sys
+import tempfile
 from typing import Literal
 
 import yaml
@@ -162,6 +163,44 @@ class ApprovalPolicy(StrictBaseModel):
         )
 
 
+class WorkspaceConfig(StrictBaseModel):
+    """
+    Limits for the per-review workspace clone (proposal 3.7). These are tuning knobs,
+    not switches: every review attempts the enriched path and degrades on failure.
+    """
+
+    clone_timeout: int = Field(default=120, description="Git command timeout in seconds")
+    max_repo_mb: int = Field(
+        default=2048,
+        description="Preflight: skip the clone above this repository size (diff-only review)",
+    )
+    root_dir: str = Field(
+        default_factory=lambda: os.getenv(
+            "MERGEBOT_WORKSPACE_DIR",
+            os.path.join(tempfile.gettempdir(), "mergebot", "workspaces"),
+        ),
+        description="Workspace root; must be disk-backed and writable, never tmpfs",
+    )
+    depth: int = Field(default=50, description="Shallow clone/fetch depth")
+
+
+class FactPackConfig(StrictBaseModel):
+    """Token budgets for the shared fact pack (proposal 3.7)."""
+
+    token_budget: int = Field(default=12000, description="Total fact pack token budget")
+    section_caps: dict[str, int] = Field(
+        default_factory=dict,
+        description="Per-section token caps overriding the built-in defaults",
+    )
+
+
+class ContextConfig(StrictBaseModel):
+    """Repo-context limits. There is no enable/disable switch by design."""
+
+    workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
+    fact_pack: FactPackConfig = Field(default_factory=FactPackConfig)
+
+
 class AnalysisConfig(StrictBaseModel):
     max_mrs: int | None = Field(
         default=None,
@@ -245,6 +284,10 @@ class ProjectConfigOverrides(StrictBaseModel):
         default=None,
         description="Optional merge configuration overrides for this project.",
     )
+    context: ContextConfig | None = Field(
+        default=None,
+        description="Optional repo-context limit overrides for this project.",
+    )
 
 
 class ProjectDefinition(StrictBaseModel):
@@ -301,6 +344,7 @@ class Config(StrictBaseModel):
     analysis: AnalysisConfig | None = None
     telemetry: TelemetryConfig | None = None
     merge: MergeConfig | None = None
+    context: ContextConfig = Field(default_factory=ContextConfig)
 
     def get_llm_model_for_crew(self, crew_name: str) -> str:
         """Get LLM model for the crew"""

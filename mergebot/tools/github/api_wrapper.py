@@ -10,8 +10,9 @@ import jwt
 import requests
 from github import Github
 
-from mergebot.tools.api_base import PullRequestAPIBase
+from mergebot.tools.api_base import PullRequestAPIBase, PullRequestDetails
 from mergebot.validator.logging_config import logger
+from mergebot.workspace.manager import PrRef
 
 
 def generate_github_app_jwt(app_id: str, private_key: str) -> str:
@@ -436,7 +437,27 @@ class GitHubAPIWrapper(PullRequestAPIBase):
             except Exception:
                 return None
 
-    def get_pull_request(self, pr_number: int) -> str:
+    def resolve_git_token(self) -> str | None:
+        """Return the token usable for git HTTPS auth (App installation token or PAT)."""
+        return self.github_app_access_token or self.github_personal_access_token
+
+    def _build_pr_ref(self, pr) -> PrRef | None:
+        """Best-effort typed PR metadata for workspace provisioning (proposal 3.1)."""
+        try:
+            repo = self.github_repo_instance
+            return PrRef(
+                clone_url=repo.clone_url,
+                head_sha=pr.head.sha,
+                base_sha=pr.base.sha,
+                pr_number=pr.number,
+                fetch_ref=f"refs/pull/{pr.number}/head",
+                repo_size_kb=getattr(repo, "size", None),  # PyGithub reports size in KB
+            )
+        except Exception as e:
+            logger.warning(f"Failed to build PrRef for PR #{getattr(pr, 'number', '?')}: {e}")
+            return None
+
+    def get_pull_request_with_ref(self, pr_number: int) -> PullRequestDetails | dict:
         try:
             pr = self.github_repo_instance.get_pull(pr_number)
             files = list(pr.get_files())
@@ -482,7 +503,11 @@ class GitHubAPIWrapper(PullRequestAPIBase):
                 pr_details["pipeline"] = self.get_pipeline_details(run_id)
             else:
                 pr_details["pipeline"] = ""
-            return self.pretty_print_pull_request(pr_details)
+            return PullRequestDetails(
+                details=self.pretty_print_pull_request(pr_details),
+                details_no_patch=self.pretty_print_pull_request(pr_details, include_patch=False),
+                ref=self._build_pr_ref(pr),
+            )
         except Exception as e:
             return {"error": f"Failed to retrieve pull request details for ID {pr_number}: {e!s}"}
 

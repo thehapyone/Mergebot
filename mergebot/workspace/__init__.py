@@ -1,1 +1,1 @@
-"""Prototype workspace-provisioning helpers for Mergebot review experiments."""
+"""Per-review workspace provisioning (see `manager.py`; `prototype.py` is the proving ground)."""

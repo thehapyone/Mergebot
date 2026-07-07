@@ -36,10 +36,16 @@ mkdocs-mermaid2-plugin = "^1.2.3"
 mkdocs-git-revision-date-localized-plugin = "^1.4.7"
 mkdocs-autorefs = "^1.4.3"
 mkdocs-awesome-pages-plugin = "^2.10.1"
+pytest = "^9.1.1"
+pytest-asyncio = "^1.4.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.codespell]
 ignore-words-list = "allEdges,astroid,noteable"
-skip = "poetry.lock,**/site/*,logs.txt,*.pem,*.log"
+skip = "poetry.lock,**/site/*,logs.txt,*.pem,*.log,./docs/proposals/demo"
 
 [tool.ruff]
 line-length = 100

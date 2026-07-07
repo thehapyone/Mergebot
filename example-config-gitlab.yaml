@@ -77,3 +77,14 @@ merge:
 
 telemetry:
   enabled: false
+
+# Repo-context limits (optional). Every review clones the MR and builds a fact
+# pack; these are tuning knobs, not switches — failures degrade to diff-only.
+# context:
+#   workspace:
+#     clone_timeout: 120
+#     max_repo_mb: 2048
+#     root_dir: /var/lib/mergebot/workspaces  # defaults to MERGEBOT_WORKSPACE_DIR
+#     depth: 50
+#   fact_pack:
+#     token_budget: 12000

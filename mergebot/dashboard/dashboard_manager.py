@@ -134,13 +134,17 @@ class DashboardManager:
         rerun_requests: list[str],
         action_log: list[str],
         analytics: dict[str, Any],
+        carry_over_ids: set[str] | None = None,
         **kwargs,
     ) -> None:
         """
         Regenerate the dashboard markdown and update the issue.
+
+        `carry_over_ids`: still-open PR/MR ids whose existing table rows should survive
+        even when absent from mr_data (rows written by concurrent sessions).
         """
         dashboard_body = self._generate_dashboard_body(
-            mr_data, rerun_requests, action_log, analytics
+            mr_data, rerun_requests, action_log, analytics, carry_over_ids
         )
         dashboard = self.get_or_create_dashboard()
         self.api.update_issue(dashboard["id"], dashboard_body)
@@ -155,6 +159,7 @@ class DashboardManager:
         rerun_requests: list[str],
         action_log: list[str],
         analytics: dict[str, Any],
+        carry_over_ids: set[str] | None = None,
     ) -> str:
         # Load the dashboard template
         template_str = self._initial_dashboard_body()
@@ -200,7 +205,7 @@ class DashboardManager:
         # Render all sections
         rendered = template.render(
             last_updated=datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
-            active_mrs_table=self._render_active_mrs_table(mr_data, previous_table),
+            active_mrs_table=self._render_active_mrs_table(mr_data, previous_table, carry_over_ids),
             rerun_checklist=self._render_rerun_checklist(mr_data, rerun_requests),
             action_log=self._render_action_log(action_log),
             analytics_table=self._render_analytics_table(analytics),
@@ -243,15 +248,25 @@ class DashboardManager:
         return self._review_tracker
 
     def _render_active_mrs_table(
-        self, mr_data: list[dict[str, Any]], previous_table: str | None = None
+        self,
+        mr_data: list[dict[str, Any]],
+        previous_table: str | None = None,
+        carry_over_ids: set[str] | None = None,
     ) -> str:
         """
-        Render the MR table, preserving Last Reviewed from previous_table unless MR was just analyzed.
+        Render the MR table, preserving Last Reviewed from previous_table unless MR was just
+        analyzed.
+
+        This write regenerates the whole table, so rows another session added while the
+        caller was working would silently vanish. `carry_over_ids` names PR/MR ids the
+        caller confirmed are still open: previous rows with those ids that are absent from
+        mr_data are carried over verbatim instead of dropped.
         """
         # Parse previous Last Reviewed values if available
         last_reviewed_map = {}
         recommendation_map = {}
         impact_score_map = {}
+        previous_lines_by_id: dict[str, str] = {}
         if previous_table:
             # Parse each row for PR id, Impact Score, Recommendation, and Last Reviewed
             for line in previous_table.splitlines():
@@ -267,13 +282,14 @@ class DashboardManager:
                     impact_score_map[pr_id] = impact_score
                     recommendation_map[pr_id] = recommendation
                     last_reviewed_map[pr_id] = last_reviewed
+                    previous_lines_by_id[pr_id] = line.rstrip()
 
-        if not mr_data:
-            return "_No active pull or merge requests._"
         header = "| PR/MR | Title | Status | Impact Score | Recommendation | Last Reviewed | Analysis |\n|-------|-------|--------|-------------|----------------|---------------|----------|"
         rows = []
+        rendered_ids: set[str] = set()
         for pr in mr_data:
             pr_id_str = str(pr["id"])
+            rendered_ids.add(pr_id_str)
             # If this PR/MR was just analyzed, use the new value; else, preserve previous
             last_reviewed = pr.get("last_reviewed", "").strip()
             recommendation = pr.get("recommendation", "").strip()
@@ -288,6 +304,13 @@ class DashboardManager:
             rows.append(
                 f"| [!{pr['id']}]({pr.get('web_url', '#')}) | {pr.get('title', '')} | {pr.get('status', '')} | {impact_score} | {recommendation} | {last_reviewed} | [View Report]({pr.get('analysis_link', '#')}) |"
             )
+
+        for pr_id, line in previous_lines_by_id.items():
+            if pr_id not in rendered_ids and carry_over_ids and pr_id in carry_over_ids:
+                rows.append(line)
+
+        if not rows:
+            return "_No active pull or merge requests._"
         return header + "\n" + "\n".join(rows)
 
     def _render_rerun_checklist(

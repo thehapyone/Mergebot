@@ -1,11 +1,15 @@
+import asyncio
 import re
 from datetime import datetime
+from pathlib import Path
 
 from crewai import Crew
 from crewai.events.event_listener import EventListener
 from crewai.flow.flow import Flow, and_, listen, start
 from pydantic import BaseModel, Field, ValidationError
 
+from mergebot.context.diff_compression import raw_patch_exceeds_budget
+from mergebot.context.fact_pack import SECTION_TOKEN_CAPS, build_fact_pack
 from mergebot.crews import (
     CodeAnalysis,
     ComplexityAnalysis,
@@ -15,7 +19,14 @@ from mergebot.crews import (
 )
 from mergebot.project_registry import ProjectRuntime
 from mergebot.services import decision_service, pr_service
+from mergebot.services.pr_service import PrFetchResult
 from mergebot.validator.logging_config import logger
+from mergebot.workspace.manager import (
+    Workspace,
+    WorkspaceLimits,
+    WorkspaceManager,
+    credential_from_runtime,
+)
 
 
 # TODO: This is a temporary fix for this issue https://github.com/crewAIInc/crewAI/issues/3136
@@ -195,6 +206,11 @@ class AnalysisResult(BaseModel):
 
 class MergeBotFlow(Flow[MergeBotState]):
     runtime: ProjectRuntime | None = None
+    # Workspace/context artifacts live on the flow instance, not in the pydantic state:
+    # they carry paths and (via pr_fetch) the git token, which must never be serialized.
+    pr_fetch: PrFetchResult | None = None
+    workspace: Workspace | None = None
+    workspace_manager: WorkspaceManager | None = None
 
     @start()
     def initialize(self):
@@ -206,10 +222,87 @@ class MergeBotFlow(Flow[MergeBotState]):
     @listen(initialize)
     async def pr_retriever(self):
         """Fetches PR/MR details using service layer"""
-        details = await pr_service.get_pull_or_merge_request_details(self.state.pr_id, self.runtime)
-        self.state.pr_details = details
+        self.pr_fetch = await pr_service.get_pull_or_merge_request(self.state.pr_id, self.runtime)
+        self.state.pr_details = self.pr_fetch.details
 
     @listen(pr_retriever)
+    async def workspace_provisioner(self):
+        """Provisions a shallow per-review clone. Failures degrade to diff-only."""
+        try:
+            pr_ref = self.pr_fetch.ref if self.pr_fetch else None
+            if pr_ref is None:
+                logger.warning(
+                    "No typed PR metadata available; skipping workspace (diff-only review)."
+                )
+                return
+            workspace_config = self.runtime.config.context.workspace
+            self.workspace_manager = WorkspaceManager(
+                WorkspaceLimits(
+                    root_dir=Path(workspace_config.root_dir),
+                    clone_timeout=workspace_config.clone_timeout,
+                    depth=workspace_config.depth,
+                    max_repo_mb=workspace_config.max_repo_mb,
+                )
+            )
+            await self.workspace_manager.sweep_orphans()
+            credential = None
+            if self.pr_fetch.git_token:
+                credential = credential_from_runtime(
+                    self.runtime.platform_type, self.pr_fetch.git_token
+                )
+            self.workspace = await self.workspace_manager.provision(pr_ref, credential=credential)
+        except Exception as e:
+            logger.warning(f"Workspace provisioning failed; continuing diff-only: {e}")
+            self.workspace = None
+
+    @listen(workspace_provisioner)
+    async def context_builder(self):
+        """Builds the deterministic fact pack and appends it to the reviewer input.
+
+        Input-side only: on any failure the pr_details blob stays exactly as today.
+        The compressed diff replaces the raw patch only when the raw patch exceeds
+        the fact-pack diff budget (no-information-regression rule); below that the
+        full patch is kept and the pack is purely additive.
+        """
+        try:
+            workspace = self.workspace
+            if workspace is None or workspace.degraded:
+                return
+            if not workspace.base_present:
+                logger.warning(
+                    "Base commit unavailable in workspace; skipping fact pack (diff-only review)."
+                )
+                return
+            fact_pack_config = self.runtime.config.context.fact_pack
+            section_caps = {**SECTION_TOKEN_CAPS, **fact_pack_config.section_caps}
+            replace_patch = raw_patch_exceeds_budget(
+                self.pr_fetch.details,
+                self.pr_fetch.details_no_patch,
+                section_caps["compressed_diff"],
+            )
+            cache_dir = Path(self.runtime.config.context.workspace.root_dir) / ".symbol-cache"
+            fact_pack = await asyncio.to_thread(
+                build_fact_pack,
+                repo=workspace.checkout,
+                base=workspace.base_sha,
+                cache_dir=cache_dir,
+                include_compressed_diff=replace_patch,
+                git_env=workspace.git_env,
+                cache_key=self.runtime.project_path,
+            )
+            rendered = fact_pack.render(
+                token_budget=fact_pack_config.token_budget,
+                section_caps=section_caps,
+                # When the compressed diff replaces the raw patch, it must survive
+                # budget pressure — dropping it would leave reviewers with no diff.
+                reserved_sections={"compressed_diff"} if replace_patch else None,
+            )
+            base_text = self.pr_fetch.details_no_patch if replace_patch else self.pr_fetch.details
+            self.state.pr_details = f"{base_text}\n\n{rendered}"
+        except Exception as e:
+            logger.warning(f"Fact pack build failed; continuing diff-only: {e}")
+
+    @listen(context_builder)
     async def code_analysis_assessment(self):
         """Runs the Code Analysis Assessment on the PR details"""
         self.state.code_analysis_assessment = (
@@ -218,7 +311,7 @@ class MergeBotFlow(Flow[MergeBotState]):
             )
         ).raw
 
-    @listen(pr_retriever)
+    @listen(context_builder)
     async def complexity_assessment(self):
         """Runs the Complexity Assessment on the PR details"""
         self.state.complexity_assessment = (
@@ -227,7 +320,7 @@ class MergeBotFlow(Flow[MergeBotState]):
             )
         ).raw
 
-    @listen(pr_retriever)
+    @listen(context_builder)
     async def test_analysis_assessment(self):
         """Runs the Test Analysis Assessment on the PR details"""
         self.state.test_analysis_assessment = (
@@ -236,7 +329,7 @@ class MergeBotFlow(Flow[MergeBotState]):
             )
         ).raw
 
-    @listen(pr_retriever)
+    @listen(context_builder)
     async def risk_assessment(self):
         """Runs the Risk Analysis Assessment on the PR details"""
         self.state.risk_assessment = (
@@ -334,9 +427,13 @@ async def run_flow(
         f"Initiated MergeBotFlow with Flow ID: {flow_id} for project {runtime.project_path}"
     )
 
-    await mergebot.kickoff_async()
-
-    cleanup_crewai_live_console()
+    try:
+        await mergebot.kickoff_async()
+    finally:
+        cleanup_crewai_live_console()
+        # Workspaces are per-review and must not outlive the flow, success or failure.
+        if mergebot.workspace_manager and mergebot.workspace and not mergebot.workspace.degraded:
+            await mergebot.workspace_manager.cleanup(mergebot.workspace)
 
     try:
         analysis_result = AnalysisResult(

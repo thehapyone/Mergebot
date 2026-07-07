@@ -4,6 +4,7 @@ This module is intentionally standalone: it does not alter the production flow a
 only reads the target repository. It is a proving ground for the proposed context
 builder shape before we commit to the full workspace/reviewer integration.
 """
+
 import argparse
 import ast
 import hashlib
@@ -422,7 +423,9 @@ class FactPackBuilder:
                 ]
             )
         elif omitted_diff_paths:
-            diff += "No non-generated tracked diff remains after generated artifact summarization.\n"
+            diff += (
+                "No non-generated tracked diff remains after generated artifact summarization.\n"
+            )
         else:
             diff += self._git(
                 ["diff", "--find-renames", "--find-copies", "--unified=24", self.base, "--"]
@@ -498,9 +501,7 @@ class FactPackBuilder:
                 f"symbols out of {len(touched)}._"
             )
         for name in names:
-            matches = self._rg_word(
-                name, max_results=MAX_REFERENCES_PER_SYMBOL, source_only=True
-            )
+            matches = self._rg_word(name, max_results=MAX_REFERENCES_PER_SYMBOL, source_only=True)
             if not matches:
                 blocks.append(f"### `{name}`\nNo lexical references found by ripgrep.")
                 continue
@@ -632,14 +633,10 @@ class FactPackBuilder:
             return None
 
         field_changes = [
-            change
-            for path in manifest_paths
-            for change in self._manifest_field_changes(path)
+            change for path in manifest_paths for change in self._manifest_field_changes(path)
         ]
         omitted_paths = tuple(
-            path
-            for path in generated_paths
-            if _has_nearby_manifest_config(path, manifest_paths)
+            path for path in generated_paths if _has_nearby_manifest_config(path, manifest_paths)
         )
         lines = [
             "This section is ecosystem-neutral and evidence-only: it lists human-edited "
@@ -696,9 +693,7 @@ class FactPackBuilder:
                 )
         return changes
 
-    def _manifest_reference_lines(
-        self, field_changes: list[ManifestFieldChange]
-    ) -> list[str]:
+    def _manifest_reference_lines(self, field_changes: list[ManifestFieldChange]) -> list[str]:
         search_terms = _manifest_reference_terms(field_changes)
         if not search_terms:
             return ["_No manifest field names to search._"]
@@ -1029,10 +1024,7 @@ def _looks_like_manifest_config(path: str) -> bool:
     candidate = Path(path)
     if _looks_like_generated_file(path):
         return False
-    return (
-        candidate.suffix in MANIFEST_CONFIG_SUFFIXES
-        or candidate.name in MANIFEST_CONFIG_NAMES
-    )
+    return candidate.suffix in MANIFEST_CONFIG_SUFFIXES or candidate.name in MANIFEST_CONFIG_NAMES
 
 
 def _looks_like_generated_file(path: str) -> bool:
@@ -1132,9 +1124,7 @@ def _format_crg_report(report_json: dict[str, Any] | None, raw_text: str) -> str
         return (
             "CRG did not emit parseable JSON. Raw output is withheld from the shared "
             "fact pack to avoid leaking assessment text.\n\n"
-            "```text\n"
-            + _limit_lines(_assessment_neutral_crg_lines(raw_text), 80)
-            + "\n```"
+            "```text\n" + _limit_lines(_assessment_neutral_crg_lines(raw_text), 80) + "\n```"
         )
 
     changed_functions = _crg_list(report_json, "changed_functions")
@@ -1196,9 +1186,7 @@ def _crg_review_priorities(report_json: dict[str, Any]) -> list[dict[str, Any]]:
     )[:MAX_CRG_ITEMS]
 
 
-def _crg_symbol_signals(
-    report_json: dict[str, Any] | None, repo: Path
-) -> list[CrgSymbolSignal]:
+def _crg_symbol_signals(report_json: dict[str, Any] | None, repo: Path) -> list[CrgSymbolSignal]:
     if report_json is None:
         return []
 
@@ -1274,9 +1262,7 @@ def _crg_item_risk_score(item: dict[str, Any]) -> float:
         return 0.0
 
 
-def _rank_symbols_by_crg(
-    symbols: list[Symbol], crg_signals: list[CrgSymbolSignal]
-) -> list[Symbol]:
+def _rank_symbols_by_crg(symbols: list[Symbol], crg_signals: list[CrgSymbolSignal]) -> list[Symbol]:
     if not crg_signals:
         return symbols
     return sorted(
@@ -1290,9 +1276,7 @@ def _rank_symbols_by_crg(
     )
 
 
-def _crg_sort_key(
-    symbol: Symbol, crg_signals: list[CrgSymbolSignal]
-) -> tuple[int, float, int]:
+def _crg_sort_key(symbol: Symbol, crg_signals: list[CrgSymbolSignal]) -> tuple[int, float, int]:
     signal = _best_crg_signal(symbol, crg_signals)
     if signal is None:
         return (len(crg_signals) + 1, 0, symbol.start_line)
@@ -1319,9 +1303,7 @@ def _format_symbol_crg_signal(symbol: Symbol, crg_signals: list[CrgSymbolSignal]
     return f"- crg: `matched changed symbol{location}`"
 
 
-def _best_crg_signal(
-    symbol: Symbol, crg_signals: list[CrgSymbolSignal]
-) -> CrgSymbolSignal | None:
+def _best_crg_signal(symbol: Symbol, crg_signals: list[CrgSymbolSignal]) -> CrgSymbolSignal | None:
     matches = [
         (quality, signal)
         for signal in crg_signals
@@ -1558,9 +1540,7 @@ def _unique_symbol_names_in_order(symbols: list[Symbol]) -> list[str]:
 
 
 def _is_noisy_reference_leaf(name: str) -> bool:
-    return name in NOISY_REFERENCE_LEAVES or (
-        name.startswith("__") and name.endswith("__")
-    )
+    return name in NOISY_REFERENCE_LEAVES or (name.startswith("__") and name.endswith("__"))
 
 
 def _symbol_from_dict(data: dict[str, Any]) -> Symbol:
