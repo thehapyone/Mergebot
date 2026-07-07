@@ -37,14 +37,10 @@ COPY pyproject.toml poetry.lock README.md ./
 
 USER appuser
 
-# Configure Poetry to use in-project virtualenvs and install dependencies (no-root)
+# Configure Poetry to use in-project virtualenvs and install dependencies (no-root).
+# Runtime dependencies include the code-review-graph CLI used by the fact-pack builder.
 RUN poetry config virtualenvs.in-project true && \
     poetry install --no-cache --no-plugins --no-interaction --no-ansi --no-root
-
-# code-review-graph CLI for the fact-pack context builder (the builder degrades
-# gracefully when it is absent, but the image ships it). Installed as a standalone
-# CLI tool, not a Poetry dependency: Mergebot only shells out to the binary.
-RUN pip install --no-cache-dir "code-review-graph==2.3.6"
 
 # Copy the rest of the application's code
 COPY mergebot ./mergebot
