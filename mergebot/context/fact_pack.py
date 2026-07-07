@@ -1,9 +1,7 @@
 """Deterministic fact-pack builder for context-aware reviews.
 
-Graduated from `mergebot/context/prototype.py` (v0.2), validated across five demo
-iterations and a two-model value spike (docs/proposals/demo/). Deterministic by
-design — no LLM involvement — which makes the reviewer-independence guarantee
-structural: every reviewer receives the identical, opinion-free evidence base.
+Deterministic by design — no LLM involvement — which makes the reviewer-independence
+guarantee structural: every reviewer receives the identical, opinion-free evidence base.
 
 Section sources: code-review-graph structural facts (assessment fields stripped),
 CRG/lexical test-coverage reconciliation, manifest/config candidates, ripgrep

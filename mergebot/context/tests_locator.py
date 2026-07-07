@@ -1,8 +1,8 @@
 """Test-file heuristics for the fact pack.
 
-Graduated from `mergebot/context/prototype.py` (v0.2): conventional test-path
-detection and stem-based candidate matching. Lexical (ripgrep) test references are
-searched by the fact-pack builder and filtered through `looks_like_test_path`.
+Conventional test-path detection and stem-based candidate matching. Lexical (ripgrep)
+test references are searched by the fact-pack builder and filtered through
+`looks_like_test_path`.
 """
 
 from pathlib import Path

@@ -1,7 +1,7 @@
 """Workspace manager: split-jail security invariants, preflight guards, lifecycle.
 
-Ports the prototype's self-test assertions (docs/proposals/demo/workspace-manager-
-selftest.md) into pytest, including the mandatory §3.1 credential deny-list checks.
+Includes the mandatory credential deny-list checks (design doc §3.1): the git token
+must be structurally unreachable from anything inside the checkout jail.
 """
 
 import json

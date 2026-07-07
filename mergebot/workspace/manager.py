@@ -1,9 +1,7 @@
 """Workspace manager for context-aware reviews.
 
-Graduated from `mergebot/workspace/prototype.py` (v0.2), which validated this design
-end-to-end (see docs/proposals/context-aware-review-architecture.md section 3.1 and
-docs/proposals/demo/workspace-manager-*.md). The security invariants are preserved
-verbatim from the prototype:
+Provisions a per-review clone of the PR/MR head with a hard security boundary
+(see docs/proposals/context-aware-review-architecture.md section 3.1):
 
 - shallow, blobless clone at a head SHA into a per-review temp workspace
 - split-jail layout: `<root>/checkout/` is the only directory tools may read;

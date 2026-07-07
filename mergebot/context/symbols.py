@@ -1,6 +1,6 @@
 """Symbol extraction and caching for the fact pack.
 
-Graduated from `mergebot/context/prototype.py` (v0.2). Python files get real AST
+Python files get real AST
 symbols; other languages fall back to conservative line-based heuristics. This is the
 local-excerpt story only — cross-language graph facts come from code-review-graph.
 """

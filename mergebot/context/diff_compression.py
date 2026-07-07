@@ -1,8 +1,7 @@
 """Diff parsing and compression for the fact pack.
 
-Graduated from `mergebot/context/prototype.py` (v0.2): changed-file/hunk parsing and
-the compressed-diff section body (hunks with wide context, generated-artifact
-omission, untracked-file excerpts for local runs).
+Changed-file/hunk parsing and the compressed-diff section body (hunks with wide
+context, generated-artifact omission, untracked-file excerpts for local runs).
 
 Phase B no-information-regression rule: until exploration tools ship, reviewers have
 no way to recover content the compressed diff drops — so the compressed diff only

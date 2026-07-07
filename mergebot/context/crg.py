@@ -1,6 +1,6 @@
 """code-review-graph (CRG) subprocess adapter for the fact pack.
 
-Graduated from `mergebot/context/prototype.py` (v0.2). CRG is optional: when the
+CRG is optional: when the
 binary is not on PATH the adapter returns None and the fact pack simply omits the
 graph sections. CRG *assessment* outputs (risk_score, review_priorities) are never
 rendered into the shared fact pack — reviewer independence is a hard constraint —
