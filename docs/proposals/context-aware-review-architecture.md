@@ -103,14 +103,11 @@ bounded number of file reads; it cannot spam a PR.
 
 New module: `mergebot/workspace/manager.py`
 
-> **Status: prototyped & validated.** `mergebot/workspace/prototype.py` proves this
-> design end-to-end. It self-verifies the security boundary (offline, with a token) and
-> was run against real PRs — see `docs/proposals/demo/workspace-manager-selftest.md` and
-> `…-realdemo.md` (Mergebot PR #74/#90 via real `refs/pull/N/head`, MarkupSafe at
-> depth=1 exercising the base-SHA guarantee, plus the degraded cases). All checks green.
-> The one validation still owed: a private-repo clone with a live installation token
-> (the sandbox only had public repos). Graduating the prototype into `manager.py`
-> (async git, `ProjectRuntime` wiring) is the remaining work.
+> **Status: implemented (Phase B).** `mergebot/workspace/manager.py` ships this design;
+> the security boundary is enforced by the pytest suite (path jail, credential
+> deny-list, preflight, degraded cases) and was validated live against a private
+> GitLab project. The one validation still owed: a clone with a live GitHub App
+> installation token (the PAT path is validated).
 
 ```python
 @dataclass
@@ -171,7 +168,7 @@ Implementation notes:
   could exfiltrate it into a public PR comment via a finding's evidence field. It is safe
   to reuse the (push-capable) review/merge token here *precisely because* the jail makes
   it unreachable to the read-only tools. A **deny-list test is mandatory** (and passes in
-  the prototype): `read_file`/`list_directory`/`grep_repo` cannot observe the askpass
+  the test suite): `read_file`/`list_directory`/`grep_repo` cannot observe the askpass
   helper, `.git/config`, or any path outside `checkout/`. App installation tokens expire
   after ~1 h — fine for a 1–4 min review; the manager resolves a fresh one per review,
   holds it in the workspace's `git_env` for that review's lifetime (so blobless
@@ -197,7 +194,7 @@ Implementation notes:
   same repo never collide. Plays fine with `--max-concurrency`.
 - **Graceful degradation (mandatory):** any failure → log a warning, return
   `Workspace(degraded=True)`; the flow proceeds exactly as today (diff-only fact pack, no
-  tools attached). A degraded review must never fail the run. (Verified in the prototype:
+  tools attached). A degraded review must never fail the run. (Covered by tests:
   bad URL, oversized repo, and low disk all degrade without raising.)
 
 ### 3.2 Context Builder (fact pack) — `mergebot/context/`
@@ -498,14 +495,14 @@ The PR being reviewed is **attacker-controlled input** that we now clone to loca
 mergebot/
 ├── workspace/                  # NEW
 │   ├── __init__.py
-│   ├── prototype.py           # PROVEN: WorkspaceManager, Workspace, PrRef, GitCredential,
-│   │                          #   credential_from_runtime, split-jail, self-test + demos
-│   └── manager.py             # graduate prototype → async git + ProjectRuntime wiring
+│   └── manager.py              # WorkspaceManager, Workspace, PrRef, GitCredential,
+│                               #   credential_from_runtime, split-jail (async git)
 ├── context/                    # NEW
 │   ├── __init__.py
 │   ├── fact_pack.py            # FactPack, FactPackSection, build_fact_pack()
 │   ├── diff_compression.py
-│   ├── symbols.py              # tree-sitter / heuristic tag index
+│   ├── crg.py                  # code-review-graph subprocess adapter (scrubbed env)
+│   ├── symbols.py              # AST / heuristic symbol extraction + cache
 │   └── tests_locator.py
 ├── tools/
 │   └── exploration/            # NEW
@@ -566,8 +563,6 @@ changes.*
 
 - `workspace/`, `context/`, flow steps `workspace_provisioner` + `context_builder`,
   fact pack injected into reviewer task inputs, preflight checks + degraded mode.
-  (Both modules graduate from proven prototypes: `workspace/prototype.py`,
-  `context/prototype.py`.)
 - **Session-lock fix ships in this phase, not later:** Phase B is when reviews get
   slower, and with no off switch the lock fix can't be deferred. Ondemand releases and
   re-acquires the project lock *between PRs* in a batch (instead of holding it across
