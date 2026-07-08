@@ -616,6 +616,14 @@ build on.*
 
 - `tools/exploration/`, crew construction moved post-workspace, agent `tools=`,
   `max_iter`, prompts rewritten as investigation briefs with hardening preamble.
+- **CRG cache reuse across reviews.** The CRG data dir already persists per project
+  (Phase B), but CRG keys nodes by absolute file path — and every review checks out
+  into a unique temp directory, so each review pays a full `crg build` (observed live:
+  `last_build_type: full` with per-workspace paths in `graph.db`). To get true shared
+  behavior, make node identity checkout-independent: prefer a CRG repo-relative path
+  mode if available, else normalize paths at the adapter boundary. Incremental builds
+  then work for free via CRG's per-file content hashes. Keep the per-review checkout
+  isolation — do not fix this with a stable checkout path.
 - **Verify:** unit tests — path jail (traversal, symlink escape, the §3.1 credential
   deny-list), caps/truncation, allow-listed git args; integration — dry-run measuring
   tool-call counts, tokens,
