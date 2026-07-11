@@ -15,8 +15,15 @@ risk_analysis_task:
 
   agent: risk_analysis
   expected_output: |
-    - A **risk impact score** between 0 and 10, where higher scores indicate higher levels of risk.
-    - A detailed risk assessment report including:
-      - **Summary of Identified Risks**: Description of each potential risk found.
-      - **Severity Evaluation**: Explanation of why each risk is significant.
-      - **Recommendations**: Suggested actions to mitigate or address the identified risks.
+    A structured reviewer verdict with:
+
+    - score: a risk impact score between 0 and 10, where higher scores indicate higher levels of risk.
+    - confidence: "low", "medium", or "high" — how confident you are in this assessment given the available context.
+    - summary: the identified risks and the reasoning behind the score, explaining why each significant risk matters.
+    - findings: one entry per identified risk, evidence-backed. For each finding provide a title;
+      a severity of "info", "low", "medium", "high", or "critical"; the affected file path exactly
+      as it appears in the PR details or repository context (omit it for repo-wide observations);
+      the line number when known; evidence quoting the relevant code or observed fact — required
+      for severity medium and above, never speculation; and an actionable recommendation to
+      mitigate or address the risk.
+    - explored: a short audit trail of what you examined and why.

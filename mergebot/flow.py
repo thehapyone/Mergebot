@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 
 from crewai import Crew
-from crewai.events.event_listener import EventListener
 from crewai.flow.flow import Flow, and_, listen, start
 from pydantic import BaseModel, Field, ValidationError
 
@@ -17,9 +16,16 @@ from mergebot.crews import (
     RiskAnalysis,
     TestAnalysis,
 )
+from mergebot.crews.schemas import ImpactReport, ReviewerVerdict
 from mergebot.project_registry import ProjectRuntime
 from mergebot.services import decision_service, pr_service
 from mergebot.services.pr_service import PrFetchResult
+from mergebot.services.scoring import (
+    REVIEWER_WEIGHT_KEYS,
+    ScoreResult,
+    compute_weighted_score,
+    render_recommendation,
+)
 from mergebot.validator.logging_config import logger
 from mergebot.workspace.manager import (
     Workspace,
@@ -28,104 +34,9 @@ from mergebot.workspace.manager import (
     credential_from_runtime,
 )
 
-
-# TODO: This is a temporary fix for this issue https://github.com/crewAIInc/crewAI/issues/3136
-def cleanup_crewai_live_console():
-    """
-    Cleans up the CrewAI live console formatter if it exists.
-    This is useful to stop the live console output after the flow execution.
-    """
-    el = getattr(EventListener, "_instance", None)
-    live = getattr(getattr(el, "formatter", None), "_live", None)
-    if live:
-        logger.info("Stopping live console formatter...")
-        el.formatter._live.stop()
-        el.formatter._live = None
-        logger.info("Live console formatter stopped.")
-
-
-def extract_url_from_text(text: str) -> str:
-    """
-    Extracts the first URL found in a text string, even if it is enclosed in markdown format.
-    Returns the URL if found, else an empty string.
-    """
-    match = re.search(r"https?://[^\s)\]]+", text)
-    return match.group(0) if match else "N/A"
-
-
-def extract_assessment(impact_assessment: str) -> dict:
-    """
-    Extracts assessment metrics from the impact assessment string:
-     - Overall Impact Score
-     - Recommendation
-     - Report
-
-    Args:
-        impact_assessment (str): The impact assessment details.
-
-    Returns:
-        dict: A dictionary containing extracted metrics: score, recommendation, and full report.
-    """
-    # Flexible patterns: allows asterisks (markdown bold/italic) or none, preserves robustness
-    patterns = {
-        "score": r"^\s*\*+?\s*Overall Impact Score\s*\*+?\s*:\s*(.+)$",
-        "recommendation": r"^\s*\*+?\s*Recommendation\s*\*+?\s*:\s*(.+)$",
-    }
-    extracted_metrics = {
-        key: re.search(pattern, impact_assessment, re.MULTILINE | re.IGNORECASE)
-        for key, pattern in patterns.items()
-    }
-    return {
-        "score": (
-            extracted_metrics["score"].group(1).strip() if extracted_metrics["score"] else "N/A"
-        ),
-        "recommendation": (
-            extracted_metrics["recommendation"].group(1).strip()
-            if extracted_metrics["recommendation"]
-            else ""
-        ),
-        "report": impact_assessment.strip(),
-    }
-
-
-def validate_impact_assessment(data: dict) -> dict:
-    """
-    Validate and normalize the impact assessment extracted from the LLM output.
-
-    Policy:
-    - Do NOT fabricate values. Only trim/normalize lightly.
-    - Recommendation: title to "Approve" if it contains "approve", otherwise keep as-is.
-    - Score: keep as-is (empty means not extracted).
-    - Report: keep as-is (empty means not extracted).
-    """
-    data = data or {}
-    raw_rec = str(data.get("recommendation", "") or "").strip()
-    score = str(data.get("score", "") or "").strip()
-    report = str(data.get("report", "") or "").strip()
-
-    # Light normalization
-    recommendation = "Auto-Approve" if "approve" in raw_rec.lower() else raw_rec
-
-    return {
-        "score": score,
-        "recommendation": recommendation,
-        "report": report,
-    }
-
-
-def is_conclusive_impact_assessment(data: dict) -> bool:
-    """
-    An assessment is conclusive only if BOTH recommendation and score were extracted.
-    - recommendation: non-empty after trimming
-    - score: non-empty and not in {"N/A","NA"} (case-insensitive)
-    """
-    if not isinstance(data, dict):
-        return False
-    rec = str(data.get("recommendation", "") or "").strip()
-    score = str(data.get("score", "") or "").strip()
-    if not rec or not score:
-        return False
-    return score.upper() not in {"N/A", "NA"}
+# File header lines in the pretty-printed PR details (patches omitted in the
+# no-patch render, so every match is a real changed-file path).
+_DETAILS_FILE_RE = re.compile(r"^File: (.+)$", re.MULTILINE)
 
 
 def extract_pr_id(output_string):
@@ -149,12 +60,13 @@ def extract_pr_id(output_string):
 class MergeBotCrews:
     """Container for lazily-instantiated crews tied to a specific project config."""
 
-    def __init__(self, config):
+    def __init__(self, config, finding_file_checker=None):
+        reviewer_kwargs = {"config": config, "finding_file_checker": finding_file_checker}
         self._crews = {
-            "code_analysis": CodeAnalysis(config=config).crew(),
-            "complexity_assessment": ComplexityAnalysis(config=config).crew(),
-            "test_analysis": TestAnalysis(config=config).crew(),
-            "risk_analysis": RiskAnalysis(config=config).crew(),
+            "code_analysis": CodeAnalysis(**reviewer_kwargs).crew(),
+            "complexity_assessment": ComplexityAnalysis(**reviewer_kwargs).crew(),
+            "test_analysis": TestAnalysis(**reviewer_kwargs).crew(),
+            "risk_analysis": RiskAnalysis(**reviewer_kwargs).crew(),
             "impact_evaluator": ImpactEvaluator(config=config).crew(),
         }
 
@@ -173,10 +85,11 @@ class MergeBotState(BaseModel):
     pr_id: int = None
     pr_title: str = ""
     pr_details: str = ""
-    code_analysis_assessment: str = ""
-    complexity_assessment: str = ""
-    test_analysis_assessment: str = ""
-    risk_assessment: str = ""
+    code_analysis_assessment: ReviewerVerdict | None = None
+    complexity_assessment: ReviewerVerdict | None = None
+    test_analysis_assessment: ReviewerVerdict | None = None
+    risk_assessment: ReviewerVerdict | None = None
+    score_result: ScoreResult | None = None
     impact_assessment: dict = {
         "score": "",
         "recommendation": "",
@@ -211,13 +124,40 @@ class MergeBotFlow(Flow[MergeBotState]):
     pr_fetch: PrFetchResult | None = None
     workspace: Workspace | None = None
     workspace_manager: WorkspaceManager | None = None
+    _diff_file_names: set[str] | None = None
+
+    def known_finding_file(self, path: str) -> bool:
+        """Guardrail hook: does `path` exist in the workspace checkout or the diff?
+
+        Crews are constructed before the workspace exists, so this resolves at
+        guardrail-execution time against whatever this review actually has.
+        """
+        candidate = (path or "").strip().lstrip("/")
+        candidate = candidate.removeprefix("./")
+        if not candidate:
+            return False
+        workspace = self.workspace
+        if workspace is not None and not workspace.degraded:
+            try:
+                checkout = workspace.checkout.resolve()
+                resolved = (checkout / candidate).resolve()
+                if resolved.is_relative_to(checkout) and resolved.exists():
+                    return True
+            except OSError:
+                pass
+        if self._diff_file_names is None:
+            details = self.pr_fetch.details_no_patch if self.pr_fetch else ""
+            self._diff_file_names = {match.strip() for match in _DETAILS_FILE_RE.findall(details)}
+        return candidate in self._diff_file_names
 
     @start()
     def initialize(self):
         logger.info("Commencing and starting the MergeBot")
         if self.runtime is None:
             raise RuntimeError("MergeBotFlow runtime was not configured")
-        self.crews = MergeBotCrews(self.runtime.config)
+        self.crews = MergeBotCrews(
+            self.runtime.config, finding_file_checker=self.known_finding_file
+        )
 
     @listen(initialize)
     async def pr_retriever(self):
@@ -302,41 +242,44 @@ class MergeBotFlow(Flow[MergeBotState]):
         except Exception as e:
             logger.warning(f"Fact pack build failed; continuing diff-only: {e}")
 
+    async def _kickoff_reviewer(self, crew: Crew, crew_name: str) -> ReviewerVerdict:
+        """Run one reviewer crew and return its typed verdict."""
+        output = await crew.kickoff_async(inputs={"pr_details": self.state.pr_details})
+        verdict = output.pydantic
+        if not isinstance(verdict, ReviewerVerdict):
+            raise RuntimeError(
+                f"{crew_name} did not produce a structured ReviewerVerdict "
+                f"(got {type(verdict).__name__})"
+            )
+        return verdict
+
     @listen(context_builder)
     async def code_analysis_assessment(self):
         """Runs the Code Analysis Assessment on the PR details"""
-        self.state.code_analysis_assessment = (
-            await self.crews.code_analysis.kickoff_async(
-                inputs={"pr_details": self.state.pr_details}
-            )
-        ).raw
+        self.state.code_analysis_assessment = await self._kickoff_reviewer(
+            self.crews.code_analysis, "CodeAnalysis"
+        )
 
     @listen(context_builder)
     async def complexity_assessment(self):
         """Runs the Complexity Assessment on the PR details"""
-        self.state.complexity_assessment = (
-            await self.crews.complexity_assessment.kickoff_async(
-                inputs={"pr_details": self.state.pr_details}
-            )
-        ).raw
+        self.state.complexity_assessment = await self._kickoff_reviewer(
+            self.crews.complexity_assessment, "ComplexityAnalysis"
+        )
 
     @listen(context_builder)
     async def test_analysis_assessment(self):
         """Runs the Test Analysis Assessment on the PR details"""
-        self.state.test_analysis_assessment = (
-            await self.crews.test_analysis.kickoff_async(
-                inputs={"pr_details": self.state.pr_details}
-            )
-        ).raw
+        self.state.test_analysis_assessment = await self._kickoff_reviewer(
+            self.crews.test_analysis, "TestAnalysis"
+        )
 
     @listen(context_builder)
     async def risk_assessment(self):
         """Runs the Risk Analysis Assessment on the PR details"""
-        self.state.risk_assessment = (
-            await self.crews.risk_analysis.kickoff_async(
-                inputs={"pr_details": self.state.pr_details}
-            )
-        ).raw
+        self.state.risk_assessment = await self._kickoff_reviewer(
+            self.crews.risk_analysis, "RiskAnalysis"
+        )
 
     @listen(
         and_(
@@ -347,25 +290,56 @@ class MergeBotFlow(Flow[MergeBotState]):
         )
     )
     async def impact_evaluator(self):
-        """Runs the Impact Evaluator Analysis Assessment on the PR details"""
-        approval_policy = self.runtime.config.approval_policy
-        policy_str = approval_policy.to_markdown() if approval_policy else ""
-        impact_evaluator = (
-            await self.crews.impact_evaluator.kickoff_async(
-                inputs={
-                    "pr_id": self.state.pr_id,
-                    "approval_policy": policy_str,
-                    "code_analysis_assessment": self.state.code_analysis_assessment,
-                    "complexity_assessment": self.state.complexity_assessment,
-                    "test_analysis": self.state.test_analysis_assessment,
-                    "risk_assessment": self.state.risk_assessment,
-                }
-            )
-        ).raw
+        """Computes the deterministic score, then has the evaluator write the narrative.
 
-        self.state.impact_assessment = validate_impact_assessment(
-            extract_assessment(impact_evaluator)
+        The score and recommendation come from `compute_weighted_score` and are
+        rendered into the report header in code; the LLM cannot alter them.
+        """
+        verdicts = {
+            "CodeAnalysis": self.state.code_analysis_assessment,
+            "ComplexityAnalysis": self.state.complexity_assessment,
+            "TestAnalysis": self.state.test_analysis_assessment,
+            "RiskAnalysis": self.state.risk_assessment,
+        }
+        score_result = compute_weighted_score(verdicts, self.runtime.config.approval_policy)
+        self.state.score_result = score_result
+
+        score_str = f"{score_result.overall_score:.1f}"
+        recommendation_display = render_recommendation(score_result.recommendation)
+        per_reviewer_scores = ", ".join(
+            f"{name}: {score_result.per_reviewer[name]} (weight {score_result.weights_used[name]})"
+            for name in REVIEWER_WEIGHT_KEYS
         )
+        output = await self.crews.impact_evaluator.kickoff_async(
+            inputs={
+                "pr_id": self.state.pr_id,
+                "overall_score": score_str,
+                "recommendation": recommendation_display,
+                "per_reviewer_scores": per_reviewer_scores,
+                "code_analysis_verdict": verdicts["CodeAnalysis"].model_dump_json(indent=2),
+                "complexity_verdict": verdicts["ComplexityAnalysis"].model_dump_json(indent=2),
+                "test_analysis_verdict": verdicts["TestAnalysis"].model_dump_json(indent=2),
+                "risk_verdict": verdicts["RiskAnalysis"].model_dump_json(indent=2),
+            }
+        )
+        report = output.pydantic
+        if not isinstance(report, ImpactReport):
+            raise RuntimeError(
+                f"ImpactEvaluator did not produce a structured ImpactReport "
+                f"(got {type(report).__name__})"
+            )
+
+        header = (
+            f"# Impact Assessment Report for PR/MR #{self.state.pr_id}\n\n"
+            f"**Overall Impact Score**: {score_str}\n\n"
+            f"**Recommendation**: {recommendation_display}\n\n"
+            "---\n\n"
+        )
+        self.state.impact_assessment = {
+            "score": score_str,
+            "recommendation": score_result.recommendation,
+            "report": header + report.narrative_markdown.strip() + "\n",
+        }
 
     @listen(impact_evaluator)
     async def pr_decision(self):
@@ -430,7 +404,6 @@ async def run_flow(
     try:
         await mergebot.kickoff_async()
     finally:
-        cleanup_crewai_live_console()
         # Workspaces are per-review and must not outlive the flow, success or failure.
         if mergebot.workspace_manager and mergebot.workspace and not mergebot.workspace.degraded:
             await mergebot.workspace_manager.cleanup(mergebot.workspace)

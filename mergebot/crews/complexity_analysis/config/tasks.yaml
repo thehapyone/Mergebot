@@ -12,9 +12,15 @@ complexity_analyze_task:
     {pr_details}
   agent: complexity_analyzer
   expected_output: >
-    - A **complexity impact score** between 0 and 10, where higher scores indicate greater complexity and potential risk.
-    - A detailed analysis explaining the reasoning behind the score, including:
-      - Summary of key changes contributing to the complexity.
-      - Identification of any complex algorithms or patterns introduced.
-      - Assessment of potential challenges in testing, integration, or maintenance.
-      - Recommendations for simplifying complex areas, if applicable.
+    A structured reviewer verdict with:
+
+    - score: a complexity impact score between 0 and 10, where higher scores indicate greater complexity and potential risk.
+    - confidence: "low", "medium", or "high" — how confident you are in this assessment given the available context.
+    - summary: the reasoning behind the score, covering the key changes contributing to the complexity, any complex algorithms or patterns introduced, and potential challenges in testing, integration, or maintenance.
+    - findings: concrete, evidence-backed complexity concerns. For each finding provide a title;
+      a severity of "info", "low", "medium", "high", or "critical"; the affected file path exactly
+      as it appears in the PR details or repository context (omit it for repo-wide observations);
+      the line number when known; evidence quoting the relevant code or observed fact — required
+      for severity medium and above, never speculation; and an actionable recommendation for
+      simplifying the complex area.
+    - explored: a short audit trail of what you examined and why.
