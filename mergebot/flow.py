@@ -386,14 +386,15 @@ async def run_flow(
     if not pr_id_val:
         raise Exception(f"Failed to extract PR/MR ID from URL: {pr_url}")
 
+    # CrewAI 1.x flows seed state via kickoff inputs; constructor kwargs are
+    # silently ignored (state fields would stay at their defaults).
     inital_state = {
         "pr_url": pr_url,
         "pr_id": pr_id_val,
         "pr_title": pr_title,
-        "project": project,
     }
 
-    mergebot = MergeBotFlow(**inital_state)
+    mergebot = MergeBotFlow()
     mergebot.runtime = runtime
     flow_id = mergebot.flow_id
 
@@ -402,7 +403,7 @@ async def run_flow(
     )
 
     try:
-        await mergebot.kickoff_async()
+        await mergebot.kickoff_async(inputs=inital_state)
     finally:
         # Workspaces are per-review and must not outlive the flow, success or failure.
         if mergebot.workspace_manager and mergebot.workspace and not mergebot.workspace.degraded:

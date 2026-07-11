@@ -225,6 +225,20 @@ class TestImpactEvaluatorStep:
             await flow.impact_evaluator()
 
 
+class TestStateSeeding:
+    def test_kickoff_inputs_seed_structured_state(self):
+        """run_flow seeds state via kickoff inputs — constructor kwargs are
+        silently ignored by CrewAI 1.x flows (state fields keep their defaults)."""
+        flow = MergeBotFlow()
+        flow._initialize_state({"pr_url": "https://x/pull/5", "pr_id": 5, "pr_title": "t"})
+        assert flow.state.pr_id == 5
+        assert flow.state.pr_url == "https://x/pull/5"
+
+    def test_constructor_kwargs_do_not_seed_state(self):
+        flow = MergeBotFlow(pr_id=5)
+        assert flow.state.pr_id is None
+
+
 class TestKnownFindingFile:
     def test_diff_fallback_without_workspace(self):
         flow = MergeBotFlow()
