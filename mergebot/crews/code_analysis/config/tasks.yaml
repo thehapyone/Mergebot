@@ -10,9 +10,15 @@ analysis_task:
     ```
   agent: code_analyzer
   expected_output: >
-    - An impact score between 0 and 10, reflecting the significance and potential risk of the code changes.
-    - A detailed analysis explaining the reasoning behind the score, including:
-      - Identification of critical components or modules affected.
-      - Assessment of code complexity introduced or modified.
-      - Potential risks or issues that may arise from the changes.
-      - Recommendations for mitigating identified risks or improving the code.
+    A structured reviewer verdict with:
+
+    - score: an impact score between 0 and 10, reflecting the significance and potential risk of the code changes (higher means riskier).
+    - confidence: "low", "medium", or "high" — how confident you are in this assessment given the available context.
+    - summary: the reasoning behind the score, identifying the critical components or modules affected and the complexity introduced or modified.
+    - findings: concrete, evidence-backed issues. For each finding provide a title; a severity of
+      "info", "low", "medium", "high", or "critical"; the affected file path exactly as it appears
+      in the PR details or repository context (omit it for repo-wide observations); the line number
+      when known; evidence quoting the relevant code or observed fact — required for severity
+      medium and above, never speculation; and an actionable recommendation for mitigating the
+      risk or improving the code.
+    - explored: a short audit trail of what you examined and why.

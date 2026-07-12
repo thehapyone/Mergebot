@@ -11,12 +11,18 @@ test_analysis_task:
     {pr_details}
   agent: test_coverage_analyzer
   expected_output: >
-    - A **test coverage impact score** between 0 and 10, where:
-      - Scores >7 indicate a significant negative impact on test coverage (e.g., decreased coverage, missing tests for new features).
-      - Scores 4-7 indicate some negative impact (e.g., insufficient tests, minor reductions in coverage).
-      - Scores <4 indicate minimal or no negative impact on test coverage.
+    A structured reviewer verdict with:
 
-    - A detailed report including:
-      - **Summary of Findings**: Overview of how the MR negatively affects test coverage.
-      - **Areas Lacking Coverage**: Specific code changes that are not adequately tested.
-      - **Recommendations**: Suggestions to add or improve tests to enhance coverage.
+    - score: a test coverage impact score between 0 and 10, where:
+      scores >7 indicate a significant negative impact on test coverage (e.g., decreased coverage, missing tests for new features);
+      scores 4-7 indicate some negative impact (e.g., insufficient tests, minor reductions in coverage);
+      scores <4 indicate minimal or no negative impact on test coverage.
+    - confidence: "low", "medium", or "high" — how confident you are in this assessment given the available context.
+    - summary: an overview of how the PR/MR affects test coverage and the reasoning behind the score.
+    - findings: concrete, evidence-backed coverage gaps. For each finding provide a title; a
+      severity of "info", "low", "medium", "high", or "critical"; the affected file path exactly
+      as it appears in the PR details or repository context (omit it for repo-wide observations);
+      the line number when known; evidence quoting the relevant code change or observed fact —
+      required for severity medium and above, never speculation; and an actionable recommendation
+      naming the tests to add or improve.
+    - explored: a short audit trail of what you examined and why.

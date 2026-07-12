@@ -2,6 +2,7 @@ from crewai import Agent, Task
 from crewai.project import CrewBase, agent, task
 
 from mergebot.crews.commons import BotBaseCrew
+from mergebot.crews.schemas import ImpactReport
 
 
 @CrewBase
@@ -19,4 +20,5 @@ class ImpactEvaluator(BotBaseCrew):
     def evaluator_task(self) -> Task:
         return Task(
             config=self.tasks_config["evaluator_task"],
+            output_pydantic=ImpactReport,
         )

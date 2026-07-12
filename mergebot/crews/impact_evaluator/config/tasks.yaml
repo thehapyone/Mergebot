@@ -1,80 +1,64 @@
 evaluator_task:
   description: |
-    Aggregate the assessments from all agents.
-    Apply weights to each score to compute an overall impact score on a scale from 0 to 10.
-    Based on the overall impact score and predefined thresholds, determine whether the pull or merge request (PR/MR) should be auto-approved and merged without human approval.
-    Provide and return *ONLY* the comprehensive impact assessment report compiling all assessments, along with a clear recommendation.
+    Write the impact assessment narrative for the pull or merge request (PR/MR).
 
-    {approval_policy}
+    The overall impact score and the recommendation below were computed
+    deterministically from the configured approval policy and are FINAL.
+    Do not recompute, adjust, round, or contradict them anywhere in the report.
 
     **PR/MR ID**: {pr_id}
 
-    **Agent Assessments**:
-    - **Code Analysis Agent**: {code_analysis_assessment}
-    - **Complexity Assessment Agent**: {complexity_assessment}
-    - **Test Coverage Agent**: {test_analysis}
-    - **Risk Assessment Agent**: {risk_assessment}
+    **Final, already-decided outcome (do not alter):**
+    - Overall Impact Score: {overall_score}
+    - Recommendation: {recommendation}
+    - Per-reviewer scores and weights: {per_reviewer_scores}
 
+    **Reviewer verdicts (JSON):**
+
+    Code Analysis Agent:
+    {code_analysis_verdict}
+
+    Complexity Assessment Agent:
+    {complexity_verdict}
+
+    Test Coverage Agent:
+    {test_analysis_verdict}
+
+    Risk Assessment Agent:
+    {risk_verdict}
+
+    Compile these verdicts into a single readable report body: deduplicate
+    overlapping findings across agents, note any conflicts between verdicts,
+    and give reviewers concrete guidance on what to focus on.
   agent: impact_evaluator
   expected_output: |
-    **IMPORTANT: Only return the impact assessment report in the specified format, without any additional text, explanation or context.**
+    A structured impact report with:
 
-    - **Overall Impact Score**: A number between 0 and 10.
-    - **Recommendation**: A clear statement indicating whether the pull or merge request (PR/MR) should be auto-approved and merged without human intervention.
-    - **Justification**: A detailed and formatted impact assessment report justifying the score and recommendation, ready for posting as a comment on the PR/MR.
-    - If manual review is recommended, the report should be enriched with a summary table, triage information, reviewer guidance, and actionable findings for each agent, highlighting concrete issues and suggested remediations.
+    - narrative_markdown: the report body in Markdown, ready to be rendered below a
+      code-generated header. Do NOT include a top-level title, the overall impact
+      score, or the recommendation — those are rendered separately from the decided
+      values above. The body must contain, in order:
 
-    **Output Format (Markdown ready for PR/MR comment):**
+      ## Summary Table
 
-    ```markdown
-    # Impact Assessment Report for PR/MR #<pr_id>
+      | Assessment Agent | Score | Key Findings | Suggested Actions |
+      |---|---|---|---|
+      (one row per agent, scores taken verbatim from the verdicts)
 
-    **Overall Impact Score**: X.X
+      ## Detailed Assessments
 
-    **Recommendation**: [Auto-approve and merge] or [Requires human review]
+      Per agent: its score, a digest of its findings with the supporting evidence,
+      and the suggested actions.
 
-    ---
+      ## Triage & Next Steps
 
-    ## Summary Table
+      The triage level, guidance for reviewers (what to focus on, open questions,
+      points requiring judgment), and any blockers that must be addressed before
+      approval.
 
-    | Assessment Agent             | Score | Key Findings                        | Suggested Actions             |
-    |------------------------------|-------|-------------------------------------|-------------------------------|
-    | Code Analysis Agent          | X.X   | [Key finding for code analysis]      | [Suggested action]            |
-    | Complexity Assessment Agent  | X.X   | [Key finding for complexity]         | [Suggested action]            |
-    | Test Coverage Agent          | X.X   | [Key finding for test coverage]      | [Suggested action]            |
-    | Risk Assessment Agent        | X.X   | [Key finding for risk assessment]    | [Suggested action]            |
+      ## Justification
 
-    ---
+      Reasoning that connects the reviewer verdicts to the final score and
+      recommendation stated above, without altering them.
 
-    ## Detailed Assessments
-
-    - **Code Analysis Agent**: Score X.X
-      - **Findings**: [Summary of code analysis, including specific concerns with examples or pointers to code if applicable.]
-      - **Suggested Action**: [Concrete, actionable next step or remediation.]
-
-    - **Complexity Assessment Agent**: Score X.X
-      - **Findings**: [Summary of complexity assessment, highlighting complex or problematic areas.]
-      - **Suggested Action**: [How to reduce complexity or clarify logic.]
-
-    - **Test Coverage Agent**: Score X.X
-      - **Findings**: [Areas with insufficient coverage or untested code paths.]
-      - **Suggested Action**: [Specific tests to add or coverage to improve.]
-
-    - **Risk Assessment Agent**: Score X.X
-      - **Findings**: [Potential risks, security/privacy concerns, or policy/process gaps.]
-      - **Suggested Action**: [Steps to mitigate identified risks.]
-
-    ---
-
-    ## Triage & Next Steps
-    **Triage Level**: [Low/Medium/High]
-
-    - [Guidance for reviewers: what to focus on, open questions, or points that require judgment.]
-    - [Any blockers that must be addressed before approval.]
-
-    ---
-
-    ## Justification
-
-    [Detailed reasoning behind the overall score and recommendation, referring to the above findings and the context of the change.]
-    ```
+    - triage_level: "low", "medium", or "high".

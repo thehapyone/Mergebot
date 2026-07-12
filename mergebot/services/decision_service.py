@@ -2,6 +2,7 @@ from typing import Any
 
 from mergebot.project_registry import ProjectRuntime
 from mergebot.services import approval_service, merge_service
+from mergebot.services.scoring import AUTO_APPROVE, render_recommendation
 from mergebot.tools.github.api_wrapper import GitHubAPIWrapper
 from mergebot.tools.gitlab.api_wrapper import GitlabAPIWrapper
 from mergebot.validator.logging_config import logger
@@ -58,8 +59,11 @@ async def post_merge_failed_reason(
 
 
 def generate_final_decision(impact_assessment, approved_flag, action_note, analysis_link):
+    # The recommendation crosses this boundary as the scoring enum; the dashboard
+    # row is a render surface, so it gets the human-readable phrasing.
+    recommendation = str(impact_assessment.get("recommendation", "") or "")
     final_decision = {
-        "recommendation": impact_assessment.get("recommendation"),
+        "recommendation": render_recommendation(recommendation),
         "impact_score": impact_assessment.get("score"),
         "action_taken": action_note,
         "analysis_link": analysis_link,
@@ -262,7 +266,7 @@ async def process_decision(
       approved_flag: bool indicating whether approval was performed
     """
     messages = _build_messages(runtime.platform_type)
-    rec = str(impact_assessment.get("recommendation", "") or "").strip().lower()
+    rec = str(impact_assessment.get("recommendation", "") or "").strip()
     report = str(impact_assessment.get("report", "") or "")
 
     if not _is_conclusive_impact_assessment(impact_assessment):
@@ -271,7 +275,9 @@ async def process_decision(
     enriched_report = _ensure_retrigger_guidance(report, runtime)
     analysis_link = await approval_service.post_comment(pr_id, enriched_report, runtime)
 
-    if "approve" in rec:
+    # Exact match on the scoring enum — never a substring check, which once
+    # normalized phrasings like "Do not approve" into an approval.
+    if rec == AUTO_APPROVE:
         approved_flag, action_note, analysis_link = await _process_approval(
             pr_id, impact_assessment, messages, runtime, analysis_link
         )

@@ -21,6 +21,11 @@ RUN adduser --disabled-password --gecos '' appuser
 # Per-review workspace root: must be a disk-backed, writable volume (never tmpfs),
 # sized for the configured review fan-out (workers x max_concurrency x max_repo_mb).
 ENV MERGEBOT_WORKSPACE_DIR=/var/lib/mergebot/workspaces
+
+# Headless container: no CrewAI update-check panel (avoids a PyPI call per flow)
+# and no tracing consent flows.
+ENV CREWAI_DISABLE_VERSION_CHECK=true
+ENV CREWAI_TRACING_ENABLED=false
 RUN mkdir -p "$MERGEBOT_WORKSPACE_DIR" && chown -R appuser:appuser /var/lib/mergebot
 
 # Set work directory
