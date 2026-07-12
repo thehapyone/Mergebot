@@ -6,6 +6,11 @@ services:
     command: ["ondemand"]
     environment:
       - PYTHONUNBUFFERED=1
-    volumes: []
+    volumes:
+      # Per-review workspace clones: disk-backed named volume (never tmpfs).
+      - mergebot-workspaces:/var/lib/mergebot/workspaces
       # Uncomment and edit if you want to mount local config or data
       # - ./mergebot/config.yaml:/home/appuser/mergebot/config.yaml
+
+volumes:
+  mergebot-workspaces:

@@ -37,6 +37,24 @@ from mergebot.tools.prompts import (
 )
 
 
+def build_api_wrapper(runtime: ProjectRuntime) -> GitHubAPIWrapper | GitlabAPIWrapper:
+    """
+    Instantiate the platform API wrapper for the given project runtime.
+
+    Used by the VCS tools (lazily) and by service-layer callers that need typed
+    wrapper returns the CrewAI tool interface cannot carry.
+
+    Raises:
+        ValueError: If the runtime's platform type is not supported.
+    """
+    platform_type = runtime.platform_type
+    if platform_type == "github":
+        return GitHubAPIWrapper(config=runtime.config, project_path=runtime.project_path)
+    if platform_type == "gitlab":
+        return GitlabAPIWrapper(config=runtime.config, project_path=runtime.project_path)
+    raise ValueError(f"Unsupported platform type: {platform_type}")
+
+
 class BaseVCSTool(BaseTool):
     """Base class for all GitHub and GitLab tools with common functionality."""
 
@@ -60,19 +78,7 @@ class BaseVCSTool(BaseTool):
             ValueError: If the returned platform type is not supported.
         """
         if self._api_wrapper is None:
-            platform_type = self.runtime.platform_type
-            if platform_type == "github":
-                self._api_wrapper = GitHubAPIWrapper(
-                    config=self.runtime.config,
-                    project_path=self.runtime.project_path,
-                )
-            elif platform_type == "gitlab":
-                self._api_wrapper = GitlabAPIWrapper(
-                    config=self.runtime.config,
-                    project_path=self.runtime.project_path,
-                )
-            else:
-                raise ValueError(f"Unsupported platform type: {platform_type}")
+            self._api_wrapper = build_api_wrapper(self.runtime)
         return self._api_wrapper
 
 

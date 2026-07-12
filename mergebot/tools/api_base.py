@@ -1,8 +1,25 @@
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from mergebot.validator.config import Config
+from mergebot.workspace.manager import PrRef
+
+
+@dataclass(frozen=True)
+class PullRequestDetails:
+    """Pretty-printed PR/MR details plus typed metadata for workspace provisioning.
+
+    `details` is the exact text blob the analysis crews consume today; `details_no_patch`
+    is the same render with per-file patches omitted (used when the fact pack's
+    compressed diff replaces the raw patch); `ref` is best-effort and None when the
+    platform metadata could not be resolved.
+    """
+
+    details: str
+    details_no_patch: str
+    ref: PrRef | None = None
 
 
 class PullRequestAPIBase(BaseModel):
@@ -88,10 +105,14 @@ class PullRequestAPIBase(BaseModel):
     def get_pull_request(self, pr_number: int) -> str:
         """
         Fetch pull/merge request details (pretty-printed).
+
+        Thin delegate over `get_pull_request_with_ref`: returns only the text blob on
+        success and passes the `{"error": ...}` dict through unchanged on failure.
         """
-        raise NotImplementedError(
-            "This method should be implemented in subclasses to fetch pull/merge request details."
-        )
+        result = self.get_pull_request_with_ref(pr_number)
+        if isinstance(result, PullRequestDetails):
+            return result.details
+        return result
 
     def comment_pull_request(self, pr_number: int, body: str) -> str:
         """
@@ -140,10 +161,31 @@ class PullRequestAPIBase(BaseModel):
             "This method should be implemented in subclasses to perform the merge."
         )
 
+    def get_pull_request_with_ref(self, pr_number: int) -> "PullRequestDetails | dict":
+        """
+        Fetch pull/merge request details as `PullRequestDetails` (pretty text in both
+        renders plus a typed `PrRef`), or an `{"error": ...}` dict on failure.
+        """
+        raise NotImplementedError(
+            "This method should be implemented in subclasses to fetch pull/merge request details."
+        )
+
+    def resolve_git_token(self) -> str | None:
+        """
+        Return the already-resolved platform token usable for git HTTPS auth
+        (GitHub App installation token or PAT; GitLab PAT).
+        """
+        raise NotImplementedError(
+            "This method should be implemented in subclasses to expose the platform token."
+        )
+
     @staticmethod
-    def pretty_print_pull_request(pr_details: dict) -> str:
+    def pretty_print_pull_request(pr_details: dict, include_patch: bool = True) -> str:
         """
         Shared pretty-print logic for PR/MR details.
+
+        With `include_patch=False` the per-file patches are omitted (used when the
+        repository-context compressed diff replaces the raw patch for large PRs).
         """
         pr_metadata = [
             "## Pull Request Details:",
@@ -166,17 +208,20 @@ class PullRequestAPIBase(BaseModel):
         # Prepare Changes and Statistics strings
         changes_info = ["\n## Changes:"]
         for change in pr_details.get("file_changes", pr_details.get("changes", [])):
+            patch = change.get("patch", change.get("diff", None))
+            if not patch:
+                patch_line = ""
+            elif include_patch:
+                patch_line = f"  - Patch:\n{patch}\n"
+            else:
+                patch_line = "  - Patch: omitted here; see the Repository Context compressed diff\n"
             changes_info.extend(
                 [
                     f"File: {change.get('filename', change.get('new_path', ''))}",
                     f"  - Additions: {change.get('additions', change.get('lines_added', ''))}",
                     f"  - Deletions: {change.get('deletions', change.get('lines_removed', ''))}",
                     f"  - Changes: {change.get('changes', '')}",
-                    (
-                        f"  - Patch:\n{change.get('patch', change.get('diff', ''))}\n"
-                        if change.get("patch", change.get("diff", None))
-                        else ""
-                    ),
+                    patch_line,
                 ]
             )
         stats_info = [

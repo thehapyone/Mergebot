@@ -69,9 +69,17 @@ class ProjectContext:
 
     @property
     def overrides(self) -> ProjectConfigOverrides | dict:
-        """Return the project specific configuration overrides."""
+        """Return the project specific configuration overrides.
+
+        exclude_unset keeps the dump to exactly what the project definition wrote:
+        without it, nested models with non-None defaults (e.g. ContextConfig) dump
+        their defaults too and clobber global settings during the deep merge —
+        contradicting the documented "any unset field falls back to global" contract.
+        """
         if self.definition.overrides:
-            return self.definition.overrides.model_dump(mode="python", exclude_none=True)
+            return self.definition.overrides.model_dump(
+                mode="python", exclude_none=True, exclude_unset=True
+            )
         return {}
 
     @property

@@ -13,7 +13,8 @@ dependencies = [
     "crewai-tools (==0.76)",
     "python-gitlab (>=5.6.0,<6.0.0)",
     "pygithub (>=2.6.1,<3.0.0)",
-    "fastapi (>=0.119.0,<0.120.0)"
+    "fastapi (>=0.119.0,<0.120.0)",
+    "code-review-graph (==2.3.6)"
 ]
 
 
@@ -36,10 +37,17 @@ mkdocs-mermaid2-plugin = "^1.2.3"
 mkdocs-git-revision-date-localized-plugin = "^1.4.7"
 mkdocs-autorefs = "^1.4.3"
 mkdocs-awesome-pages-plugin = "^2.10.1"
+pytest = "^9.1.1"
+pytest-asyncio = "^1.4.0"
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.codespell]
 ignore-words-list = "allEdges,astroid,noteable"
-skip = "poetry.lock,**/site/*,logs.txt,*.pem,*.log"
+skip = "poetry.lock,**/site/*,logs.txt,*.pem,*.log,./docs/proposals/demo"
 
 [tool.ruff]
 line-length = 100

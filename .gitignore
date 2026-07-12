@@ -166,3 +166,7 @@ mergebot-saas
 # Skip local configuration files
 config-github.yaml
 config-gitlab.yaml
+.firecrawl/
+
+# Skip demos
+**/demo/*

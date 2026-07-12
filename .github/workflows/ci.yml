@@ -65,6 +65,29 @@ jobs:
           make spell_check
 
 
+  tests:
+    name: "Unit Tests"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/'))
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python + Poetry ${{ env.POETRY_VERSION }}
+        uses: "./.github/actions/python_setup"
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          poetry-version: ${{ env.POETRY_VERSION }}
+          working-directory: ${{ env.WORKDIR }}
+          cache-key: tests-with-extras
+
+      - name: Install dependencies
+        run: |
+          poetry install --with dev
+
+      - name: Run pytest
+        run: |
+          make test
+
+
   build:
     runs-on: ubuntu-latest
     name: Build Docker Image
