@@ -155,6 +155,42 @@ class TestDegradedInputs:
         assert "FetchUserRecord" in touched.content
 
 
+class TestSymlinkJail:
+    """Defense in depth behind the clone's core.symlinks=false: even if a symlink
+    were present in the working tree, no read may follow it outside the checkout."""
+
+    CANARY = "SECRET-CANARY-CONTENTS-DO-NOT-LEAK"
+
+    def _outside_secret(self, tmp_path):
+        # A function so symbol extraction fires and the touched-symbol excerpt
+        # read path (the primary leak vector) is exercised, not just the diff.
+        secret = tmp_path / "outside" / "secret.py"
+        secret.parent.mkdir(parents=True, exist_ok=True)
+        secret.write_text(f"def steal_secret():\n    return '{self.CANARY}'\n", encoding="utf-8")
+        return secret
+
+    def test_changed_symlink_target_never_read(self, scratch_repo, tmp_path):
+        secret = self._outside_secret(tmp_path)
+        (scratch_repo.path / "leak.py").symlink_to(secret)
+        run_git(scratch_repo.path, "add", "leak.py")
+        run_git(scratch_repo.path, "commit", "-m", "add symlink")
+
+        pack = build_scratch_pack(scratch_repo, tmp_path)
+        rendered = pack.render()
+        assert self.CANARY not in rendered
+        # the symlink contributes no touched-symbol excerpt
+        touched = next(s for s in pack.sections if s.name == "touched_symbols")
+        assert "leak.py" not in touched.content
+
+    def test_untracked_symlink_target_never_excerpted(self, scratch_repo, tmp_path):
+        secret = self._outside_secret(tmp_path)
+        # An untracked symlink in the tree feeds the compressed-diff local excerpt path.
+        (scratch_repo.path / "untracked_leak.py").symlink_to(secret)
+
+        pack = build_scratch_pack(scratch_repo, tmp_path)
+        assert self.CANARY not in pack.render()
+
+
 class TestGitEnvThreading:
     def test_builder_git_uses_workspace_env(self, scratch_repo, tmp_path, monkeypatch):
         """The blobless checkout lazy-fetches blobs during diff; every git call the

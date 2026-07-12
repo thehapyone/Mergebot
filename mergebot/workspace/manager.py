@@ -58,7 +58,9 @@ GIT_NETWORK_ENV_VARS = (
 )
 
 # Always-on git safety flags: never run repo hooks, no fsmonitor daemon, no risky
-# transports, and never block on an interactive credential prompt.
+# transports, never block on an interactive credential prompt, and never
+# materialize PR-controlled symlinks (they become plain files holding the target
+# path, so nothing that reads the checkout can be routed outside it).
 GIT_SAFETY_CONFIG = [
     "-c",
     "core.hooksPath=/dev/null",
@@ -66,6 +68,8 @@ GIT_SAFETY_CONFIG = [
     "core.fsmonitor=false",
     "-c",
     "protocol.ext.allow=never",
+    "-c",
+    "core.symlinks=false",
 ]
 
 
@@ -267,6 +271,11 @@ class WorkspaceManager:
         await self._git(
             [
                 "clone",
+                # Persisted into the new repo's config (unlike the per-invocation
+                # GIT_SAFETY_CONFIG flags), so git run by the context builder and
+                # CRG inside the checkout sees the same no-symlinks semantics.
+                "-c",
+                "core.symlinks=false",
                 "--filter=blob:none",
                 "--no-tags",
                 "--no-checkout",

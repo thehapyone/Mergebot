@@ -26,6 +26,7 @@ from mergebot.context.symbols import (
     is_probably_binary,
     is_source_path,
     read_text,
+    resolve_within,
     symbol_with_path,
 )
 
@@ -312,8 +313,8 @@ class FactPackBuilder:
         output = self._git(["diff", "--unified=0", "--find-renames", self.base, "--"])
         ranges = diff_compression.parse_hunk_ranges(output)
         for path in self._untracked_files():
-            abs_path = self.repo / path
-            if abs_path.is_file() and not is_probably_binary(abs_path):
+            abs_path = resolve_within(self.repo, path)
+            if abs_path and abs_path.is_file() and not is_probably_binary(abs_path):
                 line_count = len(read_text(abs_path).splitlines())
                 ranges.append(
                     HunkRange(path=path, start=1, end=max(1, line_count), whole_file=True)
@@ -327,8 +328,10 @@ class FactPackBuilder:
         for changed in changed_files:
             if changed.status.startswith("D"):
                 continue
-            path = self.repo / changed.path
-            if not path.is_file() or is_probably_binary(path) or not is_source_path(path):
+            path = resolve_within(self.repo, changed.path)
+            if path is None or not path.is_file() or is_probably_binary(path):
+                continue
+            if not is_source_path(path):
                 continue
             cached, was_hit = self.cache.get_or_parse(path)
             self.cache_hits += int(was_hit)
@@ -395,8 +398,11 @@ class FactPackBuilder:
                 "The full source still appears in `compressed_diff` for new files._"
             )
         for symbol in visible:
+            symbol_file = resolve_within(self.repo, symbol.path)
+            if symbol_file is None:
+                continue
             source, omitted_lines = _read_line_excerpt(
-                self.repo / symbol.path,
+                symbol_file,
                 symbol.start_line,
                 symbol.end_line,
             )
@@ -642,7 +648,8 @@ class FactPackBuilder:
         untracked = [
             path
             for path in self._untracked_files()
-            if _should_expose_untracked_to_crg(self.repo / path)
+            if (safe_path := resolve_within(self.repo, path)) is not None
+            and _should_expose_untracked_to_crg(safe_path)
         ]
         # No git_env here: CRG runs credential-scrubbed (see crg.run_code_review_graph);
         # the builder's own diffs have already cached the base blobs it needs.

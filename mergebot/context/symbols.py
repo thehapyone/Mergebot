@@ -148,6 +148,24 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
+def resolve_within(root: Path, rel_path: str | Path) -> Path | None:
+    """Resolve `root / rel_path` for reading, refusing paths that escape `root`.
+
+    Symlink-aware: the resolved target must stay under `root`, so a symlinked
+    path inside a checkout can never route a read outside it (PR content is
+    attacker-controlled). Defense in depth behind the workspace clone's
+    `core.symlinks=false`, which stops symlinks from materializing at all.
+    """
+    try:
+        real = (root / rel_path).resolve()
+        root_real = root.resolve()
+    except OSError:
+        return None
+    if real != root_real and not real.is_relative_to(root_real):
+        return None
+    return real
+
+
 def is_probably_binary(path: Path) -> bool:
     try:
         sample = path.read_bytes()[:2048]

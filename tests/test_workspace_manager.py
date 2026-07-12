@@ -21,7 +21,7 @@ from mergebot.workspace.manager import (
     WorkspaceManager,
     credential_from_runtime,
 )
-from tests.conftest import FAKE_TOKEN
+from tests.conftest import FAKE_TOKEN, run_git
 
 
 def git_in_workspace(workspace, *args: str) -> str:
@@ -80,6 +80,45 @@ class TestProvisionedWorkspace:
     async def test_hooks_neutralized(self, provisioned_workspace):
         hooks = git_in_workspace(provisioned_workspace, "config", "--get", "core.hooksPath")
         assert hooks.strip() in {"", "/dev/null"}
+
+    async def test_pr_symlink_materializes_as_plain_file(
+        self, scratch_repo, workspace_manager, tmp_path
+    ):
+        """A PR-added symlink must never materialize in the checkout.
+
+        With `core.symlinks=false` git writes it as a plain file holding the
+        target path, so nothing that reads the checkout (fact pack, CRG, tools)
+        can be routed outside the jail through it.
+        """
+        secret = tmp_path / "outside-secret.txt"
+        secret.write_text("SYMLINK-CANARY\n", encoding="utf-8")
+        (scratch_repo.path / "leak.py").symlink_to(secret)
+        run_git(scratch_repo.path, "add", "leak.py")
+        run_git(scratch_repo.path, "commit", "-m", "add symlink escape")
+        head_sha = run_git(scratch_repo.path, "rev-parse", "HEAD")
+
+        pr = PrRef(
+            clone_url=f"file://{scratch_repo.path.resolve()}",
+            head_sha=head_sha,
+            base_sha=scratch_repo.base_sha,
+            pr_number=7,
+        )
+        credential = credential_from_runtime("github", FAKE_TOKEN)
+        workspace = await workspace_manager.provision(pr, credential=credential)
+        try:
+            assert not workspace.degraded, workspace.degraded_reason
+            materialized = workspace.checkout / "leak.py"
+            assert materialized.exists()
+            assert not materialized.is_symlink()
+            content = materialized.read_text(encoding="utf-8")
+            assert "SYMLINK-CANARY" not in content
+            assert str(secret) in content  # the plain file holds the target path
+            # Persisted into the repo config, so git run inside the checkout by the
+            # context builder and CRG sees the same no-symlinks semantics.
+            symlinks_cfg = git_in_workspace(workspace, "config", "--get", "core.symlinks")
+            assert symlinks_cfg.strip() == "false"
+        finally:
+            await workspace_manager.cleanup(workspace)
 
     async def test_path_jail(self, provisioned_workspace):
         workspace = provisioned_workspace

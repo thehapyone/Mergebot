@@ -15,7 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from mergebot.context.symbols import is_probably_binary, read_text
+from mergebot.context.symbols import is_probably_binary, read_text, resolve_within
 
 DIFF_MAX_LINES = 900
 UNTRACKED_EXCERPT_LINES = 220
@@ -126,8 +126,8 @@ def build_compressed_diff(
         for path in untracked:
             if path in omitted_diff_paths:
                 continue
-            abs_path = repo / path
-            if abs_path.is_file() and not is_probably_binary(abs_path):
+            abs_path = resolve_within(repo, path)
+            if abs_path and abs_path.is_file() and not is_probably_binary(abs_path):
                 diff += f"\n## {path}\n```text\n{read_lines(abs_path, 1, UNTRACKED_EXCERPT_LINES)}\n```\n"
     if not diff.strip():
         diff = "No git diff found for the selected base."
